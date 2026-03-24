@@ -24,6 +24,28 @@ function App() {
   const [transactionFilters, setTransactionFilters] = useState({});
   const [syncing, setSyncing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      console.log('🟢 Connection restored');
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log('🔴 Connection lost - working offline');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Listen to auth state changes - ALWAYS CHECK AUTH FIRST
   useEffect(() => {
@@ -46,10 +68,31 @@ function App() {
     if (!user) return;
 
     setSyncing(true);
+    
+    // Flag to prevent overwriting during initial load
+    let isInitialLoad = true;
 
     // Subscribe to transactions
     const unsubTransactions = cloudStorage.subscribeToTransactions((data) => {
-      setTransactions(data);
+      if (isInitialLoad) {
+        // First load: merge with any pending local changes
+        setTransactions(prevLocal => {
+          // If we have local transactions that aren't in cloud yet, keep them
+          const cloudIds = new Set(data.map(t => t.id));
+          const localOnly = prevLocal.filter(t => !cloudIds.has(t.id));
+          
+          if (localOnly.length > 0) {
+            console.log(`Preserving ${localOnly.length} local-only transactions during initial sync`);
+            return [...data, ...localOnly];
+          }
+          
+          return data;
+        });
+        isInitialLoad = false;
+      } else {
+        // Subsequent updates: trust cloud as source of truth
+        setTransactions(data);
+      }
       setSyncing(false);
     });
 
@@ -87,73 +130,97 @@ function App() {
     };
   }, [user]);
 
-  // LEGACY: Load from localStorage (for migration)
+  // ONE-TIME MIGRATION: Load from localStorage and migrate to Firebase
   useEffect(() => {
     if (!user) return;
     
     const savedTransactions = localStorage.getItem('transactions');
     const savedBudgets = localStorage.getItem('budgets');
     
-    if (savedTransactions) {
-      const parsed = JSON.parse(savedTransactions);
+    // Only migrate if we have localStorage data
+    if (savedTransactions || savedBudgets) {
+      console.log('🔄 Migrating localStorage data to Firebase...');
       
-      // Migration: Convert old dual-transaction transfers to single transactions
-      // Note: Old format used numeric IDs with optional "-source"/"-dest" suffix
-      // New format uses "timestamp-randomstring" (e.g., "1711276200000-k3j9x2m4p")
-      const migratedTransactions = [];
-      const processedTransferIds = new Set();
-      
-      parsed.forEach(t => {
-        if (t.type === 'transfer' && t.isSource !== undefined) {
-          // Old format transfer (has isSource property)
-          // Old IDs were like: 123456789 or 123456789-source
-          const idStr = t.id.toString();
-          const baseId = idStr.endsWith('-source') || idStr.endsWith('-dest') 
-            ? idStr.substring(0, idStr.lastIndexOf('-'))
-            : idStr;
-          
-          if (!processedTransferIds.has(baseId)) {
-            // Create single transfer transaction
-            migratedTransactions.push({
-              id: baseId,
-              type: 'transfer',
-              amount: t.amount,
-              note: t.note,
-              date: t.date,
-              sourceAccount: t.sourceAccount,
-              destinationAccount: t.destinationAccount
+      const migrateData = async () => {
+        try {
+          if (savedTransactions) {
+            const parsed = JSON.parse(savedTransactions);
+            
+            // Migration: Convert old dual-transaction transfers to single transactions
+            const migratedTransactions = [];
+            const processedTransferIds = new Set();
+            
+            parsed.forEach(t => {
+              if (t.type === 'transfer' && t.isSource !== undefined) {
+                // Old format transfer (has isSource property)
+                const idStr = t.id.toString();
+                const baseId = idStr.endsWith('-source') || idStr.endsWith('-dest') 
+                  ? idStr.substring(0, idStr.lastIndexOf('-'))
+                  : idStr;
+                
+                if (!processedTransferIds.has(baseId)) {
+                  migratedTransactions.push({
+                    id: baseId,
+                    type: 'transfer',
+                    amount: t.amount,
+                    note: t.note,
+                    date: t.date,
+                    sourceAccount: t.sourceAccount,
+                    destinationAccount: t.destinationAccount
+                  });
+                  processedTransferIds.add(baseId);
+                }
+              } else if (t.type !== 'transfer' || t.isSource === undefined) {
+                migratedTransactions.push(t);
+              }
             });
-            processedTransferIds.add(baseId);
+            
+            // Upload to Firebase using batch operation
+            if (migratedTransactions.length > 0) {
+              console.log(`Migrating ${migratedTransactions.length} transactions to Firebase...`);
+              await cloudStorage.batchAddTransactions(migratedTransactions);
+              console.log('✅ Transactions migrated to Firebase');
+            }
           }
-        } else if (t.type !== 'transfer' || t.isSource === undefined) {
-          // Keep non-transfer or already migrated transfers (including new format)
-          migratedTransactions.push(t);
+          
+          if (savedBudgets) {
+            const budgetsData = JSON.parse(savedBudgets);
+            if (Object.keys(budgetsData).length > 0) {
+              console.log('Migrating budgets to Firebase...');
+              await cloudStorage.saveBudgets(budgetsData);
+              console.log('✅ Budgets migrated to Firebase');
+            }
+          }
+          
+          // Clear localStorage after successful migration
+          localStorage.removeItem('transactions');
+          localStorage.removeItem('budgets');
+          console.log('✅ Migration complete - localStorage cleared');
+          
+        } catch (error) {
+          console.error('Migration error:', error);
+          alert(
+            '⚠️ Migration Warning\n\n' +
+            'Failed to migrate some data to cloud.\n' +
+            'Your data is safe in localStorage.\n\n' +
+            'Please try refreshing the page.'
+          );
         }
-      });
+      };
       
-      setTransactions(migratedTransactions);
-      
-      // Save migrated data if migration occurred
-      if (migratedTransactions.length !== parsed.length) {
-        localStorage.setItem('transactions', JSON.stringify(migratedTransactions));
-      }
+      migrateData();
     }
-    
-    if (savedBudgets) {
-      setBudgets(JSON.parse(savedBudgets));
-    }
-  }, []);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup orphaned budget data on mount
   useEffect(() => {
     const cleanupOrphanedBudgets = () => {
-      const savedEnvelopes = localStorage.getItem('envelopes');
-      if (!savedEnvelopes || Object.keys(budgets).length === 0) return;
+      if (Object.keys(budgets).length === 0) return;
       
-      const envelopeList = JSON.parse(savedEnvelopes);
-      const validEnvelopeNames = new Set(envelopeList.map(env => env.name));
+      // Get valid envelope names from DataContext
+      const validEnvelopeNames = new Set();
       
-      // Also include envelopes from transactions (legacy support)
+      // Include envelopes from transactions
       transactions.forEach(t => {
         if (t.type === 'expense' && t.envelope) {
           validEnvelopeNames.add(t.envelope);
@@ -190,38 +257,6 @@ function App() {
     }
   }, [budgets, transactions]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('transactions', JSON.stringify(transactions));
-    } catch (e) {
-      if (e.name === 'QuotaExceededError') {
-        alert(
-          '⚠️ Storage Limit Reached!\n\n' +
-          'Your browser storage is full. Please:\n' +
-          '1. Export your data as backup\n' +
-          '2. Delete old transactions\n' +
-          '3. Clear browser cache\n\n' +
-          'Your recent changes may not be saved.'
-        );
-        console.error('localStorage quota exceeded:', e);
-      } else {
-        console.error('Error saving transactions:', e);
-      }
-    }
-  }, [transactions]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('budgets', JSON.stringify(budgets));
-    } catch (e) {
-      if (e.name === 'QuotaExceededError') {
-        console.error('localStorage quota exceeded for budgets:', e);
-      } else {
-        console.error('Error saving budgets:', e);
-      }
-    }
-  }, [budgets]);
-
   // Handle import transactions event
   useEffect(() => {
     const handleImportEvent = async (event) => {
@@ -236,25 +271,15 @@ function App() {
         return newTransactions;
       });
 
-      // Sync to cloud storage in background
+      // Sync to cloud storage in background using BATCH operations
       if (user) {
         console.log('Syncing imported transactions to cloud storage...');
         setSyncing(true);
         
         try {
-          let successCount = 0;
-          let failCount = 0;
-          
-          // Save each transaction to cloud storage
-          for (const transaction of importedTransactions) {
-            try {
-              await cloudStorage.addTransaction(transaction);
-              successCount++;
-            } catch (error) {
-              console.error(`Failed to sync transaction ${transaction.id}:`, error);
-              failCount++;
-            }
-          }
+          // Use batch operation for much faster imports
+          const successCount = await cloudStorage.batchAddTransactions(importedTransactions);
+          const failCount = 0;
           
           console.log(`Cloud sync complete: ${successCount} succeeded, ${failCount} failed`);
           
@@ -393,14 +418,35 @@ function App() {
 
   const handleSaveTransaction = async (transaction) => {
     try {
+      // Optimistic update: Update UI immediately
+      if (editTransaction) {
+        setTransactions(prev => prev.map(t => 
+          t.id === editTransaction.id ? { ...transaction, id: editTransaction.id } : t
+        ));
+      } else {
+        setTransactions(prev => [...prev, transaction]);
+      }
+      
+      setShowModal(false);
+      
+      // Sync to cloud in background
       if (editTransaction) {
         await cloudStorage.updateTransaction(editTransaction.id, transaction);
       } else {
         await cloudStorage.addTransaction(transaction);
       }
-      setShowModal(false);
     } catch (error) {
       console.error('Save transaction error:', error);
+      
+      // Rollback on error
+      if (editTransaction) {
+        setTransactions(prev => prev.map(t => 
+          t.id === editTransaction.id ? editTransaction : t
+        ));
+      } else {
+        setTransactions(prev => prev.filter(t => t.id !== transaction.id));
+      }
+      
       alert('Failed to save transaction. Please try again.');
     }
   };
@@ -433,10 +479,20 @@ function App() {
       return;
     }
 
+    // Store current state for rollback
+    const previousTransactions = [...transactions];
+
     try {
+      // Optimistic delete: Remove from UI immediately
+      setTransactions(prev => prev.filter(t => t.id !== id));
+      
+      // Delete from cloud in background
       await cloudStorage.deleteTransaction(id);
     } catch (error) {
       console.error('Delete transaction error:', error);
+      
+      // Rollback on error
+      setTransactions(previousTransactions);
       alert('Failed to delete transaction. Please try again.');
     }
   };
@@ -545,6 +601,13 @@ function App() {
           <div className="sync-indicator">
             <span className="sync-icon">🔄</span>
             Syncing...
+          </div>
+        )}
+
+        {!isOnline && (
+          <div className="offline-indicator">
+            <span className="offline-icon">📡</span>
+            Offline - Changes will sync when connected
           </div>
         )}
 

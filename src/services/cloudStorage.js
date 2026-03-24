@@ -9,7 +9,9 @@ import {
   onSnapshot,
   writeBatch,
   serverTimestamp,
-  orderBy
+  orderBy,
+  enableNetwork,
+  disableNetwork
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
@@ -17,6 +19,40 @@ class CloudStorageService {
   constructor() {
     this.userId = null;
     this.listeners = new Map();
+    this.isOnline = navigator.onLine;
+    this.pendingWrites = [];
+    
+    // Monitor online/offline status
+    window.addEventListener('online', () => {
+      console.log('🟢 Back online - resuming Firestore sync');
+      this.isOnline = true;
+      enableNetwork(db).catch(err => console.error('Failed to enable network:', err));
+      this.processPendingWrites();
+    });
+    
+    window.addEventListener('offline', () => {
+      console.log('🔴 Offline - Firestore will queue writes');
+      this.isOnline = false;
+      disableNetwork(db).catch(err => console.error('Failed to disable network:', err));
+    });
+  }
+
+  // Process any writes that were queued while offline
+  async processPendingWrites() {
+    if (this.pendingWrites.length === 0) return;
+    
+    console.log(`Processing ${this.pendingWrites.length} pending writes...`);
+    const writes = [...this.pendingWrites];
+    this.pendingWrites = [];
+    
+    for (const write of writes) {
+      try {
+        await write();
+      } catch (error) {
+        console.error('Failed to process pending write:', error);
+        this.pendingWrites.push(write); // Re-queue on failure
+      }
+    }
   }
 
   // Set current user
@@ -244,6 +280,32 @@ class CloudStorageService {
   }
 
   // ==================== BULK OPERATIONS ====================
+
+  // Batch add transactions (up to 500 per batch - Firestore limit)
+  async batchAddTransactions(transactions) {
+    const transactionsRef = this.getUserCollection('transactions');
+    const batches = [];
+    
+    // Split into chunks of 500 (Firestore batch limit)
+    for (let i = 0; i < transactions.length; i += 500) {
+      const chunk = transactions.slice(i, i + 500);
+      const batch = writeBatch(db);
+      
+      chunk.forEach(transaction => {
+        const docRef = doc(transactionsRef, transaction.id.toString());
+        batch.set(docRef, {
+          ...transaction,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      });
+      
+      batches.push(batch.commit());
+    }
+    
+    await Promise.all(batches);
+    return transactions.length;
+  }
 
   // Import all data (bulk write)
   async importAllData(data) {

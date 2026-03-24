@@ -64,6 +64,40 @@ export const DataProvider = ({ children }) => {
 
   // Track if we should sync to cloud (to avoid syncing during cloud data load)
   const [shouldSyncToCloud, setShouldSyncToCloud] = useState(false);
+  const syncTimeoutRef = React.useRef(null);
+
+  // Debounced sync function to batch multiple rapid changes
+  const debouncedSyncEnvelopes = React.useCallback((envelopesData) => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    
+    syncTimeoutRef.current = setTimeout(async () => {
+      try {
+        const cloudStorage = (await import('../services/cloudStorage')).default;
+        await cloudStorage.saveEnvelopes(envelopesData);
+        console.log('✅ Envelopes synced to cloud');
+      } catch (error) {
+        console.error('Failed to sync envelopes to cloud:', error);
+      }
+    }, 1000); // Wait 1 second after last change
+  }, []);
+
+  const debouncedSyncPaymentMethods = React.useCallback((methodsData) => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    
+    syncTimeoutRef.current = setTimeout(async () => {
+      try {
+        const cloudStorage = (await import('../services/cloudStorage')).default;
+        await cloudStorage.savePaymentMethods(methodsData);
+        console.log('✅ Payment methods synced to cloud');
+      } catch (error) {
+        console.error('Failed to sync payment methods to cloud:', error);
+      }
+    }, 1000); // Wait 1 second after last change
+  }, []);
 
   // Sync envelopes to localStorage
   useEffect(() => {
@@ -71,9 +105,9 @@ export const DataProvider = ({ children }) => {
     
     // Sync to cloud storage if this is a user-initiated change
     if (shouldSyncToCloud && envelopes.length > 0) {
-      syncEnvelopesToCloud(envelopes);
+      debouncedSyncEnvelopes(envelopes);
     }
-  }, [envelopes, shouldSyncToCloud]);
+  }, [envelopes, shouldSyncToCloud, debouncedSyncEnvelopes]);
 
   // Sync payment methods to localStorage
   useEffect(() => {
@@ -81,9 +115,9 @@ export const DataProvider = ({ children }) => {
     
     // Sync to cloud storage if this is a user-initiated change
     if (shouldSyncToCloud && paymentMethods.length > 0) {
-      syncPaymentMethodsToCloud(paymentMethods);
+      debouncedSyncPaymentMethods(paymentMethods);
     }
-  }, [paymentMethods, shouldSyncToCloud]);
+  }, [paymentMethods, shouldSyncToCloud, debouncedSyncPaymentMethods]);
 
   // Enable cloud sync after initial load
   useEffect(() => {
@@ -127,29 +161,13 @@ export const DataProvider = ({ children }) => {
     return () => {
       window.removeEventListener('cloudEnvelopesLoaded', handleCloudEnvelopes);
       window.removeEventListener('cloudPaymentMethodsLoaded', handleCloudPaymentMethods);
+      
+      // Cleanup timeout on unmount
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
     };
   }, []);
-
-  // Cloud sync functions
-  const syncEnvelopesToCloud = async (envelopesData) => {
-    try {
-      const cloudStorage = (await import('../services/cloudStorage')).default;
-      await cloudStorage.saveEnvelopes(envelopesData);
-      console.log('✅ Envelopes synced to cloud');
-    } catch (error) {
-      console.error('Failed to sync envelopes to cloud:', error);
-    }
-  };
-
-  const syncPaymentMethodsToCloud = async (methodsData) => {
-    try {
-      const cloudStorage = (await import('../services/cloudStorage')).default;
-      await cloudStorage.savePaymentMethods(methodsData);
-      console.log('✅ Payment methods synced to cloud');
-    } catch (error) {
-      console.error('Failed to sync payment methods to cloud:', error);
-    }
-  };
 
   // Helper functions
   const addEnvelope = (name, category = 'need') => {

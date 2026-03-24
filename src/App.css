@@ -495,3 +495,54 @@
     font-size: 20px;
   }
 }
+
+/* Sync and Offline Indicators */
+.sync-indicator,
+.offline-indicator {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: rgba(99, 102, 241, 0.95);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideInRight 0.3s ease-out;
+}
+
+.offline-indicator {
+  background: rgba(239, 68, 68, 0.95);
+  top: 56px;
+}
+
+.sync-icon,
+.offline-icon {
+  font-size: 16px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
