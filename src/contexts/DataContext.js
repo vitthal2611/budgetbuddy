@@ -178,6 +178,11 @@ export const DataProvider = ({ children }) => {
     return isNaN(parsed) ? 0 : Math.abs(parsed);
   };
 
+  // Generate unique transaction ID with collision prevention
+  const generateTransactionId = () => {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  };
+
   const value = {
     envelopes,
     paymentMethods,
@@ -191,7 +196,8 @@ export const DataProvider = ({ children }) => {
     validateTransaction,
     isValidDate,
     detectDuplicates,
-    normalizeAmount
+    normalizeAmount,
+    generateTransactionId
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

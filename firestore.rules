@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the data
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // User data rules
+    match /users/{userId} {
+      // User can only read/write their own data
+      allow read, write: if isOwner(userId);
+      
+      // Transactions collection
+      match /transactions/{transactionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                        request.resource.data.keys().hasAll(['id', 'type', 'amount', 'date', 'note']);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+      
+      // Budgets collection
+      match /budgets/{budgetId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Envelopes collection
+      match /envelopes/{envelopeId} {
+        allow read, write: if isOwner(userId);
+      }
+      
+      // Payment methods collection
+      match /paymentMethods/{methodId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

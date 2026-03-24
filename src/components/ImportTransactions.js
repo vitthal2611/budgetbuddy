@@ -3,7 +3,7 @@ import './ImportTransactions.css';
 import { useData } from '../contexts/DataContext';
 
 const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {
-  const { envelopes, paymentMethods, addEnvelope, addPaymentMethod } = useData();
+  const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
   const [step, setStep] = useState(1); // 1: Upload, 2: Map, 3: Preview
   const [csvData, setCsvData] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -569,9 +569,9 @@ const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {
       type = 'income';
     }
 
-    // Build transaction
+    // Build transaction with unique ID
     const transaction = {
-      id: Date.now() + idx,
+      id: generateTransactionId(),
       type,
       amount: Math.abs(amount),
       note: row[columnMapping.note] || 'Imported transaction',

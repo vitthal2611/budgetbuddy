@@ -3,7 +3,7 @@ import './TransactionModal.css';
 import { useData } from '../contexts/DataContext';
 
 const TransactionModal = ({ type, transaction, onSave, onClose }) => {
-  const { envelopes, paymentMethods, addEnvelope, addPaymentMethod } = useData();
+  const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
   const today = new Date();
   const defaultDate = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
 
@@ -52,7 +52,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
     if (type === 'transfer') {
       // Store transfer as single transaction with both accounts
       onSave({
-        id: transaction?.id || Date.now(),
+        id: transaction?.id || generateTransactionId(),
         type: 'transfer',
         amount: formData.amount,
         note: formData.note,
@@ -62,7 +62,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
       });
     } else {
       onSave({
-        id: transaction?.id || Date.now(),
+        id: transaction?.id || generateTransactionId(),
         type,
         ...formData
       });
