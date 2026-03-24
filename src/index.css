@@ -17,10 +17,15 @@ body {
   touch-action: manipulation;
 }
 
-/* Ensure minimum touch target size */
-button, a, input, select {
-  min-height: 44px;
+/* Ensure minimum touch target size (Apple HIG: 44px, Material: 48px) */
+button, a, input, select, textarea {
+  min-height: 48px;
   touch-action: manipulation;
+}
+
+/* Interactive elements should be easily tappable */
+button, a {
+  min-width: 48px;
 }
 
 /* Improve form input experience on mobile */

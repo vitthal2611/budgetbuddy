@@ -11,6 +11,7 @@
   z-index: 1000;
   animation: fadeIn 0.25s ease-out;
   backdrop-filter: blur(4px);
+  padding: 0;
 }
 
 @keyframes fadeIn {
@@ -318,6 +319,7 @@
 @media (min-width: 481px) {
   .modal-overlay {
     align-items: center;
+    padding: 20px;
   }
   
   .modal-content {
