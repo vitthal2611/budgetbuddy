@@ -88,10 +88,18 @@ class AuthService {
       if (result) {
         this.currentUser = result.user;
         cloudStorage.setUser(result.user.uid);
+        console.log('✅ Google sign-in successful:', result.user.email);
         return result.user;
       }
       return null;
     } catch (error) {
+      // Filter out harmless Firebase UI errors
+      if (error.message?.includes('MDL') || 
+          error.message?.includes('onboarding') ||
+          error.message?.includes('Cross-Origin-Opener-Policy')) {
+        console.debug('Suppressed harmless Firebase UI error:', error.code);
+        return null;
+      }
       console.error('Redirect result error:', error);
       throw this.handleAuthError(error);
     }

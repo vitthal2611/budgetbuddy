@@ -3,13 +3,35 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 
-// Suppress ResizeObserver loop error (harmless warning)
-const resizeObserverErr = window.console.error;
+// Suppress harmless console errors and warnings
+const originalError = window.console.error;
+const originalWarn = window.console.warn;
+
+// Patterns of errors/warnings to suppress
+const suppressPatterns = [
+  'ResizeObserver loop',
+  'Invalid argument provided to upgrade MDL element',
+  'Invalid argument provided to downgrade MDL nodes',
+  'Cannot set properties of null',
+  'Cross-Origin-Opener-Policy policy would block',
+  'addDevModeBanner',
+  'onboarding.js'
+];
+
 window.console.error = (...args) => {
-  if (args[0]?.includes?.('ResizeObserver loop')) {
-    return;
+  const message = args.join(' ');
+  const shouldSuppress = suppressPatterns.some(pattern => message.includes(pattern));
+  if (!shouldSuppress) {
+    originalError(...args);
   }
-  resizeObserverErr(...args);
+};
+
+window.console.warn = (...args) => {
+  const message = args.join(' ');
+  const shouldSuppress = suppressPatterns.some(pattern => message.includes(pattern));
+  if (!shouldSuppress) {
+    originalWarn(...args);
+  }
 };
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
