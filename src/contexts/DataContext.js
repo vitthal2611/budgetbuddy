@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 const DataContext = createContext();
 
@@ -13,25 +14,35 @@ export const useData = () => {
 export const DataProvider = ({ children }) => {
   // Envelopes with categories
   const [envelopes, setEnvelopes] = useState(() => {
-    const saved = localStorage.getItem('envelopes');
+    const saved = safeLocalStorage.getItem('envelopes');
     if (saved) {
-      return JSON.parse(saved);
+      try {
+        return JSON.parse(saved);
+      } catch (error) {
+        console.error('Failed to parse envelopes:', error);
+        return [];
+      }
     }
     
     // Migration: Check for old data structure
-    const oldEnvelopes = localStorage.getItem('customEnvelopes');
-    const oldCategories = localStorage.getItem('envelopeCategories');
+    const oldEnvelopes = safeLocalStorage.getItem('customEnvelopes');
+    const oldCategories = safeLocalStorage.getItem('envelopeCategories');
     if (oldEnvelopes) {
-      const envelopeNames = JSON.parse(oldEnvelopes);
-      const categories = oldCategories ? JSON.parse(oldCategories) : {};
-      const migrated = envelopeNames.map(name => ({
-        name,
-        category: categories[name] || 'need'
-      }));
-      localStorage.setItem('envelopes', JSON.stringify(migrated));
-      localStorage.removeItem('customEnvelopes');
-      localStorage.removeItem('envelopeCategories');
-      return migrated;
+      try {
+        const envelopeNames = JSON.parse(oldEnvelopes);
+        const categories = oldCategories ? JSON.parse(oldCategories) : {};
+        const migrated = envelopeNames.map(name => ({
+          name,
+          category: categories[name] || 'need'
+        }));
+        safeLocalStorage.setItem('envelopes', JSON.stringify(migrated));
+        safeLocalStorage.removeItem('customEnvelopes');
+        safeLocalStorage.removeItem('envelopeCategories');
+        return migrated;
+      } catch (error) {
+        console.error('Failed to migrate envelopes:', error);
+        return [];
+      }
     }
     
     return [];
@@ -39,18 +50,26 @@ export const DataProvider = ({ children }) => {
 
   // Payment methods
   const [paymentMethods, setPaymentMethods] = useState(() => {
-    const saved = localStorage.getItem('paymentMethods');
-    return saved ? JSON.parse(saved) : [];
+    const saved = safeLocalStorage.getItem('paymentMethods');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (error) {
+        console.error('Failed to parse payment methods:', error);
+        return [];
+      }
+    }
+    return [];
   });
 
   // Sync envelopes to localStorage
   useEffect(() => {
-    localStorage.setItem('envelopes', JSON.stringify(envelopes));
+    safeLocalStorage.setItem('envelopes', JSON.stringify(envelopes));
   }, [envelopes]);
 
   // Sync payment methods to localStorage
   useEffect(() => {
-    localStorage.setItem('paymentMethods', JSON.stringify(paymentMethods));
+    safeLocalStorage.setItem('paymentMethods', JSON.stringify(paymentMethods));
   }, [paymentMethods]);
 
   // Helper functions

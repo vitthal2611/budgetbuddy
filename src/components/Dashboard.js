@@ -1,16 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import './Dashboard.css';
 import { useData } from '../contexts/DataContext';
+import { safeSessionStorage } from '../utils/safeStorage';
 
 const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions }) => {
   const { getEnvelopeCategory } = useData();
   const currentDate = new Date();
+  
   const [selectedYear, setSelectedYear] = useState(() => {
-    const saved = sessionStorage.getItem('dashboardYear');
+    const saved = safeSessionStorage.getItem('dashboardYear');
     return saved ? Number(saved) : currentDate.getFullYear();
   });
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const saved = sessionStorage.getItem('dashboardMonth');
+    const saved = safeSessionStorage.getItem('dashboardMonth');
     // Only restore from session if it's a valid month number (0-11), not 'all'
     if (saved && saved !== 'all' && !isNaN(saved)) {
       return Number(saved);
@@ -23,12 +25,12 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
 
   // Save selections to sessionStorage
   useEffect(() => {
-    sessionStorage.setItem('dashboardYear', selectedYear.toString());
-  }, [selectedYear]);
+    safeSessionStorage.setItem('dashboardYear', selectedYear.toString());
+  }, [selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    sessionStorage.setItem('dashboardMonth', selectedMonth.toString());
-  }, [selectedMonth]);
+    safeSessionStorage.setItem('dashboardMonth', selectedMonth.toString());
+  }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter(t => {
