@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Security Rules Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔒 Firebase Security Rules Test</h1>
+    <p>This page tests the enhanced Firestore security rules.</p>
+    
+    <div>
+        <button onclick="testValidTransaction()">✅ Test Valid Transaction</button>
+        <button onclick="testInvalidAmount()">❌ Test Invalid Amount</button>
+        <button onclick="testInvalidDate()">❌ Test Invalid Date</button>
+        <button onclick="testOversizedNote()">❌ Test Oversized Note</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDY-LZIb3RZlYAH1eBcTejzGdhZ-b5PEGg",
+            authDomain: "budgetbuddy-9d7da.firebaseapp.com",
+            projectId: "budgetbuddy-9d7da",
+            storageBucket: "budgetbuddy-9d7da.firebasestorage.app",
+            messagingSenderId: "52697566663",
+            appId: "1:52697566663:web:c58b872b4ef3d3efac9de2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Sign in anonymously for testing
+        await signInAnonymously(auth);
+        const userId = auth.currentUser.uid;
+
+        function addResult(message, isSuccess) {
+            const div = document.createElement('div');
+            div.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            div.textContent = message;
+            document.getElementById('results').appendChild(div);
+        }
+
+        window.testValidTransaction = async function() {
+            try {
+                const transactionId = `test-${Date.now()}`;
+                const transactionRef = doc(db, 'users', userId, 'transactions', transactionId);
+                
+                await setDoc(transactionRef, {
+                    id: transactionId,
+                    type: 'expense',
+                    amount: 100,
+                    date: '01-01-2025',
+                    note: 'Test transaction',
+                    paymentMethod: 'Cash',
+                    envelope: 'Groceries'
+                });
+                
+                addResult('✅ Valid transaction created successfully!', true);
+            } catch (error) {
+                addResult(`❌ Valid transaction failed: ${error.message}`, false);
+            }
+        };
+
+        window.testInvalidAmount = async function() {
+            try {
+                const transactionId = `test-${Date.now()}`;
+                const transactionRef = doc(db, 'users', userId, 'transactions', transactionId);
+                
+                await setDoc(transactionRef, {
+                    id: transactionId,
+                    type: 'expense',
+                    amount: -100,  // Invalid: negative amount
+                    date: '01-01-2025',
+                    note: 'Test transaction',
+                    paymentMethod: 'Cash',
+                    envelope: 'Groceries'
+                });
+                
+                addResult('❌ Invalid amount was accepted (SECURITY ISSUE!)', false);
+            } catch (error) {
+                addResult('✅ Invalid amount correctly rejected: ' + error.code, true);
+            }
+        };
+
+        window.testInvalidDate = async function() {
+            try {
+                const transactionId = `test-${Date.now()}`;
+                const transactionRef = doc(db, 'users', userId, 'transactions', transactionId);
+                
+                await setDoc(transactionRef, {
+                    id: transactionId,
+                    type: 'expense',
+                    amount: 100,
+                    date: '2025-01-01',  // Invalid: wrong format
+                    note: 'Test transaction',
+                    paymentMethod: 'Cash',
+                    envelope: 'Groceries'
+                });
+                
+                addResult('❌ Invalid date format was accepted (SECURITY ISSUE!)', false);
+            } catch (error) {
+                addResult('✅ Invalid date format correctly rejected: ' + error.code, true);
+            }
+        };
+
+        window.testOversizedNote = async function() {
+            try {
+                const transactionId = `test-${Date.now()}`;
+                const transactionRef = doc(db, 'users', userId, 'transactions', transactionId);
+                
+                await setDoc(transactionRef, {
+                    id: transactionId,
+                    type: 'expense',
+                    amount: 100,
+                    date: '01-01-2025',
+                    note: 'x'.repeat(501),  // Invalid: > 500 chars
+                    paymentMethod: 'Cash',
+                    envelope: 'Groceries'
+                });
+                
+                addResult('❌ Oversized note was accepted (SECURITY ISSUE!)', false);
+            } catch (error) {
+                addResult('✅ Oversized note correctly rejected: ' + error.code, true);
+            }
+        };
+
+        addResult('🔐 Security rules test page loaded. Click buttons to test.', true);
+    </script>
+</body>
+</html>
