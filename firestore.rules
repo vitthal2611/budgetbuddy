@@ -12,33 +12,76 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    // Validate transaction data
+    function isValidTransaction() {
+      let data = request.resource.data;
+      return data.id is string &&
+             data.id.size() > 0 &&
+             data.id.size() < 100 &&
+             data.type in ['income', 'expense', 'transfer'] &&
+             data.amount is number &&
+             data.amount > 0 &&
+             data.amount < 10000000 &&  // Max 10 million
+             data.date is string &&
+             data.date.matches('^\\d{2}-\\d{2}-\\d{4}$') &&
+             data.note is string &&
+             data.note.size() > 0 &&
+             data.note.size() < 500 &&  // Max 500 chars
+             // Type-specific validation
+             (data.type != 'expense' || (data.envelope is string && data.paymentMethod is string)) &&
+             (data.type != 'income' || data.paymentMethod is string) &&
+             (data.type != 'transfer' || (data.sourceAccount is string && data.destinationAccount is string));
+    }
+    
+    // Validate budget data size
+    function isValidBudgetSize() {
+      return request.resource.size < 100000;  // Max 100KB
+    }
+    
+    // Validate array sizes
+    function isValidArraySize(maxSize) {
+      return request.resource.data.data is list &&
+             request.resource.data.data.size() <= maxSize;
+    }
+    
     // User data rules
     match /users/{userId} {
-      // User can only read/write their own data
-      allow read, write: if isOwner(userId);
+      // User can only read their own user document
+      allow read: if isOwner(userId);
+      // Prevent direct writes to user document
+      allow write: if false;
       
       // Transactions collection
       match /transactions/{transactionId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && 
-                        request.resource.data.keys().hasAll(['id', 'type', 'amount', 'date', 'note']);
-        allow update: if isOwner(userId);
+                        isValidTransaction() &&
+                        transactionId == request.resource.data.id;
+        allow update: if isOwner(userId) && 
+                        isValidTransaction();
         allow delete: if isOwner(userId);
       }
       
       // Budgets collection
       match /budgets/{budgetId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) &&
+                       request.resource.data.data is map &&
+                       isValidBudgetSize();
       }
       
       // Envelopes collection
       match /envelopes/{envelopeId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) &&
+                       isValidArraySize(100);  // Max 100 envelopes
       }
       
       // Payment methods collection
       match /paymentMethods/{methodId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId) &&
+                       isValidArraySize(50);  // Max 50 payment methods
       }
     }
     
