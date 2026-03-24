@@ -1,0 +1,37 @@
+Date,Amount,Type,Note,Payment Method,Envelope
+01-01-2025,5000,income,January Salary - Full Time,Bank Account,
+02-01-2025,1500,income,Freelance Project - Website Design,PayPal,
+05-01-2025,-850.50,expense,Monthly Groceries - Supermarket,Credit Card,Groceries
+08-01-2025,-45.00,expense,Coffee and Snacks,Cash,Food
+10-01-2025,-1200,expense,Rent Payment,Bank Account,Housing
+12-01-2025,-150,expense,Internet Bill,Credit Card,Utilities
+15-01-2025,-80.75,expense,Gas Station,Debit Card,Transportation
+18-01-2025,-250,expense,Dinner with Friends,Credit Card,Entertainment
+20-01-2025,-500,transfer,Transfer to Emergency Fund,Bank Account,Savings Account
+22-01-2025,-35.50,expense,Pharmacy - Medicine,Cash,Health
+25-01-2025,200,income,Sold Old Laptop,Cash,
+28-01-2025,-120,expense,Gym Membership - Monthly,Credit Card,Health
+30-01-2025,-65.25,expense,Books and Magazines,Debit Card,Education
+01-02-2025,5000,income,February Salary,Bank Account,
+03-02-2025,-900,expense,Groceries - Monthly Stock,Credit Card,Groceries
+05-02-2025,-200,expense,Mobile Phone Bill,Bank Account,Utilities
+08-02-2025,-1200,expense,Rent Payment,Bank Account,Housing
+10-02-2025,-75,expense,Haircut and Grooming,Cash,Personal Care
+12-02-2025,800,income,Bonus - Performance,Bank Account,
+15-02-2025,-450,expense,New Shoes,Credit Card,Shopping
+18-02-2025,-180,expense,Restaurant - Birthday Celebration,Credit Card,Entertainment
+20-02-2025,-1000,transfer,Investment Transfer,Bank Account,Investment Account
+22-02-2025,-95.50,expense,Electricity Bill,Bank Account,Utilities
+25-02-2025,-40,expense,Movie Tickets,Cash,Entertainment
+28-02-2025,-300,expense,Car Maintenance,Debit Card,Transportation
+01-03-2025,5000,income,March Salary,Bank Account,
+05-03-2025,-850,expense,Groceries,Credit Card,Groceries
+08-03-2025,-1200,expense,Rent,Bank Account,Housing
+10-03-2025,-250,expense,Clothing Shopping,Credit Card,Shopping
+12-03-2025,500,income,Tax Refund,Bank Account,
+15-03-2025,-180,expense,Restaurant,Credit Card,Food
+18-03-2025,-120,expense,Streaming Subscriptions,Credit Card,Entertainment
+20-03-2025,-500,transfer,Savings Transfer,Bank Account,Savings Account
+22-03-2025,-90,expense,Water Bill,Bank Account,Utilities
+25-03-2025,-200,expense,Doctor Visit,Cash,Health
+28-03-2025,-150,expense,Pet Supplies,Debit Card,Pets

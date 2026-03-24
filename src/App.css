@@ -1,11 +1,12 @@
 .App {
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100vh;
+  height: 100vh;
   background: #f5f5f5;
   box-shadow: 0 0 20px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .tabs {
@@ -86,12 +87,27 @@
 
 .content {
   padding: 16px;
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  padding-bottom: 0;
   flex: 1;
+  min-height: 0;
   background: #f5f5f5;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  position: relative;
+  will-change: scroll-position;
+}
+
+/* Ensure scroll works on all browsers */
+.content::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
+}
+
+.content {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 /* Floating Action Button for Quick Add */

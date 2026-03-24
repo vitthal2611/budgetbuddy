@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import './Transactions.css';
+import ImportTransactions from './ImportTransactions';
 
 const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onFiltersCleared }) => {
   const [filterType, setFilterType] = useState(initialFilters.type || 'all');
@@ -9,6 +10,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
   const [filterEnvelope, setFilterEnvelope] = useState(initialFilters.envelope || 'all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   // Update filters when initialFilters change
   React.useEffect(() => {
@@ -129,6 +131,30 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
     if (onFiltersCleared) onFiltersCleared();
   };
 
+  const handleImport = (importedTransactions) => {
+    console.log('Importing transactions:', importedTransactions.length);
+    
+    // Trigger import through parent
+    window.dispatchEvent(new CustomEvent('importTransactions', { 
+      detail: importedTransactions 
+    }));
+    
+    console.log('Import event dispatched');
+    
+    // Show success message and suggest viewing dashboard
+    setTimeout(() => {
+      const viewDashboard = window.confirm(
+        `✅ Successfully imported ${importedTransactions.length} transaction(s)!\n\n` +
+        `Click OK to view Dashboard, or Cancel to stay here.`
+      );
+      
+      if (viewDashboard) {
+        // Trigger tab change to dashboard
+        window.dispatchEvent(new CustomEvent('switchTab', { detail: 'dashboard' }));
+      }
+    }, 200);
+  };
+
   const activeFiltersCount = [
     filterType !== 'all',
     filterMonth !== 'all',
@@ -141,12 +167,21 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
     <div className="transactions">
       <div className="transactions-header">
         <h1 className="transactions-title">Transactions</h1>
-        <button 
-          className={`filter-toggle ${showFilters ? 'active' : ''}`}
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          🔍 Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}
-        </button>
+        <div className="header-actions">
+          <button 
+            className="import-btn"
+            onClick={() => setShowImport(true)}
+            title="Import CSV"
+          >
+            📥 Import
+          </button>
+          <button 
+            className={`filter-toggle ${showFilters ? 'active' : ''}`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            🔍 Filters {activeFiltersCount > 0 && `(${activeFiltersCount})`}
+          </button>
+        </div>
       </div>
 
       {showFilters && (
@@ -309,6 +344,14 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
             </div>
           ))}
         </div>
+      )}
+
+      {showImport && (
+        <ImportTransactions
+          onImport={handleImport}
+          onClose={() => setShowImport(false)}
+          existingTransactions={transactions}
+        />
       )}
     </div>
   );

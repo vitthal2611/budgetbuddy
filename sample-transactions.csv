@@ -1,0 +1,15 @@
+Date,Amount,Type,Note,Payment Method,Envelope
+01-01-2025,5000,income,January Salary,Bank Account,
+15-01-2025,-500,expense,Grocery Shopping,Credit Card,Groceries
+18-01-2025,-200,expense,Movie Night,Cash,Entertainment
+20-01-2025,-1500,expense,Electricity Bill,Bank Account,Utilities
+22-01-2025,1000,income,Freelance Project,PayPal,
+25-01-2025,-300,expense,Restaurant Dinner,Credit Card,Food
+28-01-2025,-100,transfer,Transfer to Savings,Bank Account,Savings Account
+05-02-2025,5000,income,February Salary,Bank Account,
+10-02-2025,-800,expense,Phone Bill,Credit Card,Utilities
+12-02-2025,-2000,expense,Rent Payment,Bank Account,Housing
+15-02-2025,-150,expense,Coffee Shop,Cash,Food
+18-02-2025,500,income,Bonus,Bank Account,
+20-02-2025,-400,expense,Gym Membership,Credit Card,Health
+25-02-2025,-250,expense,Books,Cash,Education

@@ -1,5 +1,5 @@
 .transactions {
-  padding-bottom: 20px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 
 .transactions-header {
@@ -7,6 +7,40 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.import-btn {
+  padding: 10px 16px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  min-height: 44px;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.import-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.4);
+  background: #059669;
 }
 
 .transactions-title {
@@ -15,6 +49,7 @@
   color: #1f2937;
   -webkit-user-select: none;
   user-select: none;
+  margin: 0;
 }
 
 .filter-toggle {
@@ -478,8 +513,62 @@
   }
 }
 
+/* Mobile responsive header */
+@media (max-width: 480px) {
+  .transactions-header {
+    flex-wrap: nowrap;
+  }
+  
+  .transactions-title {
+    font-size: 20px;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  
+  .header-actions {
+    flex-shrink: 0;
+    gap: 6px;
+  }
+  
+  .import-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+    min-height: 40px;
+  }
+  
+  .filter-toggle {
+    padding: 8px 14px;
+    font-size: 13px;
+    min-height: 40px;
+  }
+}
+
 /* Very small screens */
 @media (max-width: 360px) {
+  .transactions-header {
+    gap: 8px;
+  }
+  
+  .transactions-title {
+    font-size: 18px;
+  }
+  
+  .header-actions {
+    gap: 4px;
+  }
+  
+  .import-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+    min-height: 40px;
+  }
+  
+  .filter-toggle {
+    padding: 8px 12px;
+    font-size: 12px;
+    min-height: 40px;
+  }
+  
   .transaction-icon {
     width: 48px;
     height: 48px;
@@ -499,10 +588,5 @@
     height: 40px;
     min-width: 40px;
     min-height: 40px;
-  }
-  
-  .filter-toggle {
-    font-size: 13px;
-    padding: 8px 14px;
   }
 }

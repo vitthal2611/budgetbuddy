@@ -1,5 +1,5 @@
 .dashboard {
-  padding-bottom: 20px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   position: relative;
 }
 

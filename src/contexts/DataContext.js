@@ -87,6 +87,97 @@ export const DataProvider = ({ children }) => {
     setPaymentMethods([...paymentMethods, trimmedMethod]);
   };
 
+  // Validation functions for imports
+  const validateTransaction = (transaction) => {
+    const errors = [];
+
+    // Validate required fields
+    if (!transaction.date) {
+      errors.push('Date is required');
+    } else if (!isValidDate(transaction.date)) {
+      errors.push('Invalid date format. Use DD-MM-YYYY');
+    }
+
+    if (!transaction.amount || isNaN(parseFloat(transaction.amount))) {
+      errors.push('Valid amount is required');
+    } else if (parseFloat(transaction.amount) <= 0) {
+      errors.push('Amount must be greater than 0');
+    }
+
+    if (!transaction.type || !['income', 'expense', 'transfer'].includes(transaction.type)) {
+      errors.push('Type must be income, expense, or transfer');
+    }
+
+    if (!transaction.note || transaction.note.trim() === '') {
+      errors.push('Note is required');
+    }
+
+    // Type-specific validation
+    if (transaction.type === 'transfer') {
+      if (!transaction.sourceAccount) {
+        errors.push('Source account is required for transfers');
+      }
+      if (!transaction.destinationAccount) {
+        errors.push('Destination account is required for transfers');
+      }
+      if (transaction.sourceAccount === transaction.destinationAccount) {
+        errors.push('Source and destination accounts must be different');
+      }
+    } else {
+      if (!transaction.paymentMethod) {
+        errors.push('Payment method is required');
+      }
+      if (transaction.type === 'expense' && !transaction.envelope) {
+        errors.push('Envelope is required for expenses');
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  };
+
+  const isValidDate = (dateStr) => {
+    const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (!match) return false;
+
+    const [, day, month, year] = match;
+    const date = new Date(year, month - 1, day);
+    
+    return date.getFullYear() === parseInt(year) &&
+           date.getMonth() === parseInt(month) - 1 &&
+           date.getDate() === parseInt(day);
+  };
+
+  const detectDuplicates = (newTransactions, existingTransactions) => {
+    const duplicates = [];
+    
+    newTransactions.forEach((newTx, idx) => {
+      const isDuplicate = existingTransactions.some(existingTx => {
+        return existingTx.date === newTx.date &&
+               existingTx.amount === newTx.amount &&
+               existingTx.type === newTx.type &&
+               existingTx.note === newTx.note;
+      });
+      
+      if (isDuplicate) {
+        duplicates.push({ index: idx, transaction: newTx });
+      }
+    });
+
+    return duplicates;
+  };
+
+  const normalizeAmount = (amount) => {
+    if (typeof amount === 'number') return Math.abs(amount);
+    
+    const cleaned = amount.toString().replace(/[^\d.-]/g, '');
+    const parsed = parseFloat(cleaned);
+    
+    return isNaN(parsed) ? 0 : Math.abs(parsed);
+  };
+
   const value = {
     envelopes,
     paymentMethods,
@@ -95,7 +186,12 @@ export const DataProvider = ({ children }) => {
     getEnvelopeCategory,
     addPaymentMethod,
     setEnvelopes,
-    setPaymentMethods
+    setPaymentMethods,
+    // Validation functions
+    validateTransaction,
+    isValidDate,
+    detectDuplicates,
+    normalizeAmount
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

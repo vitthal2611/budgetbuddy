@@ -117,6 +117,70 @@ function App() {
     localStorage.setItem('budgets', JSON.stringify(budgets));
   }, [budgets]);
 
+  // Handle import transactions event
+  useEffect(() => {
+    const handleImportEvent = (event) => {
+      const importedTransactions = event.detail;
+      console.log('Import event received in App.js:', importedTransactions.length, 'transactions');
+      
+      setTransactions(prevTransactions => {
+        const newTransactions = [...prevTransactions, ...importedTransactions];
+        console.log('Previous transactions:', prevTransactions.length);
+        console.log('New total transactions:', newTransactions.length);
+        return newTransactions;
+      });
+    };
+
+    window.addEventListener('importTransactions', handleImportEvent);
+    console.log('Import event listener registered');
+    
+    return () => {
+      window.removeEventListener('importTransactions', handleImportEvent);
+      console.log('Import event listener removed');
+    };
+  }, []);
+
+  // Handle undo import event
+  useEffect(() => {
+    const handleUndoImport = (event) => {
+      const { transactions: importedTransactions } = event.detail;
+      console.log('Undo import event received:', importedTransactions.length, 'transactions');
+      
+      setTransactions(prevTransactions => {
+        // Create a Set of imported transaction IDs for efficient lookup
+        const importedIds = new Set(importedTransactions.map(t => t.id));
+        
+        // Filter out the imported transactions
+        const filtered = prevTransactions.filter(t => !importedIds.has(t.id));
+        
+        console.log('Removed', prevTransactions.length - filtered.length, 'transactions');
+        console.log('Remaining transactions:', filtered.length);
+        
+        return filtered;
+      });
+    };
+
+    window.addEventListener('undoImport', handleUndoImport);
+    console.log('Undo import event listener registered');
+    
+    return () => {
+      window.removeEventListener('undoImport', handleUndoImport);
+      console.log('Undo import event listener removed');
+    };
+  }, []);
+
+  // Handle tab switch event
+  useEffect(() => {
+    const handleTabSwitch = (event) => {
+      const tab = event.detail;
+      console.log('Switching to tab:', tab);
+      setActiveTab(tab);
+    };
+
+    window.addEventListener('switchTab', handleTabSwitch);
+    return () => window.removeEventListener('switchTab', handleTabSwitch);
+  }, []);
+
   const handleAddTransaction = (type) => {
     setModalType(type);
     setEditTransaction(null);
