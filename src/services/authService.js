@@ -5,8 +5,12 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithRedirect,
+  signInWithPopup,
   getRedirectResult,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import cloudStorage from './cloudStorage';
@@ -14,6 +18,23 @@ import cloudStorage from './cloudStorage';
 class AuthService {
   constructor() {
     this.currentUser = null;
+    this.initializePersistence();
+  }
+
+  // Initialize auth persistence
+  async initializePersistence() {
+    try {
+      // Use local persistence for "remember me" functionality
+      await setPersistence(auth, browserLocalPersistence);
+    } catch (error) {
+      console.error('Failed to set persistence:', error);
+    }
+  }
+
+  // Detect if device is mobile
+  isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           window.innerWidth <= 768;
   }
 
   // Sign up with email/password
@@ -42,7 +63,7 @@ class AuthService {
     }
   }
 
-  // Sign in with Google (uses redirect for mobile compatibility)
+  // Sign in with Google (adaptive: popup for desktop, redirect for mobile)
   async signInWithGoogle() {
     try {
       const provider = new GoogleAuthProvider();
@@ -51,17 +72,37 @@ class AuthService {
         prompt: 'select_account'
       });
       
-      // Use redirect instead of popup (better for mobile)
-      await signInWithRedirect(auth, provider);
-      // Note: User will be redirected away and back
-      // The result is handled in handleRedirectResult()
+      // Use popup for desktop (better UX), redirect for mobile (more reliable)
+      if (this.isMobile()) {
+        // Mobile: Use redirect (more reliable, handles app switching)
+        await signInWithRedirect(auth, provider);
+        // Note: User will be redirected away and back
+        // The result is handled in handleRedirectResult()
+      } else {
+        // Desktop: Use popup (better UX, no page reload)
+        try {
+          const result = await signInWithPopup(auth, provider);
+          this.currentUser = result.user;
+          cloudStorage.setUser(result.user.uid);
+          return result.user;
+        } catch (popupError) {
+          // Fallback to redirect if popup fails (blocked, etc.)
+          if (popupError.code === 'auth/popup-blocked' || 
+              popupError.code === 'auth/popup-closed-by-user') {
+            console.log('Popup blocked, falling back to redirect');
+            await signInWithRedirect(auth, provider);
+          } else {
+            throw popupError;
+          }
+        }
+      }
     } catch (error) {
       console.error('Google sign in error:', error);
       throw this.handleAuthError(error);
     }
   }
 
-  // Handle redirect result after Google sign-in
+  // Handle redirect result after Google sign-in (for mobile or popup fallback)
   async handleRedirectResult() {
     try {
       const result = await getRedirectResult(auth);
@@ -115,25 +156,36 @@ class AuthService {
 
   // Get current user
   getCurrentUser() {
-    return this.currentUser;
+    return auth.currentUser || this.currentUser;
   }
 
-  // Handle auth errors
+  // Check if user is authenticated
+  isAuthenticated() {
+    return !!this.getCurrentUser();
+  }
+
+  // Handle auth errors with user-friendly messages
   handleAuthError(error) {
     const errorMessages = {
-      'auth/email-already-in-use': 'This email is already registered',
-      'auth/invalid-email': 'Invalid email address',
-      'auth/user-not-found': 'No account found with this email',
-      'auth/wrong-password': 'Incorrect password',
-      'auth/weak-password': 'Password should be at least 6 characters',
-      'auth/too-many-requests': 'Too many attempts. Please try again later',
-      'auth/network-request-failed': 'Network error. Check your connection',
-      'auth/popup-closed-by-user': 'Sign-in popup was closed',
-      'auth/cancelled-popup-request': 'Sign-in was cancelled',
-      'auth/popup-blocked': 'Popup was blocked by browser. Please allow popups for this site.'
+      'auth/email-already-in-use': 'This email is already registered. Try signing in instead.',
+      'auth/invalid-email': 'Please enter a valid email address.',
+      'auth/user-not-found': 'No account found with this email. Please sign up.',
+      'auth/wrong-password': 'Incorrect password. Please try again.',
+      'auth/weak-password': 'Password should be at least 6 characters long.',
+      'auth/too-many-requests': 'Too many failed attempts. Please try again later or reset your password.',
+      'auth/network-request-failed': 'Network error. Please check your internet connection.',
+      'auth/popup-closed-by-user': 'Sign-in was cancelled. Please try again.',
+      'auth/cancelled-popup-request': 'Another sign-in is in progress.',
+      'auth/popup-blocked': 'Popup was blocked. Please allow popups for this site or try again.',
+      'auth/account-exists-with-different-credential': 'An account already exists with this email using a different sign-in method.',
+      'auth/invalid-credential': 'Invalid credentials. Please try again.',
+      'auth/operation-not-allowed': 'This sign-in method is not enabled. Please contact support.',
+      'auth/user-disabled': 'This account has been disabled. Please contact support.',
+      'auth/requires-recent-login': 'Please sign in again to complete this action.'
     };
     
-    return new Error(errorMessages[error.code] || error.message);
+    const message = errorMessages[error.code] || error.message || 'An error occurred. Please try again.';
+    return new Error(message);
   }
 }
 

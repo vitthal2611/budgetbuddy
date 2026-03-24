@@ -10,17 +10,41 @@ const Auth = ({ onAuthSuccess }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Monitor network status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setError(''); // Clear network errors when back online
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setError('No internet connection. Please check your network.');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Handle redirect result on component mount (for Google sign-in)
   useEffect(() => {
     const checkRedirectResult = async () => {
       try {
         setLoading(true);
+        setError(''); // Clear any previous errors
         const user = await authService.handleRedirectResult();
         if (user) {
+          console.log('Google sign-in successful:', user.email);
           onAuthSuccess();
         }
       } catch (err) {
+        console.error('Redirect result error:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -64,10 +88,13 @@ const Auth = ({ onAuthSuccess }) => {
     setLoading(true);
 
     try {
-      // This will redirect the user to Google sign-in
+      const result = await authService.signInWithGoogle();
+      // For desktop popup, result is returned immediately
+      if (result) {
+        onAuthSuccess();
+      }
+      // For mobile redirect, user will be redirected away
       // When they return, useEffect will handle the result
-      await authService.signInWithGoogle();
-      // Note: Code after this won't execute as user is redirected
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -165,6 +192,13 @@ const Auth = ({ onAuthSuccess }) => {
           <p>{isSignUp ? 'Create your account' : 'Welcome back!'}</p>
         </div>
 
+        {!isOnline && (
+          <div className="auth-warning">
+            <span>⚠️</span>
+            <span>You're offline. Please check your internet connection.</span>
+          </div>
+        )}
+
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
@@ -211,7 +245,7 @@ const Auth = ({ onAuthSuccess }) => {
           <button 
             type="submit" 
             className="btn-primary"
-            disabled={loading}
+            disabled={loading || !isOnline}
           >
             {loading ? 'Please wait...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </button>
@@ -224,7 +258,7 @@ const Auth = ({ onAuthSuccess }) => {
         <button 
           className="btn-google"
           onClick={handleGoogleSignIn}
-          disabled={loading}
+          disabled={loading || !isOnline}
         >
           <svg width="18" height="18" viewBox="0 0 18 18">
             <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
