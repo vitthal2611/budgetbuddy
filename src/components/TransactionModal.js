@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './TransactionModal.css';
+import { useData } from '../contexts/DataContext';
 
 const TransactionModal = ({ type, transaction, onSave, onClose }) => {
+  const { envelopes, paymentMethods, addEnvelope, addPaymentMethod } = useData();
   const today = new Date();
   const defaultDate = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
 
@@ -20,16 +22,6 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [newEnvelope, setNewEnvelope] = useState('');
 
-  const [paymentMethods, setPaymentMethods] = useState(() => {
-    const saved = localStorage.getItem('paymentMethods');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [envelopes, setEnvelopes] = useState(() => {
-    const customEnvelopes = localStorage.getItem('customEnvelopes');
-    return customEnvelopes ? JSON.parse(customEnvelopes) : [];
-  });
-
   useEffect(() => {
     if (transaction) {
       setFormData({
@@ -43,10 +35,11 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
       });
     } else {
       // Set defaults for new transactions
+      const firstEnvelope = envelopes.length > 0 ? envelopes[0].name : '';
       setFormData(prev => ({
         ...prev,
         paymentMethod: paymentMethods[0] || '',
-        envelope: envelopes[0] || '',
+        envelope: firstEnvelope,
         sourceAccount: paymentMethods[0] || '',
         destinationAccount: paymentMethods[1] || paymentMethods[0] || ''
       }));
@@ -57,33 +50,16 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
     e.preventDefault();
     
     if (type === 'transfer') {
-      const baseId = transaction?.id || Date.now();
-      const sourceTransaction = {
-        id: transaction ? transaction.id : `${baseId}-source`,
+      // Store transfer as single transaction with both accounts
+      onSave({
+        id: transaction?.id || Date.now(),
         type: 'transfer',
         amount: formData.amount,
         note: formData.note,
         date: formData.date,
         sourceAccount: formData.sourceAccount,
-        destinationAccount: formData.destinationAccount,
-        isSource: true
-      };
-      
-      const destTransaction = {
-        id: transaction ? `${transaction.id.split('-')[0]}-dest` : `${baseId}-dest`,
-        type: 'transfer',
-        amount: formData.amount,
-        note: formData.note,
-        date: formData.date,
-        sourceAccount: formData.sourceAccount,
-        destinationAccount: formData.destinationAccount,
-        isSource: false
-      };
-      
-      onSave(sourceTransaction);
-      if (!transaction) {
-        onSave(destTransaction);
-      }
+        destinationAccount: formData.destinationAccount
+      });
     } else {
       onSave({
         id: transaction?.id || Date.now(),
@@ -229,9 +205,12 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
                       required
                     >
                       <option value="">Select envelope</option>
-                      {envelopes.map(env => (
-                        <option key={env} value={env}>{env}</option>
-                      ))}
+                      {envelopes.map(env => {
+                        const icon = env.category === 'need' ? '🛒' : env.category === 'want' ? '🎉' : '💰';
+                        return (
+                          <option key={env.name} value={env.name}>{icon} {env.name}</option>
+                        );
+                      })}
                       <option value="__add_new__">+ Add New</option>
                     </select>
                   </div>
@@ -276,12 +255,14 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
                 className="btn-inline-save"
                 onClick={() => {
                   if (newPaymentMethod.trim()) {
-                    const updated = [...paymentMethods, newPaymentMethod.trim()];
-                    setPaymentMethods(updated);
-                    localStorage.setItem('paymentMethods', JSON.stringify(updated));
-                    setFormData({ ...formData, paymentMethod: newPaymentMethod.trim() });
-                    setNewPaymentMethod('');
-                    setShowAddPaymentMethod(false);
+                    try {
+                      addPaymentMethod(newPaymentMethod.trim());
+                      setFormData({ ...formData, paymentMethod: newPaymentMethod.trim() });
+                      setNewPaymentMethod('');
+                      setShowAddPaymentMethod(false);
+                    } catch (error) {
+                      alert(error.message);
+                    }
                   }
                 }}
               >
@@ -317,12 +298,14 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
                 className="btn-inline-save"
                 onClick={() => {
                   if (newEnvelope.trim()) {
-                    const updated = [...envelopes, newEnvelope.trim()];
-                    setEnvelopes(updated);
-                    localStorage.setItem('customEnvelopes', JSON.stringify(updated));
-                    setFormData({ ...formData, envelope: newEnvelope.trim() });
-                    setNewEnvelope('');
-                    setShowAddEnvelope(false);
+                    try {
+                      addEnvelope(newEnvelope.trim(), 'need');
+                      setFormData({ ...formData, envelope: newEnvelope.trim() });
+                      setNewEnvelope('');
+                      setShowAddEnvelope(false);
+                    } catch (error) {
+                      alert(error.message);
+                    }
                   }
                 }}
               >

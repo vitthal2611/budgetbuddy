@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import './Dashboard.css';
+import { useData } from '../contexts/DataContext';
 
 const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions }) => {
+  const { getEnvelopeCategory } = useData();
   const currentDate = new Date();
   const [selectedYear, setSelectedYear] = useState(() => {
     const saved = sessionStorage.getItem('dashboardYear');
@@ -9,9 +11,11 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
   });
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const saved = sessionStorage.getItem('dashboardMonth');
-    if (saved === 'all') return 'all';
-    if (saved) return Number(saved);
-    return 'all';
+    // Only restore from session if it's a valid month number (0-11), not 'all'
+    if (saved && saved !== 'all' && !isNaN(saved)) {
+      return Number(saved);
+    }
+    return currentDate.getMonth();
   });
 
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -50,6 +54,7 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
         accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) - parseFloat(t.amount);
         envelopes[t.envelope] = (envelopes[t.envelope] || 0) + parseFloat(t.amount);
       } else if (t.type === 'transfer') {
+        // Single transfer transaction affects both accounts
         accounts[t.sourceAccount] = (accounts[t.sourceAccount] || 0) - parseFloat(t.amount);
         accounts[t.destinationAccount] = (accounts[t.destinationAccount] || 0) + parseFloat(t.amount);
       }
@@ -158,6 +163,7 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
         {Object.entries(envelopeSpending).map(([envelope, spent]) => {
           const budget = getBudgetForEnvelope(envelope);
           const percentage = budget > 0 ? (spent / budget) * 100 : 0;
+          const category = getEnvelopeCategory(envelope);
           return (
             <div 
               key={envelope} 
@@ -169,7 +175,14 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
               })}
             >
               <div className="envelope-header">
-                <span>{envelope}</span>
+                <span className="envelope-with-icon">
+                  <span>{envelope}</span>
+                  <span className="envelope-category-icon">
+                    {category === 'need' && '🛒'}
+                    {category === 'want' && '🎉'}
+                    {category === 'saving' && '💰'}
+                  </span>
+                </span>
                 <span>{spent.toFixed(0)}/{budget.toFixed(0)}</span>
               </div>
               <div className="progress-bar">

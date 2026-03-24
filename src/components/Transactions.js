@@ -102,7 +102,8 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
     } else if (transaction.type === 'expense') {
       return `-${amount.toFixed(0)}`;
     } else {
-      return transaction.isSource ? `-${amount.toFixed(0)}` : `+${amount.toFixed(0)}`;
+      // Transfer - just show the amount without sign
+      return amount.toFixed(0);
     }
   };
 
@@ -280,9 +281,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
                 <div className="transaction-main">
                   <div className="transaction-note">{transaction.note}</div>
                   <div className={`transaction-amount ${
-                    (transaction.type === 'income' || (transaction.type === 'transfer' && !transaction.isSource)) 
-                      ? 'positive' 
-                      : 'negative'
+                    transaction.type === 'income' ? 'positive' : 'negative'
                   }`}>
                     ₹{formatAmount(transaction)}
                   </div>
@@ -292,7 +291,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
                   <span className="transaction-separator">•</span>
                   <span className="transaction-method">
                     {transaction.type === 'transfer' 
-                      ? (transaction.isSource ? transaction.sourceAccount : transaction.destinationAccount)
+                      ? `${transaction.sourceAccount} → ${transaction.destinationAccount}`
                       : transaction.paymentMethod}
                   </span>
                   <span className="transaction-separator">•</span>

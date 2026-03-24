@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import './BudgetAllocation.css';
+import { useData } from '../contexts/DataContext';
 
 const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
+  const { envelopes: customEnvelopes, addEnvelope, removeEnvelope, getEnvelopeCategory } = useData();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [viewMode, setViewMode] = useState('monthly'); // 'monthly' or 'yearly'
@@ -9,10 +11,6 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [envelopeToDelete, setEnvelopeToDelete] = useState(null);
   const [newEnvelope, setNewEnvelope] = useState('');
-  const [customEnvelopes, setCustomEnvelopes] = useState(() => {
-    const saved = localStorage.getItem('customEnvelopes');
-    return saved ? JSON.parse(saved) : [];
-  });
   
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 
                   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -20,31 +18,56 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const envelopes = useMemo(() => {
-    const envelopeSet = new Set([...customEnvelopes]);
+    const envelopeMap = new Map();
+    
+    // Add custom envelopes
+    customEnvelopes.forEach(env => {
+      envelopeMap.set(env.name, env.category);
+    });
+    
+    // Add envelopes from transactions that aren't in custom list
     transactions.forEach(t => {
-      if (t.type === 'expense' && t.envelope) {
-        envelopeSet.add(t.envelope);
+      if (t.type === 'expense' && t.envelope && !envelopeMap.has(t.envelope)) {
+        envelopeMap.set(t.envelope, 'need'); // Default category for legacy envelopes
       }
     });
-    return Array.from(envelopeSet);
+    
+    return Array.from(envelopeMap.keys());
   }, [transactions, customEnvelopes]);
 
+  // Memoize monthly data calculations to avoid repeated filtering and calculations
+  const monthlyDataCache = useMemo(() => {
+    const cache = {};
+    
+    // Pre-calculate data for all 12 months
+    for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+      const key = `${selectedYear}-${monthIndex}`;
+      
+      // Filter transactions for this month
+      const monthTransactions = transactions.filter(t => {
+        const tDate = new Date(t.date.split('-').reverse().join('-'));
+        return tDate.getFullYear() === selectedYear && tDate.getMonth() === monthIndex;
+      });
+
+      // Calculate income for this month
+      const income = monthTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+      // Get budget allocations for this month
+      const envelopeBudgets = budgets[key] || {};
+      const totalAllocated = Object.values(envelopeBudgets).reduce((sum, val) => sum + parseFloat(val || 0), 0);
+      const unallocated = income - totalAllocated;
+
+      cache[monthIndex] = { income, unallocated, envelopeBudgets };
+    }
+    
+    return cache;
+  }, [selectedYear, transactions, budgets]);
+
+  // Fast lookup function using the cache
   const getMonthlyData = (monthIndex) => {
-    const key = `${selectedYear}-${monthIndex}`;
-    const monthTransactions = transactions.filter(t => {
-      const tDate = new Date(t.date.split('-').reverse().join('-'));
-      return tDate.getFullYear() === selectedYear && tDate.getMonth() === monthIndex;
-    });
-
-    const income = monthTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-
-    const envelopeBudgets = budgets[key] || {};
-    const totalAllocated = Object.values(envelopeBudgets).reduce((sum, val) => sum + parseFloat(val || 0), 0);
-    const unallocated = income - totalAllocated;
-
-    return { income, unallocated, envelopeBudgets };
+    return monthlyDataCache[monthIndex];
   };
 
   const handleBudgetChange = (monthIndex, envelope, value) => {
@@ -61,22 +84,15 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
   const handleAddEnvelope = (e) => {
     e.preventDefault();
     const trimmedName = newEnvelope.trim();
+    const category = e.target.category.value;
     
-    if (!trimmedName) {
-      alert('Please enter an envelope name');
-      return;
+    try {
+      addEnvelope(trimmedName, category);
+      setNewEnvelope('');
+      setShowAddEnvelope(false);
+    } catch (error) {
+      alert(error.message);
     }
-    
-    if (envelopes.includes(trimmedName)) {
-      alert('This envelope already exists');
-      return;
-    }
-    
-    const updated = [...customEnvelopes, trimmedName];
-    setCustomEnvelopes(updated);
-    localStorage.setItem('customEnvelopes', JSON.stringify(updated));
-    setNewEnvelope('');
-    setShowAddEnvelope(false);
   };
 
   const handleRemoveEnvelope = (envelope) => {
@@ -86,9 +102,23 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
 
   const confirmDelete = () => {
     if (envelopeToDelete) {
-      const updated = customEnvelopes.filter(e => e !== envelopeToDelete);
-      setCustomEnvelopes(updated);
-      localStorage.setItem('customEnvelopes', JSON.stringify(updated));
+      removeEnvelope(envelopeToDelete);
+      
+      // Clean up orphaned budget data for this envelope
+      const updatedBudgets = { ...budgets };
+      let hasChanges = false;
+      
+      Object.keys(updatedBudgets).forEach(key => {
+        if (updatedBudgets[key][envelopeToDelete] !== undefined) {
+          delete updatedBudgets[key][envelopeToDelete];
+          hasChanges = true;
+        }
+      });
+      
+      // Update budgets if any cleanup occurred
+      if (hasChanges) {
+        setBudgets(updatedBudgets);
+      }
     }
     setShowDeleteConfirm(false);
     setEnvelopeToDelete(null);
@@ -104,8 +134,9 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
     let totalUnallocated = 0;
     const envelopeTotals = {};
 
+    // Use cached monthly data instead of calling getMonthlyData
     monthsShort.forEach((_, idx) => {
-      const data = getMonthlyData(idx);
+      const data = monthlyDataCache[idx];
       totalIncome += data.income;
       totalUnallocated += data.unallocated;
       
@@ -115,7 +146,7 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
     });
 
     return { totalIncome, totalUnallocated, envelopeTotals };
-  }, [selectedYear, budgets, transactions, envelopes]);
+  }, [monthlyDataCache, envelopes, monthsShort]);
 
   const currentMonthData = getMonthlyData(selectedMonth);
 
@@ -187,11 +218,19 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
             ) : (
               envelopes.map(env => {
                 const budgetValue = currentMonthData.envelopeBudgets[env] || '';
+                const category = getEnvelopeCategory(env);
                 
                 return (
                   <div key={env} className="envelope-row">
                     <div className="envelope-info">
-                      <span className="envelope-name">{env}</span>
+                      <div className="envelope-name-wrapper">
+                        <span className="envelope-name">{env}</span>
+                        <span className={`envelope-category ${category}`}>
+                          {category === 'need' && '🛒'}
+                          {category === 'want' && '🎉'}
+                          {category === 'saving' && '💰'}
+                        </span>
+                      </div>
                     </div>
                     <div className="envelope-actions">
                       <input
@@ -258,11 +297,19 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
                   </tr>
                 ) : (
                   envelopes.map(env => {
+                    const category = getEnvelopeCategory(env);
                     return (
                       <tr key={env}>
                         <td>
                           <div className="envelope-header-cell">
-                            <span>{env}</span>
+                            <span className="envelope-name-with-category">
+                              <span>{env}</span>
+                              <span className={`envelope-category ${category}`}>
+                                {category === 'need' && '🛒'}
+                                {category === 'want' && '🎉'}
+                                {category === 'saving' && '💰'}
+                              </span>
+                            </span>
                             <button 
                               className="remove-envelope-btn" 
                               onClick={() => handleRemoveEnvelope(env)}
@@ -324,14 +371,59 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
           <div className="add-envelope-content">
             <h3>Add New Envelope</h3>
             <form onSubmit={handleAddEnvelope}>
-              <input
-                type="text"
-                className="envelope-input"
-                value={newEnvelope}
-                onChange={(e) => setNewEnvelope(e.target.value)}
-                placeholder="Enter envelope name..."
-                autoFocus
-              />
+              <div className="form-field">
+                <label>Envelope Name</label>
+                <input
+                  type="text"
+                  className="envelope-input"
+                  value={newEnvelope}
+                  onChange={(e) => setNewEnvelope(e.target.value)}
+                  placeholder="Enter envelope name..."
+                  autoFocus
+                  required
+                />
+              </div>
+              
+              <div className="form-field">
+                <label>Category</label>
+                <div className="category-options">
+                  <label className="category-option">
+                    <input
+                      type="radio"
+                      name="category"
+                      value="need"
+                      defaultChecked
+                    />
+                    <span className="category-label need">
+                      <span className="category-icon">🛒</span>
+                      Need
+                    </span>
+                  </label>
+                  <label className="category-option">
+                    <input
+                      type="radio"
+                      name="category"
+                      value="want"
+                    />
+                    <span className="category-label want">
+                      <span className="category-icon">🎉</span>
+                      Want
+                    </span>
+                  </label>
+                  <label className="category-option">
+                    <input
+                      type="radio"
+                      name="category"
+                      value="saving"
+                    />
+                    <span className="category-label saving">
+                      <span className="category-icon">💰</span>
+                      Saving
+                    </span>
+                  </label>
+                </div>
+              </div>
+              
               <div className="modal-buttons">
                 <button type="button" className="btn-cancel-envelope" onClick={() => {
                   setShowAddEnvelope(false);

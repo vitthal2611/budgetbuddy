@@ -13,22 +13,27 @@
   font-size: 24px;
   font-weight: 700;
   color: #1f2937;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .filter-toggle {
-  padding: 8px 16px;
+  padding: 10px 18px;
   background: #6366f1;
   color: white;
   border: none;
-  border-radius: 20px;
-  font-size: 13px;
+  border-radius: 24px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease-out;
+  min-height: 44px;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
 }
 
 .filter-toggle:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
+  box-shadow: 0 1px 2px rgba(99, 102, 241, 0.4);
 }
 
 .filter-toggle.active {
@@ -43,6 +48,21 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  animation: slideDown 0.3s ease-out;
+  border: 1px solid #e5e7eb;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 500px;
+  }
 }
 
 .search-box {
@@ -51,16 +71,19 @@
 
 .search-input {
   width: 100%;
-  padding: 12px 16px;
+  padding: 14px 18px;
   border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 16px;
   background: white;
+  min-height: 48px;
+  transition: all 0.2s;
 }
 
 .search-input:focus {
   outline: none;
   border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
 }
 
 .filter-chips {
@@ -70,26 +93,31 @@
 }
 
 .chip {
-  padding: 8px 16px;
+  padding: 10px 18px;
   background: white;
   border: 2px solid #e5e7eb;
-  border-radius: 20px;
-  font-size: 13px;
+  border-radius: 24px;
+  font-size: 14px;
   font-weight: 600;
   color: #6b7280;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease-out;
   white-space: nowrap;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chip:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
 .chip.active {
   background: #6366f1;
   color: white;
   border-color: #6366f1;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
 }
 
 .filter-row {
@@ -99,17 +127,20 @@
 }
 
 .filter-select {
-  padding: 10px 12px;
+  padding: 14px 14px;
   border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 16px;
   background: white;
   cursor: pointer;
+  min-height: 48px;
+  transition: all 0.2s;
 }
 
 .filter-select:focus {
   outline: none;
   border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
 }
 
 .filter-select.full-width {
@@ -117,20 +148,22 @@
 }
 
 .clear-filters-btn {
-  padding: 10px;
+  padding: 12px;
   background: white;
   border: 2px solid #ef4444;
-  border-radius: 10px;
+  border-radius: 12px;
   color: #ef4444;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease-out;
+  min-height: 48px;
 }
 
 .clear-filters-btn:active {
   background: #ef4444;
   color: white;
+  transform: scale(0.96);
 }
 
 .transaction-stats {
@@ -138,6 +171,18 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 16px;
+  animation: fadeInUp 0.3s ease-out backwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .stat-item {
@@ -178,33 +223,84 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .transaction-item {
   background: white;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 14px;
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
-  transition: box-shadow 0.2s;
+  transition: all 0.15s ease-out;
+  min-height: 80px;
+  animation: slideIn 0.3s ease-out backwards;
+  position: relative;
 }
 
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.transaction-item:nth-child(1) { animation-delay: 0.05s; }
+.transaction-item:nth-child(2) { animation-delay: 0.1s; }
+.transaction-item:nth-child(3) { animation-delay: 0.15s; }
+.transaction-item:nth-child(4) { animation-delay: 0.2s; }
+.transaction-item:nth-child(5) { animation-delay: 0.25s; }
+.transaction-item:nth-child(6) { animation-delay: 0.3s; }
+.transaction-item:nth-child(7) { animation-delay: 0.35s; }
+.transaction-item:nth-child(8) { animation-delay: 0.4s; }
+
 .transaction-item:active {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  transform: translateY(-1px);
+}
+
+/* Swipe hint indicator */
+.transaction-item::after {
+  content: '‹ Swipe';
+  position: absolute;
+  right: 80px;
+  color: #d1d5db;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  animation: swipeHint 2s ease-in-out 1s;
+}
+
+@keyframes swipeHint {
+  0%, 100% { opacity: 0; transform: translateX(0); }
+  50% { opacity: 0.5; transform: translateX(-10px); }
 }
 
 .transaction-icon {
-  font-size: 28px;
+  font-size: 32px;
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #f9fafb;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .transaction-content {
@@ -221,7 +317,7 @@
 }
 
 .transaction-note {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: #1f2937;
   white-space: nowrap;
@@ -230,7 +326,7 @@
 }
 
 .transaction-amount {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
@@ -277,56 +373,99 @@
 }
 
 .action-btn {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border: none;
   background: #f3f4f6;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 10px;
+  font-size: 18px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease-out;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
 }
 
 .action-btn:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
 .action-btn.edit:active {
   background: #dbeafe;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 
 .action-btn.delete:active {
   background: #fee2e2;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
 }
 
 .empty-state {
   text-align: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
   color: #9ca3af;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
+  font-size: 80px;
+  margin-bottom: 20px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .empty-state p {
-  font-size: 16px;
-  margin-bottom: 16px;
+  font-size: 17px;
+  margin-bottom: 20px;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.empty-state-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
 }
 
 .btn-clear-empty {
-  padding: 10px 20px;
+  padding: 14px 24px;
   background: #6366f1;
   color: white;
   border: none;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  min-height: 48px;
+  transition: all 0.15s ease-out;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+}
+
+.btn-clear-empty:active {
+  transform: scale(0.96);
+  box-shadow: 0 1px 2px rgba(99, 102, 241, 0.4);
 }
 
 @media (min-width: 481px) {
@@ -336,5 +475,34 @@
   
   .transaction-item {
     padding: 16px;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .transaction-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 28px;
+  }
+  
+  .transaction-note {
+    font-size: 15px;
+  }
+  
+  .transaction-amount {
+    font-size: 16px;
+  }
+  
+  .action-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  .filter-toggle {
+    font-size: 13px;
+    padding: 8px 14px;
   }
 }
