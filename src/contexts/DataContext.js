@@ -62,15 +62,94 @@ export const DataProvider = ({ children }) => {
     return [];
   });
 
+  // Track if we should sync to cloud (to avoid syncing during cloud data load)
+  const [shouldSyncToCloud, setShouldSyncToCloud] = useState(false);
+
   // Sync envelopes to localStorage
   useEffect(() => {
     safeLocalStorage.setItem('envelopes', JSON.stringify(envelopes));
-  }, [envelopes]);
+    
+    // Sync to cloud storage if this is a user-initiated change
+    if (shouldSyncToCloud && envelopes.length > 0) {
+      syncEnvelopesToCloud(envelopes);
+    }
+  }, [envelopes, shouldSyncToCloud]);
 
   // Sync payment methods to localStorage
   useEffect(() => {
     safeLocalStorage.setItem('paymentMethods', JSON.stringify(paymentMethods));
-  }, [paymentMethods]);
+    
+    // Sync to cloud storage if this is a user-initiated change
+    if (shouldSyncToCloud && paymentMethods.length > 0) {
+      syncPaymentMethodsToCloud(paymentMethods);
+    }
+  }, [paymentMethods, shouldSyncToCloud]);
+
+  // Enable cloud sync after initial load
+  useEffect(() => {
+    // Wait a bit to ensure initial data is loaded before enabling sync
+    const timer = setTimeout(() => {
+      setShouldSyncToCloud(true);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Listen for cloud data updates from App.js
+  useEffect(() => {
+    const handleCloudEnvelopes = (event) => {
+      const cloudEnvelopes = event.detail;
+      console.log('Received cloud envelopes:', cloudEnvelopes.length);
+      
+      // Temporarily disable cloud sync to avoid circular updates
+      setShouldSyncToCloud(false);
+      setEnvelopes(cloudEnvelopes);
+      
+      // Re-enable after a delay
+      setTimeout(() => setShouldSyncToCloud(true), 1000);
+    };
+
+    const handleCloudPaymentMethods = (event) => {
+      const cloudMethods = event.detail;
+      console.log('Received cloud payment methods:', cloudMethods.length);
+      
+      // Temporarily disable cloud sync to avoid circular updates
+      setShouldSyncToCloud(false);
+      setPaymentMethods(cloudMethods);
+      
+      // Re-enable after a delay
+      setTimeout(() => setShouldSyncToCloud(true), 1000);
+    };
+
+    window.addEventListener('cloudEnvelopesLoaded', handleCloudEnvelopes);
+    window.addEventListener('cloudPaymentMethodsLoaded', handleCloudPaymentMethods);
+
+    return () => {
+      window.removeEventListener('cloudEnvelopesLoaded', handleCloudEnvelopes);
+      window.removeEventListener('cloudPaymentMethodsLoaded', handleCloudPaymentMethods);
+    };
+  }, []);
+
+  // Cloud sync functions
+  const syncEnvelopesToCloud = async (envelopesData) => {
+    try {
+      const cloudStorage = (await import('../services/cloudStorage')).default;
+      await cloudStorage.saveEnvelopes(envelopesData);
+      console.log('✅ Envelopes synced to cloud');
+    } catch (error) {
+      console.error('Failed to sync envelopes to cloud:', error);
+    }
+  };
+
+  const syncPaymentMethodsToCloud = async (methodsData) => {
+    try {
+      const cloudStorage = (await import('../services/cloudStorage')).default;
+      await cloudStorage.savePaymentMethods(methodsData);
+      console.log('✅ Payment methods synced to cloud');
+    } catch (error) {
+      console.error('Failed to sync payment methods to cloud:', error);
+    }
+  };
 
   // Helper functions
   const addEnvelope = (name, category = 'need') => {

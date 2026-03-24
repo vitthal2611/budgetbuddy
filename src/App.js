@@ -58,10 +58,32 @@ function App() {
       setBudgets(data);
     });
 
+    // Subscribe to envelopes
+    const unsubEnvelopes = cloudStorage.subscribeToEnvelopes((data) => {
+      if (data && data.length > 0) {
+        // Update localStorage so DataContext picks it up
+        localStorage.setItem('envelopes', JSON.stringify(data));
+        // Trigger a storage event to notify DataContext
+        window.dispatchEvent(new CustomEvent('cloudEnvelopesLoaded', { detail: data }));
+      }
+    });
+
+    // Subscribe to payment methods
+    const unsubPaymentMethods = cloudStorage.subscribeToPaymentMethods((data) => {
+      if (data && data.length > 0) {
+        // Update localStorage so DataContext picks it up
+        localStorage.setItem('paymentMethods', JSON.stringify(data));
+        // Trigger a storage event to notify DataContext
+        window.dispatchEvent(new CustomEvent('cloudPaymentMethodsLoaded', { detail: data }));
+      }
+    });
+
     // Cleanup subscriptions
     return () => {
       unsubTransactions();
       unsubBudgets();
+      unsubEnvelopes();
+      unsubPaymentMethods();
     };
   }, [user]);
 
@@ -166,7 +188,7 @@ function App() {
     if (Object.keys(budgets).length > 0 || transactions.length > 0) {
       cleanupOrphanedBudgets();
     }
-  }, []); // Only run once on mount
+  }, [budgets, transactions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     try {
@@ -202,16 +224,64 @@ function App() {
 
   // Handle import transactions event
   useEffect(() => {
-    const handleImportEvent = (event) => {
+    const handleImportEvent = async (event) => {
       const importedTransactions = event.detail;
       console.log('Import event received in App.js:', importedTransactions.length, 'transactions');
       
+      // Update local state immediately for responsive UI
       setTransactions(prevTransactions => {
         const newTransactions = [...prevTransactions, ...importedTransactions];
         console.log('Previous transactions:', prevTransactions.length);
         console.log('New total transactions:', newTransactions.length);
         return newTransactions;
       });
+
+      // Sync to cloud storage in background
+      if (user) {
+        console.log('Syncing imported transactions to cloud storage...');
+        setSyncing(true);
+        
+        try {
+          let successCount = 0;
+          let failCount = 0;
+          
+          // Save each transaction to cloud storage
+          for (const transaction of importedTransactions) {
+            try {
+              await cloudStorage.addTransaction(transaction);
+              successCount++;
+            } catch (error) {
+              console.error(`Failed to sync transaction ${transaction.id}:`, error);
+              failCount++;
+            }
+          }
+          
+          console.log(`Cloud sync complete: ${successCount} succeeded, ${failCount} failed`);
+          
+          if (failCount > 0) {
+            alert(
+              `⚠️ Partial Cloud Sync\n\n` +
+              `${successCount} transactions synced successfully.\n` +
+              `${failCount} transactions failed to sync.\n\n` +
+              `Data is saved locally. Try exporting and re-importing if issues persist.`
+            );
+          } else {
+            console.log('✅ All imported transactions synced to cloud successfully');
+          }
+        } catch (error) {
+          console.error('Cloud sync error:', error);
+          alert(
+            '⚠️ Cloud Sync Failed\n\n' +
+            'Import completed but cloud sync failed.\n' +
+            'Data is saved locally only.\n\n' +
+            'Your data will be available on this device but may not sync across devices until you refresh.'
+          );
+        } finally {
+          setSyncing(false);
+        }
+      } else {
+        console.warn('User not authenticated, skipping cloud sync');
+      }
     };
 
     window.addEventListener('importTransactions', handleImportEvent);
@@ -221,14 +291,15 @@ function App() {
       window.removeEventListener('importTransactions', handleImportEvent);
       console.log('Import event listener removed');
     };
-  }, []);
+  }, [user]);
 
   // Handle undo import event
   useEffect(() => {
-    const handleUndoImport = (event) => {
+    const handleUndoImport = async (event) => {
       const { transactions: importedTransactions } = event.detail;
       console.log('Undo import event received:', importedTransactions.length, 'transactions');
       
+      // Update local state immediately
       setTransactions(prevTransactions => {
         // Create a Set of imported transaction IDs for efficient lookup
         const importedIds = new Set(importedTransactions.map(t => t.id));
@@ -241,6 +312,50 @@ function App() {
         
         return filtered;
       });
+
+      // Sync deletion to cloud storage
+      if (user) {
+        console.log('Syncing undo to cloud storage...');
+        setSyncing(true);
+        
+        try {
+          let successCount = 0;
+          let failCount = 0;
+          
+          // Delete each transaction from cloud storage
+          for (const transaction of importedTransactions) {
+            try {
+              await cloudStorage.deleteTransaction(transaction.id);
+              successCount++;
+            } catch (error) {
+              console.error(`Failed to delete transaction ${transaction.id}:`, error);
+              failCount++;
+            }
+          }
+          
+          console.log(`Undo sync complete: ${successCount} deleted, ${failCount} failed`);
+          
+          if (failCount > 0) {
+            alert(
+              `⚠️ Partial Undo Sync\n\n` +
+              `${successCount} transactions removed from cloud.\n` +
+              `${failCount} transactions failed to remove.\n\n` +
+              `Local data updated. Refresh to see cloud state.`
+            );
+          } else {
+            console.log('✅ All transactions removed from cloud successfully');
+          }
+        } catch (error) {
+          console.error('Undo sync error:', error);
+          alert(
+            '⚠️ Cloud Sync Failed\n\n' +
+            'Undo completed locally but cloud sync failed.\n' +
+            'Refresh the page to see the current cloud state.'
+          );
+        } finally {
+          setSyncing(false);
+        }
+      }
     };
 
     window.addEventListener('undoImport', handleUndoImport);
@@ -250,7 +365,7 @@ function App() {
       window.removeEventListener('undoImport', handleUndoImport);
       console.log('Undo import event listener removed');
     };
-  }, []);
+  }, [user]);
 
   // Handle tab switch event
   useEffect(() => {
