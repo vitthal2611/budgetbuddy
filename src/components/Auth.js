@@ -88,13 +88,10 @@ const Auth = ({ onAuthSuccess }) => {
     setLoading(true);
 
     try {
-      const result = await authService.signInWithGoogle();
-      // For desktop popup, result is returned immediately
-      if (result) {
-        onAuthSuccess();
-      }
-      // For mobile redirect, user will be redirected away
+      // This will redirect the user to Google sign-in
       // When they return, useEffect will handle the result
+      await authService.signInWithGoogle();
+      // Note: Code after this won't execute as user is redirected
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -178,6 +175,7 @@ const Auth = ({ onAuthSuccess }) => {
           <div className="auth-loading">
             <div className="loading-spinner"></div>
             <p>Signing you in...</p>
+            <p className="loading-hint">Please wait, you may be redirected to Google</p>
           </div>
         </div>
       </div>
@@ -266,7 +264,7 @@ const Auth = ({ onAuthSuccess }) => {
             <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.593.102-1.17.282-1.709V4.958H.957C.347 6.173 0 7.548 0 9c0 1.452.348 2.827.957 4.042l3.007-2.335z"/>
             <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
           </svg>
-          Continue with Google
+          <span>Continue with Google</span>
         </button>
 
         <div className="auth-footer">

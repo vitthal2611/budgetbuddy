@@ -5,12 +5,10 @@ import {
   onAuthStateChanged,
   GoogleAuthProvider,
   signInWithRedirect,
-  signInWithPopup,
   getRedirectResult,
   sendPasswordResetEmail,
   setPersistence,
-  browserLocalPersistence,
-  browserSessionPersistence
+  browserLocalPersistence
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import cloudStorage from './cloudStorage';
@@ -63,7 +61,7 @@ class AuthService {
     }
   }
 
-  // Sign in with Google (adaptive: popup for desktop, redirect for mobile)
+  // Sign in with Google (uses redirect for better compatibility and no CORS issues)
   async signInWithGoogle() {
     try {
       const provider = new GoogleAuthProvider();
@@ -72,30 +70,11 @@ class AuthService {
         prompt: 'select_account'
       });
       
-      // Use popup for desktop (better UX), redirect for mobile (more reliable)
-      if (this.isMobile()) {
-        // Mobile: Use redirect (more reliable, handles app switching)
-        await signInWithRedirect(auth, provider);
-        // Note: User will be redirected away and back
-        // The result is handled in handleRedirectResult()
-      } else {
-        // Desktop: Use popup (better UX, no page reload)
-        try {
-          const result = await signInWithPopup(auth, provider);
-          this.currentUser = result.user;
-          cloudStorage.setUser(result.user.uid);
-          return result.user;
-        } catch (popupError) {
-          // Fallback to redirect if popup fails (blocked, etc.)
-          if (popupError.code === 'auth/popup-blocked' || 
-              popupError.code === 'auth/popup-closed-by-user') {
-            console.log('Popup blocked, falling back to redirect');
-            await signInWithRedirect(auth, provider);
-          } else {
-            throw popupError;
-          }
-        }
-      }
+      // Always use redirect (works on all platforms, no CORS issues)
+      // More reliable than popup, especially with modern browser security policies
+      await signInWithRedirect(auth, provider);
+      // Note: User will be redirected away and back
+      // The result is handled in handleRedirectResult()
     } catch (error) {
       console.error('Google sign in error:', error);
       throw this.handleAuthError(error);

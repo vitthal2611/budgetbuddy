@@ -357,3 +357,10 @@
   margin: 0;
   font-weight: 500;
 }
+
+.loading-hint {
+  font-size: 13px !important;
+  color: #999 !important;
+  font-weight: 400 !important;
+  margin-top: 8px !important;
+}
