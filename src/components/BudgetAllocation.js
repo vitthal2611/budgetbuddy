@@ -12,10 +12,10 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
   const [envelopeToDelete, setEnvelopeToDelete] = useState(null);
   const [newEnvelope, setNewEnvelope] = useState('');
   
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                  'July', 'August', 'September', 'October', 'November', 'December'];
-  const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = useMemo(() => ['January', 'February', 'March', 'April', 'May', 'June', 
+                  'July', 'August', 'September', 'October', 'November', 'December'], []);
+  const monthsShort = useMemo(() => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], []);
 
   const envelopes = useMemo(() => {
     const envelopeMap = new Map();
@@ -72,11 +72,22 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
 
   const handleBudgetChange = (monthIndex, envelope, value) => {
     const key = `${selectedYear}-${monthIndex}`;
+    
+    // Store the actual value (including empty string for better UX)
+    // Only convert to number when it's a valid number, otherwise keep as empty string
+    let storedValue;
+    if (value === '' || value === null || value === undefined) {
+      storedValue = 0; // Store 0 for empty values in the budget object
+    } else {
+      const parsed = parseFloat(value);
+      storedValue = isNaN(parsed) ? 0 : parsed;
+    }
+    
     setBudgets({
       ...budgets,
       [key]: {
         ...(budgets[key] || {}),
-        [envelope]: parseFloat(value) || 0
+        [envelope]: storedValue
       }
     });
   };
@@ -217,7 +228,9 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
               </div>
             ) : (
               envelopes.map(env => {
-                const budgetValue = currentMonthData.envelopeBudgets[env] || '';
+                const budgetValue = currentMonthData.envelopeBudgets[env];
+                // Show empty string for 0 or undefined, otherwise show the value
+                const displayValue = (budgetValue === 0 || budgetValue === undefined || budgetValue === null) ? '' : budgetValue;
                 const category = getEnvelopeCategory(env);
                 
                 return (
@@ -236,7 +249,7 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
                       <input
                         type="number"
                         className="envelope-budget-input"
-                        value={budgetValue}
+                        value={displayValue}
                         onChange={(e) => handleBudgetChange(selectedMonth, env, e.target.value)}
                         placeholder="0"
                       />

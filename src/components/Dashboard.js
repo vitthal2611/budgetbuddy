@@ -9,7 +9,7 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
   
   const [selectedYear, setSelectedYear] = useState(() => {
     const saved = safeSessionStorage.getItem('dashboardYear');
-    return saved ? Number(saved) : currentDate.getFullYear();
+    return saved === 'all' ? 'all' : (saved ? Number(saved) : currentDate.getFullYear());
   });
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const saved = safeSessionStorage.getItem('dashboardMonth');
@@ -33,6 +33,11 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
   }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTransactions = useMemo(() => {
+    // If "All Time" is selected, return all transactions
+    if (selectedYear === 'all') {
+      return transactions;
+    }
+    
     return transactions.filter(t => {
       const tDate = new Date(t.date.split('-').reverse().join('-'));
       if (tDate.getFullYear() !== selectedYear) return false;
@@ -73,7 +78,14 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
   const totalBalance = Object.values(accountBalances).reduce((sum, val) => sum + val, 0);
 
   const getBudgetForEnvelope = (envelope) => {
-    if (selectedMonth === 'all') {
+    if (selectedYear === 'all') {
+      // Sum all budgets across all years and months
+      let total = 0;
+      Object.keys(budgets).forEach(key => {
+        total += budgets[key]?.[envelope] || 0;
+      });
+      return total;
+    } else if (selectedMonth === 'all') {
       // Sum all months for the year
       let total = 0;
       for (let i = 0; i < 12; i++) {
@@ -94,7 +106,8 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
       <div className="date-navigation">
         <div className="date-selector">
           <label>Year:</label>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+            <option value="all">All Time</option>
             {[2024, 2025, 2026, 2027].map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
@@ -102,7 +115,11 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
         </div>
         <div className="date-selector">
           <label>Month:</label>
-          <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+          <select 
+            value={selectedMonth} 
+            onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+            disabled={selectedYear === 'all'}
+          >
             <option value="all">All Months</option>
             {months.map((month, idx) => (
               <option key={idx} value={idx}>{month}</option>

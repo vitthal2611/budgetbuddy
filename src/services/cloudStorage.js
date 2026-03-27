@@ -91,6 +91,7 @@ class CloudStorageService {
     
     await setDoc(docRef, {
       ...updates,
+      id: transactionId.toString(),  // Ensure ID is always present for security rules
       updatedAt: serverTimestamp()
     }, { merge: true });
     
@@ -377,6 +378,50 @@ class CloudStorageService {
   }
 
   // ==================== CLEANUP ====================
+
+  // Delete all user data
+  async deleteAllData() {
+    if (!this.userId) {
+      throw new Error('User not authenticated');
+    }
+
+    try {
+      // Delete all transactions
+      const transactionsRef = this.getUserCollection('transactions');
+      const transactionsSnapshot = await getDocs(transactionsRef);
+      const batch = writeBatch(db);
+      
+      transactionsSnapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+
+      // Delete budgets
+      const budgetsRef = this.getUserCollection('budgets');
+      const budgetsDoc = doc(budgetsRef, 'current');
+      batch.delete(budgetsDoc);
+
+      // Delete envelopes
+      const envelopesRef = this.getUserCollection('envelopes');
+      const envelopesDoc = doc(envelopesRef, 'current');
+      batch.delete(envelopesDoc);
+
+      // Delete payment methods
+      const methodsRef = this.getUserCollection('paymentMethods');
+      const methodsDoc = doc(methodsRef, 'current');
+      batch.delete(methodsDoc);
+
+      await batch.commit();
+      console.log('✅ All user data deleted from Firebase');
+      
+      return {
+        transactionsDeleted: transactionsSnapshot.size,
+        success: true
+      };
+    } catch (error) {
+      console.error('Failed to delete all data:', error);
+      throw error;
+    }
+  }
 
   // Unsubscribe from all listeners
   unsubscribeAll() {

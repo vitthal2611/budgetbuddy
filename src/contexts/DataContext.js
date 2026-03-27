@@ -53,7 +53,8 @@ export const DataProvider = ({ children }) => {
     const saved = safeLocalStorage.getItem('paymentMethods');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return parsed;
       } catch (error) {
         console.error('Failed to parse payment methods:', error);
         return [];
@@ -66,7 +67,6 @@ export const DataProvider = ({ children }) => {
   const [shouldSyncToCloud, setShouldSyncToCloud] = useState(false);
   const syncTimeoutRef = React.useRef(null);
 
-  // Debounced sync function to batch multiple rapid changes
   const debouncedSyncEnvelopes = React.useCallback((envelopesData) => {
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
@@ -76,7 +76,6 @@ export const DataProvider = ({ children }) => {
       try {
         const cloudStorage = (await import('../services/cloudStorage')).default;
         await cloudStorage.saveEnvelopes(envelopesData);
-        console.log('✅ Envelopes synced to cloud');
       } catch (error) {
         console.error('Failed to sync envelopes to cloud:', error);
       }
@@ -92,7 +91,6 @@ export const DataProvider = ({ children }) => {
       try {
         const cloudStorage = (await import('../services/cloudStorage')).default;
         await cloudStorage.savePaymentMethods(methodsData);
-        console.log('✅ Payment methods synced to cloud');
       } catch (error) {
         console.error('Failed to sync payment methods to cloud:', error);
       }
@@ -107,17 +105,18 @@ export const DataProvider = ({ children }) => {
     if (shouldSyncToCloud && envelopes.length > 0) {
       debouncedSyncEnvelopes(envelopes);
     }
-  }, [envelopes, shouldSyncToCloud, debouncedSyncEnvelopes]);
+  }, [envelopes, shouldSyncToCloud]); // Removed debouncedSyncEnvelopes from deps
 
   // Sync payment methods to localStorage
   useEffect(() => {
     safeLocalStorage.setItem('paymentMethods', JSON.stringify(paymentMethods));
     
     // Sync to cloud storage if this is a user-initiated change
+    // Don't sync if empty or if sync is disabled
     if (shouldSyncToCloud && paymentMethods.length > 0) {
       debouncedSyncPaymentMethods(paymentMethods);
     }
-  }, [paymentMethods, shouldSyncToCloud, debouncedSyncPaymentMethods]);
+  }, [paymentMethods, shouldSyncToCloud]); // Removed debouncedSyncPaymentMethods from deps
 
   // Enable cloud sync after initial load
   useEffect(() => {
@@ -133,26 +132,24 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     const handleCloudEnvelopes = (event) => {
       const cloudEnvelopes = event.detail;
-      console.log('Received cloud envelopes:', cloudEnvelopes.length);
       
       // Temporarily disable cloud sync to avoid circular updates
       setShouldSyncToCloud(false);
       setEnvelopes(cloudEnvelopes);
       
       // Re-enable after a delay
-      setTimeout(() => setShouldSyncToCloud(true), 1000);
+      setTimeout(() => setShouldSyncToCloud(true), 2000); // Increased to 2 seconds
     };
 
     const handleCloudPaymentMethods = (event) => {
       const cloudMethods = event.detail;
-      console.log('Received cloud payment methods:', cloudMethods.length);
       
       // Temporarily disable cloud sync to avoid circular updates
       setShouldSyncToCloud(false);
       setPaymentMethods(cloudMethods);
       
       // Re-enable after a delay
-      setTimeout(() => setShouldSyncToCloud(true), 1000);
+      setTimeout(() => setShouldSyncToCloud(true), 2000); // Increased to 2 seconds
     };
 
     window.addEventListener('cloudEnvelopesLoaded', handleCloudEnvelopes);

@@ -143,6 +143,31 @@
   background: white;
 }
 
+/* Date input specific styling */
+.date-input {
+  position: relative;
+  cursor: pointer;
+  color: #1f2937;
+  font-family: inherit;
+}
+
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.date-input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Firefox date input */
+.date-input::-moz-calendar-picker-indicator {
+  cursor: pointer;
+}
+
 .form-input:focus,
 .form-select:focus {
   outline: none;

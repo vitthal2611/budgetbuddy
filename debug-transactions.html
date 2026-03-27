@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Transactions</title>
+    <style>
+        body { font-family: Arial; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Transaction Persistence Debug</h1>
+    
+    <div class="section">
+        <h2>1. Check Authentication</h2>
+        <button onclick="checkAuth()">Check Auth Status</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>2. Check Firestore Connection</h2>
+        <button onclick="checkFirestore()">Test Firestore Read</button>
+        <div id="firestore-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>3. Test Transaction Save</h2>
+        <button onclick="testSave()">Save Test Transaction</button>
+        <div id="save-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>4. List All Transactions</h2>
+        <button onclick="listTransactions()">List Transactions</button>
+        <div id="list-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>5. Check Browser Console</h2>
+        <p>Open browser console (F12) to see detailed error messages</p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, doc, setDoc, getDocs, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDY-LZIb3RZlYAH1eBcTejzGdhZ-b5PEGg",
+            authDomain: "budgetbuddy-9d7da.firebaseapp.com",
+            projectId: "budgetbuddy-9d7da",
+            storageBucket: "budgetbuddy-9d7da.firebasestorage.app",
+            messagingSenderId: "52697566663",
+            appId: "1:52697566663:web:c58b872b4ef3d3efac9de2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('auth-result').innerHTML = 
+                    `<div class="success">✅ Authenticated as: ${user.email}<br>UID: ${user.uid}</div>`;
+            } else {
+                document.getElementById('auth-result').innerHTML = 
+                    `<div class="error">❌ Not authenticated. Please sign in to your app first.</div>`;
+            }
+        });
+
+        window.checkAuth = function() {
+            if (currentUser) {
+                document.getElementById('auth-result').innerHTML = 
+                    `<div class="success">✅ User: ${currentUser.email}<br>UID: ${currentUser.uid}<br>Email Verified: ${currentUser.emailVerified}</div>`;
+            } else {
+                document.getElementById('auth-result').innerHTML = 
+                    `<div class="error">❌ No user signed in</div>`;
+            }
+        };
+
+        window.checkFirestore = async function() {
+            const resultDiv = document.getElementById('firestore-result');
+            try {
+                if (!currentUser) {
+                    resultDiv.innerHTML = '<div class="error">❌ Please sign in first</div>';
+                    return;
+                }
+
+                const transactionsRef = collection(db, 'users', currentUser.uid, 'transactions');
+                const q = query(transactionsRef, orderBy('date', 'desc'));
+                const snapshot = await getDocs(q);
+                
+                resultDiv.innerHTML = `<div class="success">✅ Firestore connected<br>Found ${snapshot.size} transactions</div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.code}<br>${error.message}</div>`;
+                console.error('Firestore error:', error);
+            }
+        };
+
+        window.testSave = async function() {
+            const resultDiv = document.getElementById('save-result');
+            try {
+                if (!currentUser) {
+                    resultDiv.innerHTML = '<div class="error">❌ Please sign in first</div>';
+                    return;
+                }
+
+                const transactionId = `debug-${Date.now()}`;
+                const transaction = {
+                    id: transactionId,
+                    type: 'expense',
+                    amount: 100,
+                    date: '01-01-2025',
+                    note: 'Debug test transaction',
+                    paymentMethod: 'Cash',
+                    envelope: 'Testing'
+                };
+
+                console.log('Attempting to save:', transaction);
+
+                const transactionsRef = collection(db, 'users', currentUser.uid, 'transactions');
+                const docRef = doc(transactionsRef, transactionId);
+                
+                await setDoc(docRef, {
+                    ...transaction,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+
+                resultDiv.innerHTML = `<div class="success">✅ Transaction saved successfully!<br>ID: ${transactionId}</div>`;
+                console.log('Save successful');
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Save failed<br>Code: ${error.code}<br>Message: ${error.message}</div>`;
+                console.error('Save error:', error);
+                console.error('Full error:', JSON.stringify(error, null, 2));
+            }
+        };
+
+        window.listTransactions = async function() {
+            const resultDiv = document.getElementById('list-result');
+            try {
+                if (!currentUser) {
+                    resultDiv.innerHTML = '<div class="error">❌ Please sign in first</div>';
+                    return;
+                }
+
+                const transactionsRef = collection(db, 'users', currentUser.uid, 'transactions');
+                const q = query(transactionsRef, orderBy('date', 'desc'));
+                const snapshot = await getDocs(q);
+                
+                if (snapshot.empty) {
+                    resultDiv.innerHTML = '<div>No transactions found</div>';
+                    return;
+                }
+
+                let html = `<div class="success">Found ${snapshot.size} transactions:</div><pre>`;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    html += `\nID: ${doc.id}\n`;
+                    html += `Type: ${data.type}\n`;
+                    html += `Amount: ${data.amount}\n`;
+                    html += `Date: ${data.date}\n`;
+                    html += `Note: ${data.note}\n`;
+                    html += `---\n`;
+                });
+                html += '</pre>';
+                
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.code}<br>${error.message}</div>`;
+                console.error('List error:', error);
+            }
+        };
+    </script>
+</body>
+</html>

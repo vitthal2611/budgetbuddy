@@ -4,6 +4,20 @@ import { useData } from '../contexts/DataContext';
 
 const TransactionModal = ({ type, transaction, onSave, onClose }) => {
   const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
+  
+  // Helper functions to convert between DD-MM-YYYY and YYYY-MM-DD formats
+  const toInputFormat = (ddmmyyyy) => {
+    if (!ddmmyyyy) return '';
+    const [day, month, year] = ddmmyyyy.split('-');
+    return `${year}-${month}-${day}`;
+  };
+  
+  const toStorageFormat = (yyyymmdd) => {
+    if (!yyyymmdd) return '';
+    const [year, month, day] = yyyymmdd.split('-');
+    return `${day}-${month}-${year}`;
+  };
+  
   const today = new Date();
   const defaultDate = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
 
@@ -21,9 +35,13 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
   const [showAddEnvelope, setShowAddEnvelope] = useState(false);
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [newEnvelope, setNewEnvelope] = useState('');
+  
+  // Track if we've initialized defaults to prevent overriding user selections
+  const defaultsInitialized = React.useRef(false);
 
   useEffect(() => {
     if (transaction) {
+      // Editing existing transaction - always update
       setFormData({
         amount: transaction.amount,
         note: transaction.note,
@@ -33,8 +51,9 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
         sourceAccount: transaction.sourceAccount || '',
         destinationAccount: transaction.destinationAccount || ''
       });
-    } else {
-      // Set defaults for new transactions
+      defaultsInitialized.current = true;
+    } else if (!defaultsInitialized.current && (paymentMethods.length > 0 || envelopes.length > 0)) {
+      // New transaction - set defaults only once when data is available
       const firstEnvelope = envelopes.length > 0 ? envelopes[0].name : '';
       setFormData(prev => ({
         ...prev,
@@ -43,6 +62,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
         sourceAccount: paymentMethods[0] || '',
         destinationAccount: paymentMethods[1] || paymentMethods[0] || ''
       }));
+      defaultsInitialized.current = true;
     }
   }, [transaction, paymentMethods, envelopes]);
 
@@ -54,17 +74,32 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
       onSave({
         id: transaction?.id || generateTransactionId(),
         type: 'transfer',
-        amount: formData.amount,
+        amount: parseFloat(formData.amount),
         note: formData.note,
         date: formData.date,
         sourceAccount: formData.sourceAccount,
         destinationAccount: formData.destinationAccount
       });
-    } else {
+    } else if (type === 'income') {
+      // Income transaction
       onSave({
         id: transaction?.id || generateTransactionId(),
-        type,
-        ...formData
+        type: 'income',
+        amount: parseFloat(formData.amount),
+        note: formData.note,
+        date: formData.date,
+        paymentMethod: formData.paymentMethod
+      });
+    } else {
+      // Expense transaction
+      onSave({
+        id: transaction?.id || generateTransactionId(),
+        type: 'expense',
+        amount: parseFloat(formData.amount),
+        note: formData.note,
+        date: formData.date,
+        paymentMethod: formData.paymentMethod,
+        envelope: formData.envelope
       });
     }
   };
@@ -105,13 +140,12 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
           </div>
 
           <div className="form-group">
-            <label>Date (DD-MM-YYYY)</label>
+            <label>Date</label>
             <input
-              type="text"
-              className="form-input"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              placeholder="DD-MM-YYYY"
+              type="date"
+              className="form-input date-input"
+              value={toInputFormat(formData.date)}
+              onChange={(e) => setFormData({ ...formData, date: toStorageFormat(e.target.value) })}
               required
             />
           </div>
@@ -132,7 +166,9 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
                   }}
                   required
                 >
-                  <option value="">Select source account</option>
+                  <option value="">
+                    {paymentMethods.length === 0 ? 'No accounts - Add one below' : 'Select source account'}
+                  </option>
                   {paymentMethods.map(method => (
                     <option key={method} value={method}>{method}</option>
                   ))}
@@ -154,7 +190,9 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
                   }}
                   required
                 >
-                  <option value="">Select destination account</option>
+                  <option value="">
+                    {paymentMethods.length === 0 ? 'No accounts - Add one below' : 'Select destination account'}
+                  </option>
                   {paymentMethods.map(method => (
                     <option key={method} value={method}>{method}</option>
                   ))}
@@ -179,7 +217,9 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
                     }}
                     required
                   >
-                    <option value="">Select payment method</option>
+                    <option value="">
+                      {paymentMethods.length === 0 ? 'No payment methods - Add one below' : 'Select payment method'}
+                    </option>
                     {paymentMethods.map(method => (
                       <option key={method} value={method}>{method}</option>
                     ))}
@@ -204,7 +244,9 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
                       }}
                       required
                     >
-                      <option value="">Select envelope</option>
+                      <option value="">
+                        {envelopes.length === 0 ? 'No envelopes - Add one below' : 'Select envelope'}
+                      </option>
                       {envelopes.map(env => {
                         const icon = env.category === 'need' ? '🛒' : env.category === 'want' ? '🎉' : '💰';
                         return (

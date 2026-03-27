@@ -176,7 +176,7 @@ const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {
       warnings.push({ field: 'type', message: 'Type will be auto-detected from amount', severity: 'info' });
     }
     if (!mapping.paymentMethod) {
-      warnings.push({ field: 'paymentMethod', message: 'Payment method will default to "Cash"', severity: 'info' });
+      warnings.push({ field: 'paymentMethod', message: 'Payment method column not mapped - transactions may need manual assignment', severity: 'warning' });
     }
     if (!mapping.envelope) {
       warnings.push({ field: 'envelope', message: 'Expenses will default to "Uncategorized"', severity: 'info' });
@@ -583,7 +583,7 @@ const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {
       transaction.sourceAccount = row[columnMapping.paymentMethod] || 'Unknown';
       transaction.destinationAccount = row[columnMapping.envelope] || 'Unknown';
     } else {
-      transaction.paymentMethod = row[columnMapping.paymentMethod] || 'Cash';
+      transaction.paymentMethod = row[columnMapping.paymentMethod] || 'Imported';
       if (type === 'expense') {
         transaction.envelope = row[columnMapping.envelope] || 'Uncategorized';
       }
@@ -743,6 +743,41 @@ const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {
         console.warn(`⚠️ Could not create payment method ${method}:`, error.message);
       }
     });
+
+    // Immediately sync payment methods and envelopes to cloud after import
+    if (createdMethods.length > 0 || createdEnvelopes.length > 0) {
+      setTimeout(async () => {
+        try {
+          const cloudStorage = (await import('../services/cloudStorage')).default;
+          
+          if (createdMethods.length > 0) {
+            // Get current payment methods from state (includes newly created ones)
+            const currentMethods = [...paymentMethods];
+            createdMethods.forEach(method => {
+              if (!currentMethods.includes(method)) {
+                currentMethods.push(method);
+              }
+            });
+            await cloudStorage.savePaymentMethods(currentMethods);
+            console.log(`✅ Synced ${createdMethods.length} new payment methods to cloud`);
+          }
+          
+          if (createdEnvelopes.length > 0) {
+            // Get current envelopes from state (includes newly created ones)
+            const currentEnvelopes = [...envelopes];
+            createdEnvelopes.forEach(name => {
+              if (!currentEnvelopes.find(e => e.name === name)) {
+                currentEnvelopes.push({ name, category: 'need' });
+              }
+            });
+            await cloudStorage.saveEnvelopes(currentEnvelopes);
+            console.log(`✅ Synced ${createdEnvelopes.length} new envelopes to cloud`);
+          }
+        } catch (error) {
+          console.error('Failed to sync new items to cloud:', error);
+        }
+      }, 500); // Increased delay to ensure state updates complete
+    }
 
     // Calculate detailed statistics
     const stats = {

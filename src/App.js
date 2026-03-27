@@ -30,12 +30,10 @@ function App() {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      console.log('🟢 Connection restored');
     };
     
     const handleOffline = () => {
       setIsOnline(false);
-      console.log('🔴 Connection lost - working offline');
     };
     
     window.addEventListener('online', handleOnline);
@@ -103,22 +101,18 @@ function App() {
 
     // Subscribe to envelopes
     const unsubEnvelopes = cloudStorage.subscribeToEnvelopes((data) => {
-      if (data && data.length > 0) {
-        // Update localStorage so DataContext picks it up
-        localStorage.setItem('envelopes', JSON.stringify(data));
-        // Trigger a storage event to notify DataContext
-        window.dispatchEvent(new CustomEvent('cloudEnvelopesLoaded', { detail: data }));
-      }
+      // Update localStorage so DataContext picks it up (even if empty)
+      localStorage.setItem('envelopes', JSON.stringify(data || []));
+      // Trigger a storage event to notify DataContext
+      window.dispatchEvent(new CustomEvent('cloudEnvelopesLoaded', { detail: data || [] }));
     });
 
     // Subscribe to payment methods
     const unsubPaymentMethods = cloudStorage.subscribeToPaymentMethods((data) => {
-      if (data && data.length > 0) {
-        // Update localStorage so DataContext picks it up
-        localStorage.setItem('paymentMethods', JSON.stringify(data));
-        // Trigger a storage event to notify DataContext
-        window.dispatchEvent(new CustomEvent('cloudPaymentMethodsLoaded', { detail: data }));
-      }
+      // Update localStorage so DataContext picks it up (even if empty)
+      localStorage.setItem('paymentMethods', JSON.stringify(data || []));
+      // Trigger a storage event to notify DataContext
+      window.dispatchEvent(new CustomEvent('cloudPaymentMethodsLoaded', { detail: data || [] }));
     });
 
     // Cleanup subscriptions
@@ -129,6 +123,69 @@ function App() {
       unsubPaymentMethods();
     };
   }, [user]);
+
+  // ONE-TIME SYNC: Extract payment methods from transactions and sync to DataContext
+  useEffect(() => {
+    if (!user || transactions.length === 0) return;
+    
+    const syncPaymentMethodsFromTransactions = async () => {
+      try {
+        // Get current payment methods from localStorage
+        const savedMethods = localStorage.getItem('paymentMethods');
+        const currentMethods = savedMethods ? JSON.parse(savedMethods) : [];
+        
+        // If payment methods list is empty and we have transactions, sync them
+        // But if both are empty, don't do anything (user might have deleted all data)
+        if (currentMethods.length === 0 && transactions.length === 0) {
+          return; // Both empty, nothing to sync
+        }
+        
+        // Extract all unique payment methods from transactions
+        const methodsFromTransactions = new Set();
+        transactions.forEach(t => {
+          if (t.paymentMethod) {
+            methodsFromTransactions.add(t.paymentMethod);
+          }
+          if (t.sourceAccount) {
+            methodsFromTransactions.add(t.sourceAccount);
+          }
+          if (t.destinationAccount) {
+            methodsFromTransactions.add(t.destinationAccount);
+          }
+        });
+        
+        // Find methods that exist in transactions but not in payment methods list
+        const missingMethods = Array.from(methodsFromTransactions).filter(
+          method => !currentMethods.includes(method)
+        );
+        
+        if (missingMethods.length > 0) {
+          console.log(`Found ${missingMethods.length} payment methods in transactions that aren't in the list:`, missingMethods);
+          
+          // Add missing methods to the list
+          const updatedMethods = [...currentMethods, ...missingMethods];
+          
+          // Update localStorage
+          localStorage.setItem('paymentMethods', JSON.stringify(updatedMethods));
+          
+          // Sync to cloud
+          await cloudStorage.savePaymentMethods(updatedMethods);
+          
+          // Trigger event to update DataContext
+          window.dispatchEvent(new CustomEvent('cloudPaymentMethodsLoaded', { detail: updatedMethods }));
+          
+          console.log(`✅ Synced ${missingMethods.length} missing payment methods`);
+        }
+      } catch (error) {
+        console.error('Failed to sync payment methods from transactions:', error);
+      }
+    };
+    
+    // Run once after transactions are loaded (but not immediately to avoid conflicts with delete)
+    const timeoutId = setTimeout(syncPaymentMethodsFromTransactions, 3000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [user, transactions.length]); // Only run when user changes or transaction count changes
 
   // ONE-TIME MIGRATION: Load from localStorage and migrate to Firebase
   useEffect(() => {
@@ -261,27 +318,21 @@ function App() {
   useEffect(() => {
     const handleImportEvent = async (event) => {
       const importedTransactions = event.detail;
-      console.log('Import event received in App.js:', importedTransactions.length, 'transactions');
       
       // Update local state immediately for responsive UI
       setTransactions(prevTransactions => {
         const newTransactions = [...prevTransactions, ...importedTransactions];
-        console.log('Previous transactions:', prevTransactions.length);
-        console.log('New total transactions:', newTransactions.length);
         return newTransactions;
       });
 
       // Sync to cloud storage in background using BATCH operations
       if (user) {
-        console.log('Syncing imported transactions to cloud storage...');
         setSyncing(true);
         
         try {
           // Use batch operation for much faster imports
           const successCount = await cloudStorage.batchAddTransactions(importedTransactions);
           const failCount = 0;
-          
-          console.log(`Cloud sync complete: ${successCount} succeeded, ${failCount} failed`);
           
           if (failCount > 0) {
             alert(
@@ -290,8 +341,6 @@ function App() {
               `${failCount} transactions failed to sync.\n\n` +
               `Data is saved locally. Try exporting and re-importing if issues persist.`
             );
-          } else {
-            console.log('✅ All imported transactions synced to cloud successfully');
           }
         } catch (error) {
           console.error('Cloud sync error:', error);
@@ -304,17 +353,13 @@ function App() {
         } finally {
           setSyncing(false);
         }
-      } else {
-        console.warn('User not authenticated, skipping cloud sync');
       }
     };
 
     window.addEventListener('importTransactions', handleImportEvent);
-    console.log('Import event listener registered');
     
     return () => {
       window.removeEventListener('importTransactions', handleImportEvent);
-      console.log('Import event listener removed');
     };
   }, [user]);
 
@@ -322,7 +367,6 @@ function App() {
   useEffect(() => {
     const handleUndoImport = async (event) => {
       const { transactions: importedTransactions } = event.detail;
-      console.log('Undo import event received:', importedTransactions.length, 'transactions');
       
       // Update local state immediately
       setTransactions(prevTransactions => {
@@ -332,15 +376,11 @@ function App() {
         // Filter out the imported transactions
         const filtered = prevTransactions.filter(t => !importedIds.has(t.id));
         
-        console.log('Removed', prevTransactions.length - filtered.length, 'transactions');
-        console.log('Remaining transactions:', filtered.length);
-        
         return filtered;
       });
 
       // Sync deletion to cloud storage
       if (user) {
-        console.log('Syncing undo to cloud storage...');
         setSyncing(true);
         
         try {
@@ -358,8 +398,6 @@ function App() {
             }
           }
           
-          console.log(`Undo sync complete: ${successCount} deleted, ${failCount} failed`);
-          
           if (failCount > 0) {
             alert(
               `⚠️ Partial Undo Sync\n\n` +
@@ -367,8 +405,6 @@ function App() {
               `${failCount} transactions failed to remove.\n\n` +
               `Local data updated. Refresh to see cloud state.`
             );
-          } else {
-            console.log('✅ All transactions removed from cloud successfully');
           }
         } catch (error) {
           console.error('Undo sync error:', error);
@@ -384,11 +420,9 @@ function App() {
     };
 
     window.addEventListener('undoImport', handleUndoImport);
-    console.log('Undo import event listener registered');
     
     return () => {
       window.removeEventListener('undoImport', handleUndoImport);
-      console.log('Undo import event listener removed');
     };
   }, [user]);
 
@@ -396,7 +430,6 @@ function App() {
   useEffect(() => {
     const handleTabSwitch = (event) => {
       const tab = event.detail;
-      console.log('Switching to tab:', tab);
       setActiveTab(tab);
     };
 
@@ -418,6 +451,8 @@ function App() {
 
   const handleSaveTransaction = async (transaction) => {
     try {
+      console.log('Attempting to save transaction:', JSON.stringify(transaction, null, 2));
+      
       // Optimistic update: Update UI immediately
       if (editTransaction) {
         setTransactions(prev => prev.map(t => 
@@ -431,12 +466,17 @@ function App() {
       
       // Sync to cloud in background
       if (editTransaction) {
+        console.log('Updating transaction with ID:', editTransaction.id);
         await cloudStorage.updateTransaction(editTransaction.id, transaction);
       } else {
+        console.log('Adding new transaction');
         await cloudStorage.addTransaction(transaction);
       }
+      console.log('Transaction saved successfully');
     } catch (error) {
       console.error('Save transaction error:', error);
+      console.error('Error details:', error.message, error.code);
+      console.error('Transaction data:', JSON.stringify(transaction, null, 2));
       
       // Rollback on error
       if (editTransaction) {
@@ -447,7 +487,7 @@ function App() {
         setTransactions(prev => prev.filter(t => t.id !== transaction.id));
       }
       
-      alert('Failed to save transaction. Please try again.');
+      alert(`Failed to save transaction: ${error.message || 'Please try again.'}`);
     }
   };
 
@@ -540,6 +580,68 @@ function App() {
         console.error('Sign out error:', error);
         alert('Failed to sign out. Please try again.');
       }
+    }
+  };
+
+  const handleDeleteAllData = async () => {
+    const confirmMsg = 
+      '⚠️ DELETE ALL DATA?\n\n' +
+      'This will permanently delete:\n' +
+      '• All transactions\n' +
+      '• All budgets\n' +
+      '• All envelopes\n' +
+      '• All payment methods\n\n' +
+      '🚨 THIS CANNOT BE UNDONE!\n\n' +
+      'Type "DELETE" to confirm:';
+    
+    const userInput = window.prompt(confirmMsg);
+    
+    if (userInput !== 'DELETE') {
+      if (userInput !== null) {
+        alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
+      }
+      return;
+    }
+
+    try {
+      setSyncing(true);
+      
+      // Delete from Firebase
+      const result = await cloudStorage.deleteAllData();
+      
+      // Clear local state
+      setTransactions([]);
+      setBudgets({});
+      
+      // Clear localStorage
+      localStorage.removeItem('transactions');
+      localStorage.removeItem('budgets');
+      localStorage.removeItem('envelopes');
+      localStorage.removeItem('paymentMethods');
+      
+      // Set empty arrays in localStorage to ensure they're cleared
+      localStorage.setItem('envelopes', JSON.stringify([]));
+      localStorage.setItem('paymentMethods', JSON.stringify([]));
+      
+      // Trigger events to update DataContext
+      window.dispatchEvent(new CustomEvent('cloudEnvelopesLoaded', { detail: [] }));
+      window.dispatchEvent(new CustomEvent('cloudPaymentMethodsLoaded', { detail: [] }));
+      
+      // Wait a bit for state to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setSyncing(false);
+      
+      alert(
+        `✅ All Data Deleted\n\n` +
+        `${result.transactionsDeleted} transactions deleted\n` +
+        `All budgets, envelopes, and payment methods cleared\n\n` +
+        `Your account is now empty.`
+      );
+    } catch (error) {
+      console.error('Delete all data error:', error);
+      setSyncing(false);
+      alert('❌ Failed to delete data. Please try again or contact support.');
     }
   };
 
@@ -699,6 +801,14 @@ function App() {
                   <div className="menu-text">
                     <div className="menu-title">Export Data</div>
                     <div className="menu-subtitle">Download backup</div>
+                  </div>
+                </button>
+
+                <button className="menu-item danger" onClick={() => { handleDeleteAllData(); setShowMenu(false); }}>
+                  <span className="menu-icon">🗑️</span>
+                  <div className="menu-text">
+                    <div className="menu-title">Delete All Data</div>
+                    <div className="menu-subtitle">Permanently erase everything</div>
                   </div>
                 </button>
 
