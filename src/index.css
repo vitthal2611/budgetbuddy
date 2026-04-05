@@ -1,3 +1,6 @@
+/* Import Design System Variables */
+@import './styles/variables.css';
+
 * {
   margin: 0;
   padding: 0;
@@ -6,12 +9,10 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(180deg, #f8f9ff 0%, #ffffff 100%);
+  background: var(--bg-gradient);
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
@@ -19,13 +20,13 @@ body {
 
 /* Ensure minimum touch target size (Apple HIG: 44px, Material: 48px) */
 button, a, input, select, textarea {
-  min-height: 48px;
+  min-height: var(--touch-target-min);
   touch-action: manipulation;
 }
 
 /* Interactive elements should be easily tappable */
 button, a {
-  min-width: 48px;
+  min-width: var(--touch-target-min);
 }
 
 /* Improve form input experience on mobile */
@@ -58,7 +59,7 @@ body {
   height: 20px;
   border: 3px solid rgba(99, 102, 241, 0.3);
   border-radius: 50%;
-  border-top-color: #6366f1;
+  border-top-color: var(--color-info);
   animation: spin 0.8s linear infinite;
 }
 
@@ -68,10 +69,10 @@ body {
 
 /* Skeleton loading */
 .skeleton {
-  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 @keyframes shimmer {
@@ -95,15 +96,15 @@ body {
   bottom: calc(100px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
-  background: #1f2937;
-  color: white;
-  padding: 14px 24px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 1001;
-  animation: toastSlideUp 0.3s ease-out;
+  background: var(--gray-800);
+  color: var(--text-inverse);
+  padding: var(--space-sm) var(--space-3);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-medium);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-tooltip);
+  animation: toastSlideUp var(--transition-base) var(--ease-out);
   max-width: calc(100% - 40px);
   text-align: center;
 }
@@ -120,11 +121,11 @@ body {
 }
 
 .toast.success {
-  background: #10b981;
+  background: var(--color-success);
 }
 
 .toast.error {
-  background: #ef4444;
+  background: var(--color-danger);
 }
 
 /* Reduced motion support */
