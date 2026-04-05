@@ -4,7 +4,7 @@ import { useData } from '../contexts/DataContext';
 
 const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
   const { envelopes: customEnvelopes, addEnvelope, removeEnvelope, getEnvelopeCategory } = useData();
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [viewMode, setViewMode] = useState('monthly'); // 'monthly' or 'yearly'
   const [showAddEnvelope, setShowAddEnvelope] = useState(false);
@@ -187,9 +187,7 @@ const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {
             value={selectedYear} 
             onChange={(e) => setSelectedYear(Number(e.target.value))}
           >
-            {[2024, 2025, 2026, 2027].map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
+            <option value={2026}>2026</option>
           </select>
           
           {viewMode === 'monthly' && (

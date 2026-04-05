@@ -5,7 +5,7 @@ import ImportTransactions from './ImportTransactions';
 const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onFiltersCleared }) => {
   const [filterType, setFilterType] = useState(initialFilters.type || 'all');
   const [filterMonth, setFilterMonth] = useState(initialFilters.month || 'all');
-  const [filterYear, setFilterYear] = useState(initialFilters.year || new Date().getFullYear());
+  const [filterYear, setFilterYear] = useState(initialFilters.year || 2026);
   const [filterPaymentMethod, setFilterPaymentMethod] = useState(initialFilters.paymentMethod || 'all');
   const [filterEnvelope, setFilterEnvelope] = useState(initialFilters.envelope || 'all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,7 +17,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
     if (Object.keys(initialFilters).length > 0) {
       setFilterType(initialFilters.type || 'all');
       setFilterMonth(initialFilters.month || 'all');
-      setFilterYear(initialFilters.year || new Date().getFullYear());
+      setFilterYear(initialFilters.year || 2026);
       setFilterPaymentMethod(initialFilters.paymentMethod || 'all');
       setFilterEnvelope(initialFilters.envelope || 'all');
       setShowFilters(true);
@@ -124,7 +124,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
   const clearFilters = () => {
     setFilterType('all');
     setFilterMonth('all');
-    setFilterYear(new Date().getFullYear());
+    setFilterYear(2026);
     setFilterPaymentMethod('all');
     setFilterEnvelope('all');
     setSearchQuery('');
@@ -229,9 +229,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
               value={filterYear}
               onChange={(e) => setFilterYear(Number(e.target.value))}
             >
-              {[2024, 2025, 2026, 2027].map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
+              <option value={2026}>2026</option>
             </select>
 
             <select 
