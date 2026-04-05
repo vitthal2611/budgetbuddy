@@ -9,7 +9,7 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
   
   const [selectedYear, setSelectedYear] = useState(() => {
     const saved = safeSessionStorage.getItem('dashboardYear');
-    return saved === 'all' ? 'all' : (saved ? Number(saved) : currentDate.getFullYear());
+    return saved === 'all' ? 'all' : (saved ? Number(saved) : 'all');
   });
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const saved = safeSessionStorage.getItem('dashboardMonth');
@@ -22,6 +22,16 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
 
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 
                   'July', 'August', 'September', 'October', 'November', 'December'];
+
+  // Get unique years from transactions
+  const availableYears = useMemo(() => {
+    const years = new Set();
+    transactions.forEach(t => {
+      const tDate = new Date(t.date.split('-').reverse().join('-'));
+      years.add(tDate.getFullYear());
+    });
+    return Array.from(years).sort((a, b) => b - a); // Sort descending
+  }, [transactions]);
 
   // Save selections to sessionStorage
   useEffect(() => {
@@ -108,7 +118,7 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
           <label>Year:</label>
           <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
             <option value="all">All Time</option>
-            {[2024, 2025, 2026, 2027].map(year => (
+            {availableYears.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
