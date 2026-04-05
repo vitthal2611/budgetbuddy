@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import './BudgetAllocation.css';
+import './BudgetAllocation.modern.css';
 import { useData } from '../contexts/DataContext';
 
 const BudgetAllocation = ({ budgets, setBudgets, transactions }) => {

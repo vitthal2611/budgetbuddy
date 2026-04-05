@@ -1,0 +1,307 @@
+/* Modern Transaction Modal */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: var(--z-modal-backdrop);
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn var(--transition-base) var(--ease-out);
+}
+
+@media (min-width: 768px) {
+  .modal-overlay {
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.modal-content {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp var(--transition-slow) var(--ease-out);
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .modal-content {
+    border-radius: var(--radius-2xl);
+    max-width: 480px;
+    max-height: 85vh;
+  }
+}
+
+/* Modal Header */
+.modal-header {
+  padding: var(--space-6) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 1;
+}
+
+.modal-title {
+  font-size: var(--text-h3);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+}
+
+.modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast) var(--ease-standard);
+  line-height: 1;
+}
+
+.modal-close:hover {
+  background: var(--border-medium);
+  transform: scale(1.05);
+}
+
+.modal-close:active {
+  transform: scale(0.95);
+}
+
+/* Form */
+form {
+  padding: var(--space-5);
+  padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-group label {
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  letter-spacing: var(--tracking-wide);
+}
+
+.form-input,
+.form-select {
+  padding: 14px 16px;
+  border: 1.5px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  font-size: var(--text-body);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  transition: all var(--transition-fast) var(--ease-standard);
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
+  background: var(--bg-secondary);
+}
+
+.form-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.form-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236F767E' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 44px;
+}
+
+.date-input {
+  font-family: var(--font-primary);
+}
+
+/* Modal Actions */
+.modal-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.btn-modal {
+  flex: 1;
+  padding: 14px 24px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-base) var(--ease-standard);
+}
+
+.btn-cancel {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.btn-cancel:hover {
+  background: var(--border-medium);
+}
+
+.btn-save {
+  background: var(--primary);
+  color: white;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-save:hover {
+  background: var(--primary-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-save:active {
+  background: var(--primary-dark);
+  transform: translateY(0);
+}
+
+/* Inline Add Form */
+.inline-add-form {
+  padding: var(--space-4);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: slideDown var(--transition-base) var(--ease-out);
+}
+
+.inline-input {
+  padding: 12px 16px;
+  border: 1.5px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  font-size: var(--text-body-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+  transition: all var(--transition-fast) var(--ease-standard);
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
+}
+
+.inline-buttons {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn-inline-cancel,
+.btn-inline-save {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-base) var(--ease-standard);
+}
+
+.btn-inline-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.btn-inline-cancel:hover {
+  background: var(--border-light);
+}
+
+.btn-inline-save {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-inline-save:hover {
+  background: var(--primary-light);
+}
+
+.btn-inline-save:active {
+  background: var(--primary-dark);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .modal-header {
+    padding: var(--space-5) var(--space-4) var(--space-3);
+  }
+
+  .modal-title {
+    font-size: var(--text-h4);
+  }
+
+  form {
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+
+  .form-input,
+  .form-select {
+    padding: 12px 14px;
+  }
+
+  .btn-modal {
+    padding: 12px 20px;
+  }
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './ImportTransactions.css';
+import './ImportTransactions.modern.css';
 import { useData } from '../contexts/DataContext';
 
 const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {

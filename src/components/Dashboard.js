@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import './Dashboard.css';
+import './Dashboard.modern.css';
 import { useData } from '../contexts/DataContext';
 import { safeSessionStorage } from '../utils/safeStorage';
 
@@ -138,20 +138,55 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
 
   return (
     <div className="dashboard">
-      <h1 className="dashboard-title">BudgetBuddy</h1>
-      
-      <div className="date-navigation">
-        <div className="date-selector">
-          <label>Year:</label>
+      {/* Modern Header */}
+      <div className="dashboard-header">
+        <div className="dashboard-logo">
+          <div className="dashboard-avatar">BB</div>
+          <h1 className="dashboard-title">BudgetBuddy</h1>
+        </div>
+        <div className="dashboard-actions">
+          <button className="icon-btn" aria-label="Notifications">
+            🔔
+          </button>
+        </div>
+      </div>
+
+      <div className="dashboard-content">
+        {/* Hero Balance Section */}
+        <div className="balance-hero">
+          <div className="balance-label">Total Balance</div>
+          <div className="balance-amount">₹{totalBalance.toLocaleString('en-IN')}</div>
+          <div className={`balance-change ${totalBalance - totalIncome + totalExpense >= 0 ? '' : 'negative'}`}>
+            {totalBalance - totalIncome + totalExpense >= 0 ? '↑' : '↓'} ₹{Math.abs(totalIncome - totalExpense).toLocaleString('en-IN')} this month
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="summary-grid">
+          <div className="summary-card-modern">
+            <div className="summary-card-header">
+              <div className="summary-icon income">💰</div>
+              <div className="summary-label">Income</div>
+            </div>
+            <div className="summary-amount">₹{totalIncome.toLocaleString('en-IN')}</div>
+          </div>
+          <div className="summary-card-modern">
+            <div className="summary-card-header">
+              <div className="summary-icon expense">💸</div>
+              <div className="summary-label">Expense</div>
+            </div>
+            <div className="summary-amount">₹{totalExpense.toLocaleString('en-IN')}</div>
+          </div>
+        </div>
+
+        {/* Date Filter */}
+        <div className="date-filter">
           <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
             <option value="all">All Time</option>
             {availableYears.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
-        </div>
-        <div className="date-selector">
-          <label>Month:</label>
           <select 
             value={selectedMonth} 
             onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
@@ -163,228 +198,209 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
             ))}
           </select>
         </div>
-      </div>
 
-      <div className="summary-cards">
-        <div className="summary-card income">
-          <div className="card-icon">💰</div>
-          <div className="card-content">
-            <div className="label">Income</div>
-            <div className="amount">₹{totalIncome.toLocaleString('en-IN')}</div>
-          </div>
-        </div>
-        <div className="summary-card expense">
-          <div className="card-icon">💸</div>
-          <div className="card-content">
-            <div className="label">Expense</div>
-            <div className="amount">₹{totalExpense.toLocaleString('en-IN')}</div>
-          </div>
-        </div>
-        <div className="summary-card balance">
-          <div className="card-icon">💳</div>
-          <div className="card-content">
-            <div className="label">Balance</div>
-            <div className={`amount ${totalBalance >= 0 ? 'positive' : 'negative'}`}>
-              ₹{totalBalance.toLocaleString('en-IN')}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="action-buttons">
-        <button className="btn btn-income" onClick={() => onAddTransaction('income')}>
-          <span className="btn-icon">+</span>
-          <span className="btn-text">Income</span>
-        </button>
-        <button className="btn btn-expense" onClick={() => onAddTransaction('expense')}>
-          <span className="btn-icon">-</span>
-          <span className="btn-text">Expense</span>
-        </button>
-        <button className="btn btn-transfer" onClick={() => onAddTransaction('transfer')}>
-          <span className="btn-icon">⇄</span>
-          <span className="btn-text">Transfer</span>
-        </button>
-      </div>
-
-      {todayExpenses.total > 0 && (
-        <div className="today-expenses">
-          <h3>📅 Today's Expenses</h3>
-          <div className="today-envelope-list">
-            {Object.entries(todayExpenses.byEnvelope).map(([envelope, amount]) => {
-              const category = getEnvelopeCategory(envelope);
-              return (
-                <div key={envelope} className={`today-envelope-item ${category}`}>
-                  <div className="envelope-info">
-                    <span className="envelope-icon">
+        {/* Today's Expenses */}
+        {todayExpenses.total > 0 && (
+          <div className="today-section">
+            <h2 className="section-header-modern">📅 Today's Expenses</h2>
+            <div className="expense-list">
+              {Object.entries(todayExpenses.byEnvelope).map(([envelope, amount]) => {
+                const category = getEnvelopeCategory(envelope);
+                return (
+                  <div key={envelope} className="expense-item">
+                    <div className={`expense-icon ${category}`}>
                       {category === 'need' && '🛒'}
                       {category === 'want' && '🎉'}
                       {category === 'saving' && '💰'}
-                    </span>
-                    <span className="envelope-name">{envelope}</span>
+                    </div>
+                    <div className="expense-details">
+                      <div className="expense-name">{envelope}</div>
+                      <div className="expense-category">{category}</div>
+                    </div>
+                    <div className="expense-amount">₹{amount.toLocaleString('en-IN')}</div>
                   </div>
-                  <span className="envelope-amount">₹{amount.toLocaleString('en-IN')}</span>
+                );
+              })}
+              <div className="expense-total">
+                <span className="expense-total-label">Total Today</span>
+                <span className="expense-total-amount">₹{todayExpenses.total.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Methods */}
+        <div className="payment-section">
+          <h2 className="section-header-modern">💳 Payment Methods</h2>
+          <div className="payment-list">
+            {Object.entries(accountBalances).map(([account, balance]) => (
+              <div 
+                key={account} 
+                className="payment-item"
+                onClick={() => onViewTransactions({ 
+                  paymentMethod: account,
+                  year: selectedYear,
+                  month: selectedMonth
+                })}
+              >
+                <div className="payment-icon">💳</div>
+                <div className="payment-details">
+                  <div className="payment-name">{account}</div>
                 </div>
-              );
-            })}
-            <div className="today-total">
-              <span className="total-label">Total Today</span>
-              <span className="total-amount">₹{todayExpenses.total.toLocaleString('en-IN')}</span>
+                <div className={`payment-balance ${balance >= 0 ? 'positive' : 'negative'}`}>
+                  ₹{balance.toLocaleString('en-IN')}
+                </div>
+              </div>
+            ))}
+            <div className="payment-total">
+              <span className="payment-total-label">Total Balance</span>
+              <span className="payment-total-amount">₹{totalBalance.toLocaleString('en-IN')}</span>
             </div>
           </div>
         </div>
-      )}
 
-      <div className="account-balances">
-        <h3>💳 Payment Methods</h3>
-        {Object.entries(accountBalances).map(([account, balance]) => (
-          <div 
-            key={account} 
-            className="balance-row clickable"
-            onClick={() => onViewTransactions({ 
-              paymentMethod: account,
-              year: selectedYear,
-              month: selectedMonth
-            })}
-          >
-            <span className="account-name">{account}</span>
-            <span className={`account-balance ${balance >= 0 ? 'positive' : 'negative'}`}>
-              ₹{balance.toLocaleString('en-IN')}
-            </span>
-          </div>
-        ))}
-        <div className="balance-row total">
-          <span className="total-label-text">Total Balance</span>
-          <span className={`total-balance ${totalBalance >= 0 ? 'positive' : 'negative'}`}>
-            ₹{totalBalance.toLocaleString('en-IN')}
-          </span>
+        {/* Budget Overview */}
+        <div className="budget-section">
+          <h2 className="section-header-modern">💰 Budget Overview</h2>
+          
+          {/* Need Category */}
+          {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'need').length > 0 && (
+            <div className="budget-category">
+              <div className="category-header-modern">
+                <span className="category-icon-modern">🛒</span>
+                <span className="category-title-modern">Needs</span>
+              </div>
+              <div className="budget-list">
+                {Object.entries(envelopeSpending)
+                  .filter(([envelope]) => getEnvelopeCategory(envelope) === 'need')
+                  .map(([envelope, spent]) => {
+                    const budget = getBudgetForEnvelope(envelope);
+                    const percentage = budget > 0 ? (spent / budget) * 100 : 0;
+                    return (
+                      <div 
+                        key={envelope} 
+                        className="budget-item"
+                        onClick={() => onViewTransactions({ 
+                          envelope: envelope,
+                          year: selectedYear,
+                          month: selectedMonth
+                        })}
+                      >
+                        <div className="budget-header">
+                          <span className="budget-name">{envelope}</span>
+                          <span className="budget-amounts">₹{spent.toLocaleString('en-IN')} / ₹{budget.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="budget-progress">
+                          <div className="budget-bar">
+                            <div 
+                              className={`budget-fill ${percentage > 100 ? 'over' : 'need'}`}
+                              style={{ width: `${Math.min(percentage, 100)}%` }}
+                            />
+                          </div>
+                          <span className="budget-percentage">{Math.round(percentage)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* Want Category */}
+          {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'want').length > 0 && (
+            <div className="budget-category">
+              <div className="category-header-modern">
+                <span className="category-icon-modern">🎉</span>
+                <span className="category-title-modern">Wants</span>
+              </div>
+              <div className="budget-list">
+                {Object.entries(envelopeSpending)
+                  .filter(([envelope]) => getEnvelopeCategory(envelope) === 'want')
+                  .map(([envelope, spent]) => {
+                    const budget = getBudgetForEnvelope(envelope);
+                    const percentage = budget > 0 ? (spent / budget) * 100 : 0;
+                    return (
+                      <div 
+                        key={envelope} 
+                        className="budget-item"
+                        onClick={() => onViewTransactions({ 
+                          envelope: envelope,
+                          year: selectedYear,
+                          month: selectedMonth
+                        })}
+                      >
+                        <div className="budget-header">
+                          <span className="budget-name">{envelope}</span>
+                          <span className="budget-amounts">₹{spent.toLocaleString('en-IN')} / ₹{budget.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="budget-progress">
+                          <div className="budget-bar">
+                            <div 
+                              className={`budget-fill ${percentage > 100 ? 'over' : 'want'}`}
+                              style={{ width: `${Math.min(percentage, 100)}%` }}
+                            />
+                          </div>
+                          <span className="budget-percentage">{Math.round(percentage)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* Saving Category */}
+          {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'saving').length > 0 && (
+            <div className="budget-category">
+              <div className="category-header-modern">
+                <span className="category-icon-modern">💰</span>
+                <span className="category-title-modern">Savings</span>
+              </div>
+              <div className="budget-list">
+                {Object.entries(envelopeSpending)
+                  .filter(([envelope]) => getEnvelopeCategory(envelope) === 'saving')
+                  .map(([envelope, spent]) => {
+                    const budget = getBudgetForEnvelope(envelope);
+                    const percentage = budget > 0 ? (spent / budget) * 100 : 0;
+                    return (
+                      <div 
+                        key={envelope} 
+                        className="budget-item"
+                        onClick={() => onViewTransactions({ 
+                          envelope: envelope,
+                          year: selectedYear,
+                          month: selectedMonth
+                        })}
+                      >
+                        <div className="budget-header">
+                          <span className="budget-name">{envelope}</span>
+                          <span className="budget-amounts">₹{spent.toLocaleString('en-IN')} / ₹{budget.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="budget-progress">
+                          <div className="budget-bar">
+                            <div 
+                              className={`budget-fill ${percentage > 100 ? 'over' : 'saving'}`}
+                              style={{ width: `${Math.min(percentage, 100)}%` }}
+                            />
+                          </div>
+                          <span className="budget-percentage">{Math.round(percentage)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className="envelopes">
-        <h3>Budget Envelopes</h3>
-        
-        {/* Need Category */}
-        {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'need').length > 0 && (
-          <div className="envelope-category-section">
-            <div className="category-header need">
-              <span className="category-icon">🛒</span>
-              <span className="category-title">Needs</span>
-            </div>
-            {Object.entries(envelopeSpending)
-              .filter(([envelope]) => getEnvelopeCategory(envelope) === 'need')
-              .map(([envelope, spent]) => {
-                const budget = getBudgetForEnvelope(envelope);
-                const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-                return (
-                  <div 
-                    key={envelope} 
-                    className="envelope-item clickable"
-                    onClick={() => onViewTransactions({ 
-                      envelope: envelope,
-                      year: selectedYear,
-                      month: selectedMonth
-                    })}
-                  >
-                    <div className="envelope-header">
-                      <span className="envelope-name">{envelope}</span>
-                      <span className="envelope-amounts">₹{spent.toLocaleString('en-IN')}/{budget.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill need" 
-                        style={{ 
-                          width: `${Math.min(percentage, 100)}%`,
-                          backgroundColor: percentage > 100 ? '#ef4444' : '#10b981'
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-
-        {/* Want Category */}
-        {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'want').length > 0 && (
-          <div className="envelope-category-section">
-            <div className="category-header want">
-              <span className="category-icon">🎉</span>
-              <span className="category-title">Wants</span>
-            </div>
-            {Object.entries(envelopeSpending)
-              .filter(([envelope]) => getEnvelopeCategory(envelope) === 'want')
-              .map(([envelope, spent]) => {
-                const budget = getBudgetForEnvelope(envelope);
-                const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-                return (
-                  <div 
-                    key={envelope} 
-                    className="envelope-item clickable"
-                    onClick={() => onViewTransactions({ 
-                      envelope: envelope,
-                      year: selectedYear,
-                      month: selectedMonth
-                    })}
-                  >
-                    <div className="envelope-header">
-                      <span className="envelope-name">{envelope}</span>
-                      <span className="envelope-amounts">₹{spent.toLocaleString('en-IN')}/{budget.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill want" 
-                        style={{ 
-                          width: `${Math.min(percentage, 100)}%`,
-                          backgroundColor: percentage > 100 ? '#ef4444' : '#f59e0b'
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-
-        {/* Saving Category */}
-        {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'saving').length > 0 && (
-          <div className="envelope-category-section">
-            <div className="category-header saving">
-              <span className="category-icon">💰</span>
-              <span className="category-title">Savings</span>
-            </div>
-            {Object.entries(envelopeSpending)
-              .filter(([envelope]) => getEnvelopeCategory(envelope) === 'saving')
-              .map(([envelope, spent]) => {
-                const budget = getBudgetForEnvelope(envelope);
-                const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-                return (
-                  <div 
-                    key={envelope} 
-                    className="envelope-item clickable"
-                    onClick={() => onViewTransactions({ 
-                      envelope: envelope,
-                      year: selectedYear,
-                      month: selectedMonth
-                    })}
-                  >
-                    <div className="envelope-header">
-                      <span className="envelope-name">{envelope}</span>
-                      <span className="envelope-amounts">₹{spent.toLocaleString('en-IN')}/{budget.toLocaleString('en-IN')}</span>
-                    </div>
-                    <div className="progress-bar">
-                      <div 
-                        className="progress-fill saving" 
-                        style={{ 
-                          width: `${Math.min(percentage, 100)}%`,
-                          backgroundColor: percentage > 100 ? '#ef4444' : '#3b82f6'
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
+        {/* Floating Action Button */}
+        <button 
+          className="fab" 
+          onClick={() => onAddTransaction('expense')}
+          aria-label="Add transaction"
+        >
+          +
+        </button>
       </div>
     </div>
   );

@@ -1,0 +1,102 @@
+/* Modern Bottom Navigation */
+
+.bottom-nav-modern {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 8px 0;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  z-index: var(--z-fixed);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.nav-item-modern {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-fast) var(--ease-standard);
+  border-radius: var(--radius-md);
+  min-width: 64px;
+}
+
+.nav-item-modern:active {
+  transform: scale(0.95);
+  background: var(--bg-tertiary);
+}
+
+.nav-icon-modern {
+  font-size: 24px;
+  color: var(--text-tertiary);
+  transition: all var(--transition-fast) var(--ease-standard);
+}
+
+.nav-label-modern {
+  font-size: var(--text-caption);
+  color: var(--text-tertiary);
+  font-weight: var(--weight-medium);
+  transition: all var(--transition-fast) var(--ease-standard);
+}
+
+/* Active State */
+.nav-item-modern.active .nav-icon-modern {
+  color: var(--primary);
+}
+
+.nav-item-modern.active .nav-label-modern {
+  color: var(--primary);
+  font-weight: var(--weight-semibold);
+}
+
+/* Active Indicator */
+.nav-item-modern.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+}
+
+/* Badge (for notifications) */
+.nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  border: 2px solid var(--bg-secondary);
+}
+
+.nav-badge-count {
+  position: absolute;
+  top: 2px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: white;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid var(--bg-secondary);
+}

@@ -1,5 +1,5 @@
-/* Import Design System Variables */
-@import './styles/variables.css';
+/* Import Modern Design System Variables */
+@import './styles/modern-variables.css';
 
 * {
   margin: 0;
@@ -12,10 +12,11 @@ body {
   font-family: var(--font-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--bg-gradient);
+  background: var(--bg-primary);
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
+  color: var(--text-primary);
 }
 
 /* Ensure minimum touch target size (Apple HIG: 44px, Material: 48px) */

@@ -2,8 +2,8 @@
   max-width: 480px;
   margin: 0 auto;
   height: 100vh;
-  background: linear-gradient(180deg, #f8f9ff 0%, #ffffff 100%);
-  box-shadow: 0 0 40px rgba(102, 126, 234, 0.15);
+  background: var(--bg-primary);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -13,88 +13,81 @@
   display: none;
 }
 
+/* Modern Bottom Navigation */
 .bottom-nav {
   display: flex;
-  background: white;
-  border-top: none;
+  justify-content: space-around;
+  align-items: center;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-light);
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   max-width: 480px;
   margin: 0 auto;
-  z-index: 100;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
-  padding-bottom: max(8px, env(safe-area-inset-bottom));
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.95);
+  z-index: var(--z-fixed);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+  padding: 8px 0;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  height: var(--nav-height);
 }
 
 .bottom-nav button {
-  flex: 1;
-  padding: 12px 8px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  border: none;
-  background: white;
-  font-size: 12px;
-  font-weight: 600;
-  color: #9ca3af;
-  cursor: pointer;
-  transition: all 0.15s ease-out;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  min-height: 64px;
-  -webkit-tap-highlight-color: transparent;
+  gap: 4px;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--ease-standard);
+  border-radius: var(--radius-md);
+  min-width: 64px;
   position: relative;
-  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .bottom-nav button .nav-icon {
   font-size: 24px;
-  transition: transform 0.2s;
+  transition: all var(--transition-fast) var(--ease-standard);
 }
 
 .bottom-nav button.active {
-  color: #6366f1;
-  background: #f0f1ff;
+  color: var(--primary);
 }
 
 .bottom-nav button.active .nav-icon {
-  transform: scale(1.2);
+  color: var(--primary);
+}
+
+/* Active Indicator Dot */
+.bottom-nav button.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
 }
 
 .bottom-nav button:active {
-  background: #e5e7eb;
-}
-
-.bottom-nav button::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(99, 102, 241, 0.1);
-  transform: translate(-50%, -50%);
-  transition: width 0.3s, height 0.3s;
-}
-
-.bottom-nav button:active::before {
-  width: 100%;
-  height: 100%;
+  transform: scale(0.95);
+  background: var(--bg-tertiary);
 }
 
 .content {
-  padding: 20px;
-  padding-bottom: 0;
-  padding-left: max(20px, env(safe-area-inset-left));
-  padding-right: max(20px, env(safe-area-inset-right));
+  padding: 0;
   flex: 1;
   min-height: 0;
-  background: linear-gradient(180deg, #f8f9ff 0%, #ffffff 100%);
+  background: var(--bg-primary);
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;

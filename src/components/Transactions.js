@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import './Transactions.css';
+import './Transactions.modern.css';
 import ImportTransactions from './ImportTransactions';
 
 const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onFiltersCleared }) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './TransactionModal.css';
+import './TransactionModal.modern.css';
 import { useData } from '../contexts/DataContext';
 
 const TransactionModal = ({ type, transaction, onSave, onClose }) => {
