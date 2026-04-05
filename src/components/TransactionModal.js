@@ -55,11 +55,12 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
     } else if (!defaultsInitialized.current && (paymentMethods.length > 0 || envelopes.length > 0)) {
       // New transaction - set defaults only once when data is available
       const firstEnvelope = envelopes.length > 0 ? envelopes[0].name : '';
+      const defaultPaymentMethod = paymentMethods.includes('HDFC') ? 'HDFC' : (paymentMethods[0] || '');
       setFormData(prev => ({
         ...prev,
-        paymentMethod: paymentMethods[0] || '',
+        paymentMethod: defaultPaymentMethod,
         envelope: firstEnvelope,
-        sourceAccount: paymentMethods[0] || '',
+        sourceAccount: defaultPaymentMethod,
         destinationAccount: paymentMethods[1] || paymentMethods[0] || ''
       }));
       defaultsInitialized.current = true;

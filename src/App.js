@@ -455,24 +455,27 @@ function App() {
       
       // Optimistic update: Update UI immediately
       if (editTransaction) {
+        // Editing existing transaction - preserve the ID
+        const updatedTransaction = { ...transaction, id: editTransaction.id };
         setTransactions(prev => prev.map(t => 
-          t.id === editTransaction.id ? { ...transaction, id: editTransaction.id } : t
+          t.id === editTransaction.id ? updatedTransaction : t
         ));
-      } else {
-        setTransactions(prev => [...prev, transaction]);
-      }
-      
-      setShowModal(false);
-      
-      // Sync to cloud in background
-      if (editTransaction) {
+        
+        setShowModal(false);
+        
+        // Sync to cloud in background
         console.log('Updating transaction with ID:', editTransaction.id);
-        await cloudStorage.updateTransaction(editTransaction.id, transaction);
+        await cloudStorage.updateTransaction(editTransaction.id, updatedTransaction);
+        console.log('Transaction updated successfully');
       } else {
+        // Adding new transaction
+        setTransactions(prev => [...prev, transaction]);
+        setShowModal(false);
+        
         console.log('Adding new transaction');
         await cloudStorage.addTransaction(transaction);
+        console.log('Transaction added successfully');
       }
-      console.log('Transaction saved successfully');
     } catch (error) {
       console.error('Save transaction error:', error);
       console.error('Error details:', error.message, error.code);
