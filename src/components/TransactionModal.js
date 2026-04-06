@@ -3,15 +3,11 @@ import './TransactionModal.modern.css';
 import { useData } from '../contexts/DataContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 
-const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onClose, budgets, transactions, onTransferRequest }) => {
+const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete, onClose, budgets, transactions, onTransferRequest }) => {
   const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
   const { preferences } = usePreferences();
   
-  // Determine effective type - 'credit' is a special expense subtype (refund)
   const effectiveType = type === 'credit' ? 'expense' : type;
-  const [txSubtype, setTxSubtype] = useState(
-    transaction?.subtype || (type === 'credit' ? 'credit' : 'normal')
-  );
   
   // Helper functions to convert between DD-MM-YYYY and YYYY-MM-DD formats
   const toInputFormat = (ddmmyyyy) => {
@@ -203,12 +199,11 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onClose,
         paymentMethod: formData.paymentMethod
       });
     } else {
-      // Expense or credit (refund)
+      // Expense
       onSave({
         id: transaction?.id || generateTransactionId(),
         type: 'expense',
-        subtype: txSubtype, // 'normal' or 'credit'
-        amount: txSubtype === 'credit' ? -Math.abs(parseFloat(formData.amount)) : parseFloat(formData.amount),
+        amount: parseFloat(formData.amount),
         note: formData.note,
         date: formData.date,
         paymentMethod: formData.paymentMethod,
@@ -246,32 +241,12 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onClose,
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">
-            {transaction ? 'Edit' : 'Add'} {type === 'credit' ? 'Credit/Refund' : type.charAt(0).toUpperCase() + type.slice(1)}
+            {transaction ? 'Edit' : 'Add'} {effectiveType.charAt(0).toUpperCase() + effectiveType.slice(1)}
           </h2>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* Credit toggle for expense type */}
-          {effectiveType === 'expense' && !transaction && (
-            <div className="form-group">
-              <div className="tx-type-toggle">
-                <button type="button"
-                  className={`tx-type-btn ${txSubtype === 'normal' ? 'active expense' : ''}`}
-                  onClick={() => setTxSubtype('normal')}>
-                  💸 Expense
-                </button>
-                <button type="button"
-                  className={`tx-type-btn ${txSubtype === 'credit' ? 'active credit' : ''}`}
-                  onClick={() => setTxSubtype('credit')}>
-                  ↩ Credit/Refund
-                </button>
-              </div>
-              {txSubtype === 'credit' && (
-                <div className="credit-hint">A refund or reimbursement — adds money back to the envelope</div>
-              )}
-            </div>
-          )}
           <div className="form-group">
             <label>Amount (₹)</label>
             <input
@@ -444,11 +419,20 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onClose,
           )}
 
           <div className="modal-actions">
+            {transaction && (
+              <button
+                type="button"
+                className="btn-modal btn-delete"
+                onClick={() => { onClose(); setTimeout(() => onDelete && onDelete(transaction.id), 100); }}
+              >
+                Delete
+              </button>
+            )}
             <button type="button" className="btn-modal btn-cancel" onClick={onClose}>
               Cancel
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="btn-modal btn-save"
               disabled={spendingWarning?.isBlocked}
             >

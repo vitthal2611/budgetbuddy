@@ -183,7 +183,7 @@ const Auth = ({ onAuthSuccess }) => {
   }
 
   return (
-    <div className="auth-container">
+    <div className="auth-container" translate="no">
       <div className="auth-card">
         <div className="auth-header">
           <h1>💰 Budget Buddy</h1>

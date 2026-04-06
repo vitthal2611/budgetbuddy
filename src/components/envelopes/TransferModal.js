@@ -61,6 +61,24 @@ const TransferModal = ({
           {transferError && <div className="ev-transfer-error">{transferError}</div>}
         </div>
 
+        {/* Borrow toggle */}
+        <label className="ev-borrow-toggle">
+          <input
+            type="checkbox"
+            checked={!!transferData.isBorrow}
+            onChange={e => setTransferData({ ...transferData, isBorrow: e.target.checked })}
+          />
+          <span className="ev-borrow-toggle-label">
+            💸 Mark as Borrow — settle later
+          </span>
+        </label>
+
+        {transferData.isBorrow && transferData.from && transferData.to && (
+          <div className="ev-borrow-hint">
+            <strong>{transferData.from}</strong> will lend ₹{transferData.amount || '?'} to <strong>{transferData.to}</strong>. A "Settle ↩" button will appear to return it.
+          </div>
+        )}
+
         <div className="ev-modal-footer">
           <button type="button" className="ev-btn-ghost" onClick={() => { onClose(); setTransferError(''); }}>Cancel</button>
           <button type="submit" className="ev-btn-primary">Transfer</button>

@@ -74,10 +74,12 @@ class CloudStorageService {
   // Add transaction
   async addTransaction(transaction) {
     const transactionsRef = this.getUserCollection('transactions');
-    const docRef = doc(transactionsRef, transaction.id.toString());
+    const id = (transaction.id ?? `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`).toString();
+    const docRef = doc(transactionsRef, id);
     
     await setDoc(docRef, {
       ...transaction,
+      id,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
@@ -88,15 +90,17 @@ class CloudStorageService {
   // Update transaction
   async updateTransaction(transactionId, updates) {
     const transactionsRef = this.getUserCollection('transactions');
-    const docRef = doc(transactionsRef, transactionId.toString());
+    const id = transactionId ? transactionId.toString() : (updates.id ? updates.id.toString() : null);
+    if (!id) throw new Error('Transaction ID is required');
+    const docRef = doc(transactionsRef, id);
     
     await setDoc(docRef, {
       ...updates,
-      id: transactionId.toString(),  // Ensure ID is always present for security rules
+      id,
       updatedAt: serverTimestamp()
     }, { merge: true });
     
-    return { id: transactionId, ...updates };
+    return { id, ...updates };
   }
 
   // Delete transaction

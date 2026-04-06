@@ -60,10 +60,18 @@ export const useEnvelopesData = ({
     [transactions, selectedYear, selectedMonth]
   );
 
-  const totalFilled = useMemo(
-    () => Object.values(envelopeFills).reduce((s, v) => s + parseFloat(v || 0), 0),
-    [envelopeFills]
-  );
+  const totalFilled = useMemo(() => {
+    if (selectedMonth === 'all') {
+      let total = 0;
+      Object.entries(budgets).forEach(([key, mb]) => {
+        const [y] = key.split('-');
+        if (parseInt(y) === selectedYear)
+          Object.values(mb).forEach(v => { total += parseFloat(v || 0); });
+      });
+      return total;
+    }
+    return Object.values(envelopeFills).reduce((s, v) => s + parseFloat(v || 0), 0);
+  }, [envelopeFills, budgets, selectedYear, selectedMonth]);
 
   const totalSpent = useMemo(
     () => Object.values(monthlySpending).reduce((s, v) => s + v, 0),
@@ -122,15 +130,31 @@ export const useEnvelopesData = ({
 
   const envelopesByCategory = useMemo(() => {
     const grouped = { need: [], want: [], saving: [] };
+
+    // For "all months" — sum fills across all months of selected year
+    const allYearFills = {};
+    if (selectedMonth === 'all') {
+      Object.entries(budgets).forEach(([key, mb]) => {
+        const [y] = key.split('-');
+        if (parseInt(y) === selectedYear) {
+          Object.entries(mb).forEach(([name, val]) => {
+            allYearFills[name] = (allYearFills[name] || 0) + parseFloat(val || 0);
+          });
+        }
+      });
+    }
+
     customEnvelopes.forEach(env => {
-      const filled = envelopeFills[env.name] || 0;
+      const filled = selectedMonth === 'all'
+        ? (allYearFills[env.name] || 0)
+        : (envelopeFills[env.name] || 0);
       const spent  = monthlySpending[env.name] || 0;
       const remaining = filled - spent;
       const suggestedFill = computeMonthlyFill(env, selectedYear, selectedMonth);
       grouped[env.category].push({ ...env, filled, spent, remaining, suggestedFill });
     });
     return grouped;
-  }, [customEnvelopes, envelopeFills, monthlySpending, selectedYear, selectedMonth]);
+  }, [customEnvelopes, envelopeFills, monthlySpending, budgets, selectedYear, selectedMonth]);
 
   return {
     budgetKey,

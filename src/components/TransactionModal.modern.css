@@ -186,6 +186,18 @@ form {
   background: var(--border-medium);
 }
 
+.btn-delete {
+  background: var(--danger-bg);
+  color: var(--danger);
+  flex: 0 0 auto;
+  padding: 14px 18px;
+}
+
+.btn-delete:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
 .btn-save {
   background: var(--primary);
   color: white;

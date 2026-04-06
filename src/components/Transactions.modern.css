@@ -313,7 +313,7 @@
 /* Transaction item */
 .tx-item-wrap {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .tx-item {
@@ -653,4 +653,48 @@
 .tx-item--voided .tx-item-note {
   color: var(--text-tertiary);
   text-decoration: line-through;
+}
+
+/* ── Double-click popup ── */
+.tx-popup {
+  position: absolute;
+  z-index: var(--z-modal);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  min-width: 140px;
+  animation: fadeIn 0.12s var(--ease-out);
+  /* Ensure it's always on top */
+  isolation: isolate;
+}
+
+.tx-popup-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.tx-popup-btn.edit  { color: var(--primary); }
+.tx-popup-btn.edit:hover  { background: var(--primary-bg); }
+.tx-popup-btn.delete { color: var(--danger); }
+.tx-popup-btn.delete:hover { background: var(--danger-bg); }
+.tx-popup-btn:active { opacity: 0.75; }
+
+.tx-popup-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 0;
 }

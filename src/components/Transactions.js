@@ -156,7 +156,6 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
     }, 200);
   };
 
-  // Swipe-to-reveal actions
   const handleTouchStart = (e, id) => {
     touchStartX.current = e.touches[0].clientX;
     if (swipedId && swipedId !== id) setSwipedId(null);
@@ -364,15 +363,16 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
                       className={`tx-item-wrap ${isSwiped ? 'swiped' : ''}`}
                       onTouchStart={e => handleTouchStart(e, t.id)}
                       onTouchEnd={e => handleTouchEnd(e, t.id)}
+                      onDoubleClick={e => { e.stopPropagation(); onEdit(t); }}
                     >
-                      <div className="tx-item" onClick={() => isSwiped && setSwipedId(null)}>
+                      <div className="tx-item" onClick={() => { if (isSwiped) setSwipedId(null); }}>
                         <div className={`tx-item-icon ${cls}`}>{icon}</div>
                         <div className="tx-item-body">
                           <div className="tx-item-top">
-                        <span className={`tx-item-note${t.voided ? ' tx-item-note--voided' : ''}`}
-                          style={t.voided ? { textDecoration: 'line-through', color: 'var(--text-tertiary)' } : {}}>
-                          {t.note}
-                        </span>
+                            <span className={`tx-item-note${t.voided ? ' tx-item-note--voided' : ''}`}
+                              style={t.voided ? { textDecoration: 'line-through', color: 'var(--text-tertiary)' } : {}}>
+                              {t.note}
+                            </span>
                             <span className={`tx-item-amount ${getAmountClass(t)}`}>{formatAmount(t)}</span>
                           </div>
                           <div className="tx-item-sub">{getSubLabel(t)}</div>
@@ -383,6 +383,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
                           <button className="tx-action delete" onClick={e => { e.stopPropagation(); onDelete(t.id); }}>🗑️</button>
                         </div>
                       </div>
+
                       {/* Swipe actions */}
                       <div className="tx-swipe-actions">
                         <button className="tx-swipe-btn edit" onClick={e => { e.stopPropagation(); setSwipedId(null); onEdit(t); }}>Edit</button>

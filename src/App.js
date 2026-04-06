@@ -249,6 +249,9 @@ function App() {
     const cleanedBudgets = JSON.parse(JSON.stringify(budgets));
 
     Object.keys(cleanedBudgets).forEach(monthKey => {
+      // Skip non-month keys like _borrows
+      if (monthKey.startsWith('_')) return;
+
       Object.keys(cleanedBudgets[monthKey]).forEach(envelopeName => {
         if (!validEnvelopeNames.has(envelopeName)) {
           delete cleanedBudgets[monthKey][envelopeName];
@@ -337,63 +340,46 @@ function App() {
   };
 
   const handleSaveTransaction = async (transaction) => {
+    // Ensure id is always present
+    const id = transaction.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const txWithId = { ...transaction, id };
     try {
-      if (editTransaction) {
-        const updatedTransaction = { ...transaction, id: editTransaction.id };
+      if (editTransaction && editTransaction.id) {
+        const updatedTransaction = { ...txWithId, id: editTransaction.id };
         setTransactions(prev => prev.map(t => t.id === editTransaction.id ? updatedTransaction : t));
         setShowModal(false);
         await cloudStorage.updateTransaction(editTransaction.id, updatedTransaction);
         setToast({ message: 'Transaction updated', type: 'success' });
       } else {
-        setTransactions(prev => [...prev, transaction]);
+        setTransactions(prev => [...prev, txWithId]);
         setShowModal(false);
-        await cloudStorage.addTransaction(transaction);
+        await cloudStorage.addTransaction(txWithId);
         setToast({ message: 'Transaction saved', type: 'success' });
       }
     } catch (error) {
       console.error('Save transaction error:', error);
-      // Rollback
       if (editTransaction) {
         setTransactions(prev => prev.map(t => t.id === editTransaction.id ? editTransaction : t));
       } else {
-        setTransactions(prev => prev.filter(t => t.id !== transaction.id));
+        setTransactions(prev => prev.filter(t => t.id !== txWithId.id));
       }
       alert(`Failed to save transaction: ${error.message || 'Please try again.'}`);
     }
   };
 
-  // Rule 10: soft delete — mark as voided and add a reversal entry instead of hard delete
   const handleDeleteTransaction = async (id) => {
     const transaction = transactions.find(t => t.id === id);
-    if (!transaction || transaction.voided) return;
-
-    const typeIcon = transaction.type === 'income' ? '💰' : transaction.type === 'expense' ? '💸' : '🔄';
-    const details = `${transaction.date} • ₹${Math.abs(transaction.amount)}\n${transaction.note}`;
-
-    if (!window.confirm(`${typeIcon} Void this transaction?\n\n${details}\n\nA reversal entry will be added to maintain the audit trail.`)) return;
-
-    const generateTransactionId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    const reversalEntry = {
-      ...transaction,
-      id: generateTransactionId(),
-      amount: -Math.abs(parseFloat(transaction.amount)),
-      note: `[Reversal] ${transaction.note}`,
-      reversalOf: id,
-      subtype: 'reversal',
-    };
-    const voidedOriginal = { ...transaction, voided: true };
+    if (!transaction) return;
 
     const previousTransactions = [...transactions];
     try {
-      setTransactions(prev => prev.map(t => t.id === id ? voidedOriginal : t).concat(reversalEntry));
-      await cloudStorage.updateTransaction(id, voidedOriginal);
-      await cloudStorage.addTransaction(reversalEntry);
-      setToast({ message: 'Transaction voided with reversal entry', type: 'success' });
+      setTransactions(prev => prev.filter(t => t.id !== id));
+      await cloudStorage.deleteTransaction(id);
+      setToast({ message: 'Transaction deleted', type: 'success' });
     } catch (error) {
-      console.error('Void transaction error:', error);
+      console.error('Delete transaction error:', error);
       setTransactions(previousTransactions);
-      alert('Failed to void transaction. Please try again.');
+      setToast({ message: 'Failed to delete transaction', type: 'error' });
     }
   };
 
@@ -622,6 +608,7 @@ function App() {
                 transaction={editTransaction?._prefill ? null : editTransaction}
                 initialEnvelope={editTransaction?._prefill ? editTransaction.envelope : undefined}
                 onSave={handleSaveTransaction}
+                onDelete={handleDeleteTransaction}
                 onClose={() => setShowModal(false)}
                 budgets={budgets}
                 transactions={transactions}

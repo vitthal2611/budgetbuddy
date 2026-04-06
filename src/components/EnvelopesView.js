@@ -205,22 +205,66 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   // ── Transfer ─────────────────────────────────────────────────
   const handleEnvelopeTransfer = (e) => {
     e.preventDefault();
-    const { from, to, amount } = transferData;
+    const { from, to, amount, isBorrow } = transferData;
     if (!from || !to || !amount || from === to) return;
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) return;
-    const sourceRemaining = (envelopeFills[from] || 0) - (monthlySpending[from] || 0);
+
+    // Use current month key if "all months" selected
+    const activeKey = budgetKey || `${today.getFullYear()}-${today.getMonth()}`;
+
+    const activeFills = budgets[activeKey] || {};
+
+    // Always use current month spending for the availability check
+    const currentMonthSpending = {};
+    transactions.forEach(t => {
+      if (t.type !== 'expense' || !t.envelope) return;
+      const d = new Date(t.date.split('-').reverse().join('-'));
+      if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth())
+        currentMonthSpending[t.envelope] = (currentMonthSpending[t.envelope] || 0) + parseFloat(t.amount);
+    });
+
+    const spendingToCheck = selectedMonth === 'all' ? currentMonthSpending : monthlySpending;
+    const sourceRemaining = (activeFills[from] || 0) - (spendingToCheck[from] || 0);
     if (amt > sourceRemaining) {
-      setTransferError(`Only ₹${fmt(sourceRemaining)} available in ${from}`);
+      setTransferError(`Only ₹${fmt(Math.max(0, sourceRemaining))} available in ${from}`);
       return;
     }
-    const newFills = { ...envelopeFills };
+    const newFills = { ...activeFills };
     newFills[from] = Math.max(0, (newFills[from] || 0) - amt);
     newFills[to]   = (newFills[to] || 0) + amt;
-    setBudgets({ ...budgets, [budgetKey]: newFills });
-    setTransferData({ from: '', to: '', amount: '' });
+
+    let updatedBudgets = { ...budgets, [activeKey]: newFills };
+    if (isBorrow) {
+      const borrowId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      const existing = budgets._borrows || [];
+      updatedBudgets._borrows = [...existing, {
+        id: borrowId,
+        from, to, amount: amt,
+        date: new Date().toLocaleDateString('en-IN'),
+        settled: false,
+      }];
+    }
+
+    setBudgets(updatedBudgets);
+    setTransferData({ from: '', to: '', amount: '', isBorrow: false });
     setTransferError('');
     setShowTransferModal(false);
+  };
+
+  // ── Settle borrow ─────────────────────────────────────────────
+  const handleSettleBorrow = (borrow) => {
+    if (!window.confirm(`Settle ₹${fmt(borrow.amount)} back to ${borrow.from}?`)) return;
+    const key = selectedMonth === 'all'
+      ? `${today.getFullYear()}-${today.getMonth()}`
+      : budgetKey;
+    const fills = { ...(budgets[key] || {}) };
+    fills[borrow.from] = (fills[borrow.from] || 0) + borrow.amount;
+    fills[borrow.to]   = Math.max(0, (fills[borrow.to] || 0) - borrow.amount);
+    const updatedBorrows = (budgets._borrows || []).map(b =>
+      b.id === borrow.id ? { ...b, settled: true } : b
+    );
+    setBudgets({ ...budgets, [key]: fills, _borrows: updatedBorrows });
   };
 
   // ── Edit envelope ─────────────────────────────────────────────
@@ -381,7 +425,30 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           </div>
         )}
 
+        {/* Active borrows */}
+        {(budgets._borrows || []).filter(b => !b.settled).length > 0 && (
+          <div className="ev-borrows-section">
+            <div className="ev-borrows-title">💸 Pending Settlements</div>
+            {(budgets._borrows || []).filter(b => !b.settled).map(b => (
+              <div key={b.id} className="ev-borrow-row">
+                <div className="ev-borrow-info">
+                  <span className="ev-borrow-text">
+                    <strong>{b.to}</strong> borrowed <strong>₹{fmt(b.amount)}</strong> from <strong>{b.from}</strong>
+                  </span>
+                  <span className="ev-borrow-date">{b.date}</span>
+                </div>
+                <button className="ev-settle-btn" onClick={() => handleSettleBorrow(b)}>
+                  Settle ↩
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Envelopes */}
+        <div className="ev-section-divider">
+          <span>Envelopes</span>
+        </div>
         {customEnvelopes.length === 0 ? (
           <div className="ev-empty">
             <div className="ev-empty-icon">📦</div>
@@ -397,11 +464,13 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
             {/* Single list sorted by recently used */}
             {(() => {
               const allEnvelopes = Object.values(envelopesByCategory).flat();
-              const sorted = [...allEnvelopes].sort((a, b) => {
-                const da = lastUsed[a.name] || new Date(0);
-                const db = lastUsed[b.name] || new Date(0);
-                return db - da;
-              });
+              const sorted = [...allEnvelopes]
+                .filter(e => selectedMonth === 'all' ? e.spent > 0 : e.filled > 0)
+                .sort((a, b) => {
+                  const da = lastUsed[a.name] || new Date(0);
+                  const db = lastUsed[b.name] || new Date(0);
+                  return db - da;
+                });
               return (
                 <div className="ev-envelope-list">
                   {sorted.map(envelope => renderEnvelopeCard(envelope, {
@@ -455,7 +524,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           setTransferData={setTransferData}
           transferError={transferError}
           setTransferError={setTransferError}
-          envelopeFills={envelopeFills}
+          envelopeFills={budgets[`${today.getFullYear()}-${today.getMonth()}`] || envelopeFills}
           monthlySpending={monthlySpending}
           customEnvelopes={customEnvelopes}
           onSubmit={handleEnvelopeTransfer}
