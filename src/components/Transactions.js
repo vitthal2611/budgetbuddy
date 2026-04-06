@@ -9,17 +9,6 @@ const parseDate = (ddmmyyyy) => {
   return new Date(y, m - 1, d);
 };
 
-const formatDisplayDate = (ddmmyyyy) => {
-  const date = parseDate(ddmmyyyy);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-
-  if (date.toDateString() === today.toDateString()) return 'Today';
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
-};
-
 const formatGroupLabel = (ddmmyyyy) => {
   const date = parseDate(ddmmyyyy);
   const today = new Date();
@@ -182,6 +171,8 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
   };
 
   const getIcon = (t) => {
+    if (t.voided) return { icon: '∅', cls: 'icon-voided' };
+    if (t.subtype === 'reversal') return { icon: '↺', cls: 'icon-reversal' };
     if (t.type === 'income') return { icon: '↑', cls: 'icon-income' };
     if (t.type === 'transfer') return { icon: '⇄', cls: 'icon-transfer' };
     if (t.subtype === 'credit' || parseFloat(t.amount) < 0) return { icon: '↩', cls: 'icon-credit' };
@@ -189,6 +180,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
   };
 
   const getAmountClass = (t) => {
+    if (t.voided || t.subtype === 'reversal') return 'voided';
     if (t.type === 'income') return 'positive';
     if (t.type === 'transfer') return 'transfer';
     if (t.subtype === 'credit' || parseFloat(t.amount) < 0) return 'positive';
@@ -197,6 +189,8 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
 
   const formatAmount = (t) => {
     const abs = `₹${fmt(t.amount)}`;
+    if (t.voided) return abs;
+    if (t.subtype === 'reversal') return abs;
     if (t.type === 'income') return `+${abs}`;
     if (t.type === 'transfer') return abs;
     if (t.subtype === 'credit' || parseFloat(t.amount) < 0) return `+${abs}`;
@@ -375,7 +369,10 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
                         <div className={`tx-item-icon ${cls}`}>{icon}</div>
                         <div className="tx-item-body">
                           <div className="tx-item-top">
-                            <span className="tx-item-note">{t.note}</span>
+                        <span className={`tx-item-note${t.voided ? ' tx-item-note--voided' : ''}`}
+                          style={t.voided ? { textDecoration: 'line-through', color: 'var(--text-tertiary)' } : {}}>
+                          {t.note}
+                        </span>
                             <span className={`tx-item-amount ${getAmountClass(t)}`}>{formatAmount(t)}</span>
                           </div>
                           <div className="tx-item-sub">{getSubLabel(t)}</div>

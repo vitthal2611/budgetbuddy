@@ -100,10 +100,14 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onClose,
       setAlternativeEnvelopes(alternatives);
       
       if (budget === 0) {
+        const isBlocked = preferences.blockOverspending;
         setSpendingWarning({
           type: 'no-budget',
-          message: `No budget set for ${formData.envelope} this month.`,
-          suggestion: 'Set a budget in the Envelopes tab or choose a different envelope.'
+          message: isBlocked
+            ? `🚫 No budget allocated for ${formData.envelope} this month.`
+            : `⚠️ No budget allocated for ${formData.envelope} this month.`,
+          isBlocked,
+          suggestion: 'Fill this envelope first, or choose a different one.'
         });
         setShowTransferSuggestion(false);
       } else if (remaining < 0) {

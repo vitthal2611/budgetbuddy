@@ -639,3 +639,18 @@
 
   .tx-stats { gap: 0; }
 }
+
+/* ── Rule 10: voided & reversal entries ── */
+.icon-voided   { background: var(--bg-tertiary); color: var(--text-tertiary); }
+.icon-reversal { background: var(--warning-bg, #fff8e1); color: var(--warning, #f59e0b); }
+
+.tx-item-amount.voided {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.tx-item-wrap .tx-item .tx-item-note[data-voided="true"],
+.tx-item--voided .tx-item-note {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}

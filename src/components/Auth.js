@@ -9,6 +9,7 @@ const Auth = ({ onAuthSuccess }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isGoogleRedirect, setIsGoogleRedirect] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -36,8 +37,6 @@ const Auth = ({ onAuthSuccess }) => {
   useEffect(() => {
     const checkRedirectResult = async () => {
       try {
-        setLoading(true);
-        setError(''); // Clear any previous errors
         const user = await authService.handleRedirectResult();
         if (user) {
           console.log('Google sign-in successful:', user.email);
@@ -46,13 +45,11 @@ const Auth = ({ onAuthSuccess }) => {
       } catch (err) {
         console.error('Redirect result error:', err);
         setError(err.message);
-      } finally {
-        setLoading(false);
       }
     };
 
     checkRedirectResult();
-  }, [onAuthSuccess]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -86,15 +83,18 @@ const Auth = ({ onAuthSuccess }) => {
   const handleGoogleSignIn = async () => {
     setError('');
     setLoading(true);
-
+    setIsGoogleRedirect(true);
     try {
-      // This will redirect the user to Google sign-in
-      // When they return, useEffect will handle the result
-      await authService.signInWithGoogle();
-      // Note: Code after this won't execute as user is redirected
+      const result = await authService.signInWithGoogle();
+      if (result) {
+        // Popup flow (localhost) — result returned directly
+        onAuthSuccess();
+      }
+      // Redirect flow (production) — page reloads, nothing runs after this
     } catch (err) {
       setError(err.message);
       setLoading(false);
+      setIsGoogleRedirect(false);
     }
   };
 
@@ -164,8 +164,8 @@ const Auth = ({ onAuthSuccess }) => {
     );
   }
 
-  // Show loading state while checking redirect result
-  if (loading && !error) {
+  // Show loading state only during Google redirect
+  if (isGoogleRedirect && loading && !error) {
     return (
       <div className="auth-container">
         <div className="auth-card">

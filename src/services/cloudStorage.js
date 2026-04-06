@@ -8,6 +8,7 @@ import {
   query, 
   onSnapshot,
   writeBatch,
+  runTransaction,
   serverTimestamp,
   orderBy,
   enableNetwork,
@@ -144,16 +145,15 @@ class CloudStorageService {
 
   // ==================== BUDGETS ====================
 
-  // Save budgets
+  // Rule 12: use Firestore transaction to prevent concurrent budget overwrites
   async saveBudgets(budgets) {
     const budgetsRef = this.getUserCollection('budgets');
     const docRef = doc(budgetsRef, 'current');
-    
-    await setDoc(docRef, {
-      data: budgets,
-      updatedAt: serverTimestamp()
+
+    await runTransaction(db, async (tx) => {
+      tx.set(docRef, { data: budgets, updatedAt: serverTimestamp() });
     });
-    
+
     return budgets;
   }
 

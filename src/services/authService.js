@@ -4,6 +4,7 @@ import {
   signOut,
   onAuthStateChanged,
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   sendPasswordResetEmail,
@@ -61,20 +62,24 @@ class AuthService {
     }
   }
 
-  // Sign in with Google (uses redirect for better compatibility and no CORS issues)
+  // Sign in with Google
   async signInWithGoogle() {
     try {
       const provider = new GoogleAuthProvider();
-      // Add prompt to always show account selection
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
-      
-      // Always use redirect (works on all platforms, no CORS issues)
-      // More reliable than popup, especially with modern browser security policies
-      await signInWithRedirect(auth, provider);
-      // Note: User will be redirected away and back
-      // The result is handled in handleRedirectResult()
+      provider.setCustomParameters({ prompt: 'select_account' });
+
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+      if (isLocalhost) {
+        // Popup works reliably on localhost
+        const result = await signInWithPopup(auth, provider);
+        this.currentUser = result.user;
+        cloudStorage.setUser(result.user.uid);
+        return result.user;
+      } else {
+        // Redirect for production/mobile
+        await signInWithRedirect(auth, provider);
+      }
     } catch (error) {
       console.error('Google sign in error:', error);
       throw this.handleAuthError(error);

@@ -12,6 +12,9 @@ import LoadingSpinner from './components/shared/LoadingSpinner';
 import Toast from './components/shared/Toast';
 import ErrorBoundary from './components/shared/ErrorBoundary';
 import RolloverModal from './components/envelopes/RolloverModal';
+import BottomNav from './components/shared/BottomNav';
+import AddMenu from './components/shared/AddMenu';
+import MobileMenu from './components/shared/MobileMenu';
 import { DataProvider } from './contexts/DataContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import authService from './services/authService';
@@ -359,31 +362,38 @@ function App() {
     }
   };
 
+  // Rule 10: soft delete — mark as voided and add a reversal entry instead of hard delete
   const handleDeleteTransaction = async (id) => {
     const transaction = transactions.find(t => t.id === id);
-    if (!transaction) return;
+    if (!transaction || transaction.voided) return;
 
     const typeIcon = transaction.type === 'income' ? '💰' : transaction.type === 'expense' ? '💸' : '🔄';
-    let details = `${transaction.date} • ₹${transaction.amount}\n${transaction.note}`;
-    if (transaction.type === 'transfer') {
-      details += `\n${transaction.sourceAccount} → ${transaction.destinationAccount}`;
-    } else {
-      details += `\n${transaction.paymentMethod}`;
-      if (transaction.envelope) details += ` • ${transaction.envelope}`;
-    }
+    const details = `${transaction.date} • ₹${Math.abs(transaction.amount)}\n${transaction.note}`;
 
-    if (!window.confirm(`${typeIcon} Delete this transaction?\n\n${details}\n\n⚠️ This action cannot be undone.`)) {
-      return;
-    }
+    if (!window.confirm(`${typeIcon} Void this transaction?\n\n${details}\n\nA reversal entry will be added to maintain the audit trail.`)) return;
+
+    const generateTransactionId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    const reversalEntry = {
+      ...transaction,
+      id: generateTransactionId(),
+      amount: -Math.abs(parseFloat(transaction.amount)),
+      note: `[Reversal] ${transaction.note}`,
+      reversalOf: id,
+      subtype: 'reversal',
+    };
+    const voidedOriginal = { ...transaction, voided: true };
 
     const previousTransactions = [...transactions];
     try {
-      setTransactions(prev => prev.filter(t => t.id !== id));
-      await cloudStorage.deleteTransaction(id);
+      setTransactions(prev => prev.map(t => t.id === id ? voidedOriginal : t).concat(reversalEntry));
+      await cloudStorage.updateTransaction(id, voidedOriginal);
+      await cloudStorage.addTransaction(reversalEntry);
+      setToast({ message: 'Transaction voided with reversal entry', type: 'success' });
     } catch (error) {
-      console.error('Delete transaction error:', error);
+      console.error('Void transaction error:', error);
       setTransactions(previousTransactions);
-      alert('Failed to delete transaction. Please try again.');
+      alert('Failed to void transaction. Please try again.');
     }
   };
 
@@ -527,6 +537,7 @@ function App() {
       >
         <ErrorBoundary>
           <div className="App">
+            {/* Desktop tab bar — hidden on mobile */}
             <div className="tabs">
               <button className={activeTab === 'envelopes' ? 'active' : ''} onClick={() => setActiveTab('envelopes')}>Envelopes</button>
               <button className={activeTab === 'reports' ? 'active' : ''} onClick={() => setActiveTab('reports')}>Reports</button>
@@ -538,19 +549,13 @@ function App() {
             </div>
 
             {syncing && (
-              <div className="sync-indicator">
-                <span className="sync-icon">🔄</span>
-                Syncing...
-              </div>
+              <div className="sync-indicator"><span className="sync-icon">🔄</span>Syncing...</div>
             )}
-
             {!isOnline && (
-              <div className="offline-indicator">
-                <span className="offline-icon">📡</span>
-                Offline - Changes will sync when connected
-              </div>
+              <div className="offline-indicator"><span className="offline-icon">📡</span>Offline - Changes will sync when connected</div>
             )}
 
+            {/* Main content */}
             <div className="content">
               {activeTab === 'envelopes' && (
                 <EnvelopesView
@@ -582,108 +587,33 @@ function App() {
               )}
             </div>
 
-            <div className="bottom-nav">
-              <button className={activeTab === 'envelopes' ? 'active' : ''} onClick={() => setActiveTab('envelopes')}>
-                <span className="nav-icon">📦</span>
-                <span>Envelopes</span>
-              </button>
-              <button
-                className="nav-add-btn"
-                onClick={() => setShowMenu(prev => (prev ? false : 'add'))}
-                aria-label="Add transaction"
-              >
-                <span className="nav-add-icon">+</span>
-              </button>
-              <button className={activeTab === 'transactions' ? 'active' : ''} onClick={() => setActiveTab('transactions')}>
-                <span className="nav-icon">💳</span>
-                <span>History</span>
-              </button>
-              <button className={showMenu === true ? 'active' : ''} onClick={() => setShowMenu(prev => (prev === true ? false : true))}>
-                <span className="nav-icon">☰</span>
-                <span>More</span>
-              </button>
-            </div>
+            {/* Bottom navigation */}
+            <BottomNav
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onAddPress={() => setShowMenu('add')}
+              onMorePress={() => setShowMenu(prev => prev === true ? false : true)}
+              showMore={showMenu === true}
+            />
 
-            {/* Add Transaction Quick Menu */}
+            {/* Add transaction menu */}
             {showMenu === 'add' && (
-              <div className="mobile-menu-overlay" onClick={() => setShowMenu(false)}>
-                <div className="add-menu" onClick={e => e.stopPropagation()}>
-                  <div className="add-menu-title">Add Transaction</div>
-                  <div className="add-menu-options">
-                    <button className="add-menu-btn income" onClick={() => { handleAddTransaction('income'); setShowMenu(false); }}>
-                      <span className="add-menu-icon">💰</span><span>Income</span>
-                    </button>
-                    <button className="add-menu-btn expense" onClick={() => { handleAddTransaction('expense'); setShowMenu(false); }}>
-                      <span className="add-menu-icon">💸</span><span>Expense</span>
-                    </button>
-                    <button className="add-menu-btn credit" onClick={() => { handleAddTransaction('credit'); setShowMenu(false); }}>
-                      <span className="add-menu-icon">↩</span><span>Credit</span>
-                    </button>
-                    <button className="add-menu-btn transfer" onClick={() => { handleAddTransaction('transfer'); setShowMenu(false); }}>
-                      <span className="add-menu-icon">🔄</span><span>Transfer</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <AddMenu
+                onSelect={handleAddTransaction}
+                onClose={() => setShowMenu(false)}
+              />
             )}
 
-            {/* Mobile Menu */}
+            {/* More menu */}
             {showMenu === true && (
-              <div className="mobile-menu-overlay" onClick={() => setShowMenu(false)}>
-                <div className="mobile-menu" onClick={e => e.stopPropagation()}>
-                  <div className="mobile-menu-header">
-                    <h3>Menu</h3>
-                    <button className="close-menu" onClick={() => setShowMenu(false)}>×</button>
-                  </div>
-                  <div className="mobile-menu-user">
-                    <div className="user-avatar">👤</div>
-                    <div className="user-info">
-                      <div className="user-email">{user?.email}</div>
-                      <div className="user-status">Signed in</div>
-                    </div>
-                  </div>
-                  <div className="mobile-menu-items">
-                    <button className="menu-item" onClick={() => { setActiveTab('reports'); setShowMenu(false); }}>
-                      <span className="menu-icon">📊</span>
-                      <div className="menu-text">
-                        <div className="menu-title">Reports</div>
-                        <div className="menu-subtitle">Spending insights & trends</div>
-                      </div>
-                    </button>
-                    <button className="menu-item" onClick={() => { setActiveTab('settings'); setShowMenu(false); }}>
-                      <span className="menu-icon">⚙️</span>
-                      <div className="menu-text">
-                        <div className="menu-title">Settings</div>
-                        <div className="menu-subtitle">Envelopes, accounts, preferences</div>
-                      </div>
-                    </button>
-                    <button className="menu-item" onClick={() => { handleExportData(); setShowMenu(false); }}>
-                      <span className="menu-icon">📥</span>
-                      <div className="menu-text">
-                        <div className="menu-title">Export Data</div>
-                        <div className="menu-subtitle">Download backup</div>
-                      </div>
-                    </button>
-                    <button className="menu-item danger" onClick={() => { handleDeleteAllData(); setShowMenu(false); }}>
-                      <span className="menu-icon">🗑️</span>
-                      <div className="menu-text">
-                        <div className="menu-title">Delete All Data</div>
-                        <div className="menu-subtitle">Permanently erase everything</div>
-                      </div>
-                    </button>
-                    <button className="menu-item danger" onClick={() => { handleSignOut(); setShowMenu(false); }}>
-                      <span className="menu-icon">🚪</span>
-                      <div className="menu-text">
-                        <div className="menu-title">Sign Out</div>
-                        <div className="menu-subtitle">Log out of your account</div>
-                      </div>
-                    </button>
-                  </div>
-                  <div className="mobile-menu-footer">
-                    <div className="app-version">Budget Buddy v2.0</div>
-                  </div>
-                </div>
-              </div>
+              <MobileMenu
+                user={user}
+                onNavigate={setActiveTab}
+                onExport={handleExportData}
+                onDeleteAll={handleDeleteAllData}
+                onSignOut={handleSignOut}
+                onClose={() => setShowMenu(false)}
+              />
             )}
 
             {showModal && (

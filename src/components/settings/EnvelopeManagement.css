@@ -222,3 +222,57 @@
   margin-left: 6px;
   text-transform: capitalize;
 }
+
+/* Edit inline form */
+.envelope-edit-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.envelope-edit-form .envelope-name-input {
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.envelope-edit-form .envelope-category-select {
+  padding: 8px 10px;
+  font-size: 14px;
+  min-width: unset;
+}
+
+.btn-edit-envelope {
+  background: var(--primary-bg, #eeeffe);
+  color: var(--primary, #5b5fef);
+  border: 1.5px solid rgba(91,95,239,0.2);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 38px;
+}
+
+.btn-edit-envelope:hover {
+  background: #e0e1fd;
+  border-color: rgba(91,95,239,0.4);
+}
+
+.btn-cancel-edit {
+  background: var(--bg-tertiary, #eef0f5);
+  color: var(--text-secondary, #5c6370);
+  border: 1.5px solid var(--border-medium, #e4e6ed);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 38px;
+}
+
+.btn-cancel-edit:hover { background: var(--border-light, #f0f1f5); }

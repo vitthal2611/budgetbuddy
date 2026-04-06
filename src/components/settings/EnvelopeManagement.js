@@ -3,7 +3,7 @@ import './EnvelopeManagement.css';
 import { useData } from '../../contexts/DataContext';
 
 const EnvelopeManagement = ({ budgets, setBudgets, transactions }) => {
-  const { envelopes, addEnvelope, removeEnvelope, setEnvelopes } = useData();
+  const { envelopes, addEnvelope, removeEnvelope, updateEnvelope, setEnvelopes } = useData();
   const [newEnvelopeName, setNewEnvelopeName] = useState('');
   const [newEnvelopeCategory, setNewEnvelopeCategory] = useState('need');
   const [newEnvelopeType, setNewEnvelopeType] = useState('regular');
@@ -11,6 +11,8 @@ const EnvelopeManagement = ({ budgets, setBudgets, transactions }) => {
   const [newGoalAmount, setNewGoalAmount] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   const handleAddEnvelope = (e) => {
     e.preventDefault();
@@ -67,6 +69,43 @@ const EnvelopeManagement = ({ budgets, setBudgets, transactions }) => {
       env.name === envelopeName ? { ...env, category: newCategory } : env
     );
     setEnvelopes(updatedEnvelopes);
+  };
+
+  const handleEditOpen = (envelope) => {
+    setEditTarget(envelope.name);
+    setEditForm({
+      name: envelope.name,
+      category: envelope.category,
+      envelopeType: envelope.envelopeType || 'regular',
+      annualAmount: envelope.annualAmount || '',
+      goalAmount: envelope.goalAmount || '',
+      dueDate: envelope.dueDate || '',
+    });
+  };
+
+  const handleEditSave = (e) => {
+    e.preventDefault();
+    try {
+      const { originalName, newName } = updateEnvelope(editTarget, {
+        name: editForm.name,
+        category: editForm.category,
+        envelopeType: editForm.envelopeType,
+        annualAmount: editForm.annualAmount ? parseFloat(editForm.annualAmount) : undefined,
+        goalAmount: editForm.goalAmount ? parseFloat(editForm.goalAmount) : undefined,
+        dueDate: editForm.dueDate || undefined,
+      });
+      if (originalName !== newName) {
+        const updated = { ...budgets };
+        Object.keys(updated).forEach(k => {
+          if (updated[k][originalName] !== undefined) {
+            updated[k][newName] = updated[k][originalName];
+            delete updated[k][originalName];
+          }
+        });
+        setBudgets(updated);
+      }
+      setEditTarget(null);
+    } catch (err) { alert(err.message); }
   };
 
   const getCategoryIcon = (category) => {
@@ -176,24 +215,25 @@ const EnvelopeManagement = ({ budgets, setBudgets, transactions }) => {
                           <span className="envelope-type-tag">{envelope.envelopeType}</span>
                         )}
                       </div>
-                      <div className="envelope-item-actions">
-                        <select
-                          className="envelope-category-change"
-                          value={envelope.category}
-                          onChange={(e) => handleCategoryChange(envelope.name, e.target.value)}
-                        >
-                          <option value="need">🛒 Need</option>
-                          <option value="want">🎉 Want</option>
-                          <option value="saving">💰 Saving</option>
-                        </select>
-                        <button
-                          className="btn-delete-envelope"
-                          onClick={() => handleDeleteEnvelope(envelope.name)}
-                          title="Delete envelope"
-                        >
-                          🗑️
-                        </button>
-                      </div>
+                      {editTarget === envelope.name ? (
+                        <form className="envelope-edit-form" onSubmit={handleEditSave}>
+                          <input className="envelope-name-input" value={editForm.name}
+                            onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+                          <select className="envelope-category-select" value={editForm.category}
+                            onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}>
+                            <option value="need">🛒 Need</option>
+                            <option value="want">🎉 Want</option>
+                            <option value="saving">💰 Saving</option>
+                          </select>
+                          <button type="submit" className="btn-save-envelope">Save</button>
+                          <button type="button" className="btn-cancel-edit" onClick={() => setEditTarget(null)}>✕</button>
+                        </form>
+                      ) : (
+                        <div className="envelope-item-actions">
+                          <button className="btn-edit-envelope" onClick={() => handleEditOpen(envelope)} title="Edit">✏️</button>
+                          <button className="btn-delete-envelope" onClick={() => handleDeleteEnvelope(envelope.name)} title="Delete">🗑️</button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

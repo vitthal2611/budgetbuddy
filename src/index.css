@@ -1,3 +1,6 @@
+/* Import Inter from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 /* Import Modern Design System Variables */
 @import './styles/modern-variables.css';
 
@@ -10,13 +13,15 @@
 
 body {
   font-family: var(--font-primary);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'; /* Inter alternates */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg-primary);
+  color: var(--text-primary);
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: manipulation;
-  color: var(--text-primary);
+  letter-spacing: -0.1px;
 }
 
 /* Ensure minimum touch target size (Apple HIG: 44px, Material: 48px) - mobile only */
