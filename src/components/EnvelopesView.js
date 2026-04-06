@@ -24,7 +24,7 @@ const computeMonthlyFill = (env, year, month) => {
 };
 
 const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, onViewTransactions }) => {
-  const { envelopes: customEnvelopes, addEnvelope, removeEnvelope, setEnvelopes } = useData();
+  const { envelopes: customEnvelopes, addEnvelope, removeEnvelope, updateEnvelope, setEnvelopes } = useData();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [showFillModal, setShowFillModal] = useState(false);
@@ -34,6 +34,11 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   const [transferData, setTransferData] = useState({ from: '', to: '', amount: '' });
   const [newEnv, setNewEnv] = useState({ name: '', category: 'need', envelopeType: 'regular', annualAmount: '', goalAmount: '', dueDate: '' });
   const [expandedEnv, setExpandedEnv] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [transferError, setTransferError] = useState('');
+  const [showAccounts, setShowAccounts] = useState(true);
 
   const months = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -66,7 +71,32 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
     Object.values(envelopeFills).reduce((s, v) => s + parseFloat(v || 0), 0),
     [envelopeFills]);
 
+  const totalSpent = useMemo(() =>
+    Object.values(monthlySpending).reduce((s, v) => s + v, 0),
+    [monthlySpending]);
+
+  const totalFillAmounts = useMemo(() =>
+    Object.values(fillAmounts).reduce((s, v) => s + parseFloat(v || 0), 0),
+    [fillAmounts]);
+
   const unallocated = monthlyIncome - totalFilled;
+
+  // Account balances — all-time running totals (from Dashboard)
+  const accountBalances = useMemo(() => {
+    const accounts = {};
+    transactions.forEach(t => {
+      const amt = parseFloat(t.amount);
+      if (t.type === 'income') {
+        accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) + amt;
+      } else if (t.type === 'expense') {
+        accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) - amt;
+      } else if (t.type === 'transfer') {
+        accounts[t.sourceAccount]      = (accounts[t.sourceAccount]      || 0) - amt;
+        accounts[t.destinationAccount] = (accounts[t.destinationAccount] || 0) + amt;
+      }
+    });
+    return accounts;
+  }, [transactions]);
 
   // Compute goal progress (cumulative fills across all months)
   const goalProgress = useMemo(() => {
@@ -87,6 +117,21 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
     });
     return progress;
   }, [customEnvelopes, budgets, transactions]);
+
+  // Annual YTD fills
+  const annualYTD = useMemo(() => {
+    const ytd = {};
+    customEnvelopes.forEach(env => {
+      if (env.envelopeType !== 'annual') return;
+      let total = 0;
+      Object.entries(budgets).forEach(([key, monthBudget]) => {
+        const [y] = key.split('-');
+        if (parseInt(y) === selectedYear) total += parseFloat(monthBudget[env.name] || 0);
+      });
+      ytd[env.name] = total;
+    });
+    return ytd;
+  }, [customEnvelopes, budgets, selectedYear]);
 
   const envelopesByCategory = useMemo(() => {
     const grouped = { need: [], want: [], saving: [] };
@@ -119,30 +164,6 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
     });
   }, [budgets, budgetKey, setBudgets]);
 
-  const handleAutoFill = () => {
-    const currentFilled = Object.values(fillAmounts).reduce((s, v) => s + parseFloat(v || 0), 0);
-    const remaining = monthlyIncome - currentFilled;
-    if (remaining <= 0 || customEnvelopes.length === 0) return;
-    const unfilled = customEnvelopes.filter(e => !fillAmounts[e.name] || fillAmounts[e.name] === 0);
-    if (unfilled.length === 0) return;
-    const perEnv = Math.floor(remaining / unfilled.length);
-    const newFills = { ...fillAmounts };
-    unfilled.forEach(e => { newFills[e.name] = perEnv; });
-    setFillAmounts(newFills);
-    setBudgets({ ...budgets, [budgetKey]: newFills });
-  };
-
-  const handleSuggestedFill = () => {
-    const newFills = { ...fillAmounts };
-    customEnvelopes.forEach(env => {
-      const suggested = computeMonthlyFill(env, selectedYear, selectedMonth);
-      if (suggested !== null && suggested > 0) {
-        newFills[env.name] = suggested;
-      }
-    });
-    setFillAmounts(newFills);
-    setBudgets({ ...budgets, [budgetKey]: newFills });
-  };
 
   const handleAddEnvelope = (e) => {
     e.preventDefault();
@@ -165,6 +186,12 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
     if (!from || !to || !amount || from === to) return;
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) return;
+    const sourceRemaining = (envelopeFills[from] || 0) - (monthlySpending[from] || 0);
+    if (amt > sourceRemaining) {
+      setTransferError(`Only ₹${fmt(sourceRemaining)} available in ${from}`);
+      return;
+    }
+    setTransferError('');
     const newFills = { ...envelopeFills };
     newFills[from] = Math.max(0, (newFills[from] || 0) - amt);
     newFills[to] = (newFills[to] || 0) + amt;
@@ -174,30 +201,109 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   };
 
   const handleDeleteEnvelope = (name) => {
-    if (!window.confirm(`Delete envelope "${name}"? Budget allocations will be removed.`)) return;
-    removeEnvelope(name);
+    setDeleteTarget(name);
+  };
+
+  const confirmDeleteEnvelope = () => {
+    removeEnvelope(deleteTarget);
     const cleaned = { ...budgets };
-    Object.keys(cleaned).forEach(k => { delete cleaned[k][name]; });
+    Object.keys(cleaned).forEach(k => { delete cleaned[k][deleteTarget]; });
     setBudgets(cleaned);
+    setDeleteTarget(null);
+  };
+
+  const handleEditOpen = (envelope) => {
+    setEditTarget(envelope);
+    setEditForm({
+      name: envelope.name,
+      category: envelope.category,
+      envelopeType: envelope.envelopeType || 'regular',
+      annualAmount: envelope.annualAmount || '',
+      goalAmount: envelope.goalAmount || '',
+      dueDate: envelope.dueDate || ''
+    });
+  };
+
+  const handleEditSave = (e) => {
+    e.preventDefault();
+    try {
+      const { originalName, newName } = updateEnvelope(editTarget.name, {
+        name: editForm.name,
+        category: editForm.category,
+        envelopeType: editForm.envelopeType,
+        annualAmount: editForm.annualAmount ? parseFloat(editForm.annualAmount) : undefined,
+        goalAmount: editForm.goalAmount ? parseFloat(editForm.goalAmount) : undefined,
+        dueDate: editForm.dueDate || undefined
+      });
+      // Rename budget keys if name changed
+      if (originalName !== newName) {
+        const updated = { ...budgets };
+        Object.keys(updated).forEach(k => {
+          if (updated[k][originalName] !== undefined) {
+            updated[k][newName] = updated[k][originalName];
+            delete updated[k][originalName];
+          }
+        });
+        setBudgets(updated);
+      }
+      setEditTarget(null);
+    } catch (err) { alert(err.message); }
   };
 
   const renderEnvelopeCard = (envelope) => {
     const pct = envelope.filled > 0 ? Math.min((envelope.spent / envelope.filled) * 100, 100) : 0;
     const isOver = envelope.remaining < 0;
+    const isWarning = !isOver && pct >= 80;
     const isGoal = envelope.envelopeType === 'goal';
     const isAnnual = envelope.envelopeType === 'annual';
     const goalPct = isGoal && envelope.goalAmount > 0
       ? Math.min((goalProgress[envelope.name] / envelope.goalAmount) * 100, 100)
       : 0;
+
+    // Goal pace indicator
+    let goalPaceLabel = null;
+    if (isGoal && envelope.goalAmount > 0 && envelope.dueDate) {
+      const due = new Date(envelope.dueDate);
+      const now = new Date(selectedYear, selectedMonth, 1);
+      const monthsLeft = Math.max(1,
+        (due.getFullYear() - now.getFullYear()) * 12 + (due.getMonth() - now.getMonth()) + 1
+      );
+      const saved = goalProgress[envelope.name] || 0;
+      const needed = envelope.goalAmount - saved;
+      const neededPerMonth = Math.ceil(needed / monthsLeft);
+      const expectedByNow = envelope.goalAmount - neededPerMonth * monthsLeft;
+      if (saved >= envelope.goalAmount) {
+        goalPaceLabel = { text: 'Goal reached 🎉', cls: 'pace-done' };
+      } else if (saved >= expectedByNow) {
+        goalPaceLabel = { text: `On track · ₹${fmt(neededPerMonth)}/mo needed`, cls: 'pace-ok' };
+      } else {
+        goalPaceLabel = { text: `Behind · need ₹${fmt(neededPerMonth)}/mo`, cls: 'pace-behind' };
+      }
+    }
+
+    // Annual YTD pace
+    let annualPaceLabel = null;
+    if (isAnnual && envelope.annualAmount > 0) {
+      const ytd = annualYTD[envelope.name] || 0;
+      const expectedMonths = selectedMonth + 1;
+      const expectedYTD = Math.ceil((envelope.annualAmount / 12) * expectedMonths);
+      if (ytd >= envelope.annualAmount) {
+        annualPaceLabel = { text: 'Fully funded for year', cls: 'pace-done' };
+      } else if (ytd >= expectedYTD) {
+        annualPaceLabel = { text: `On track · ₹${fmt(ytd)} of ₹${fmt(expectedYTD)} expected`, cls: 'pace-ok' };
+      } else {
+        annualPaceLabel = { text: `Behind · ₹${fmt(ytd)} of ₹${fmt(expectedYTD)} expected YTD`, cls: 'pace-behind' };
+      }
+    }
     const isExpanded = expandedEnv === envelope.name;
 
     return (
       <div
         key={envelope.name}
-        className={`env-card ${isOver ? 'env-over' : ''} ${isGoal ? 'env-goal' : ''} ${isAnnual ? 'env-annual' : ''}`}
+        className={`env-card ${isOver ? 'env-over' : ''} ${isGoal ? 'env-goal' : ''} ${isAnnual ? 'env-annual' : ''} ${envelope.filled === 0 ? 'env-unfilled' : ''}`}
       >
-        <div className="env-card-main" onClick={() => setExpandedEnv(isExpanded ? null : envelope.name)}>
-          <div className="env-card-left">
+        <div className="env-card-main">
+          <div className="env-card-left" onClick={() => setExpandedEnv(isExpanded ? null : envelope.name)}>
             <div className={`env-type-badge ${envelope.envelopeType}`}>
               {isGoal ? '🎯' : isAnnual ? '📅' : getCatIcon(envelope.category)}
             </div>
@@ -213,44 +319,74 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
                 <div className="env-goal-meta">Annual: ₹{fmt(envelope.annualAmount)}</div>
               )}
             </div>
+            <span className={`env-chevron ${isExpanded ? 'expanded' : ''}`}>›</span>
           </div>
-          <div className={`env-remaining ${isOver ? 'negative' : 'positive'}`}>
-            {isOver ? '-' : ''}₹{fmt(envelope.remaining)}
+          <div className="env-card-right">
+            <div className={`env-remaining ${isOver ? 'negative' : 'positive'}`}>
+              {isOver ? '-' : ''}₹{fmt(envelope.remaining)}
+            </div>
+            <button
+              className="env-quick-add"
+              aria-label={`Add expense to ${envelope.name}`}
+              onClick={e => { e.stopPropagation(); onAddTransaction('expense', { envelope: envelope.name }); }}
+            >
+              + Spend
+            </button>
           </div>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress bar + always-visible stats */}
         <div className="env-progress-wrap">
-          <div className="env-progress-bar">
-            <div
-              className={`env-progress-fill ${isOver ? 'over' : envelope.category}`}
-              style={{ width: `${isGoal ? goalPct : pct}%` }}
-            />
-          </div>
+          {envelope.filled === 0 ? (
+            <div className="env-progress-empty">Not filled yet</div>
+          ) : (
+            <div className="env-progress-bar">
+              <div
+                className={`env-progress-fill ${isOver ? 'over' : isWarning ? 'warning' : envelope.category}`}
+                style={{ width: `${isGoal ? goalPct : pct}%` }}
+              />
+            </div>
+          )}
           {isGoal && envelope.goalAmount > 0 && (
             <div className="env-progress-label">
               ₹{fmt(goalProgress[envelope.name] || 0)} of ₹{fmt(envelope.goalAmount)} saved
             </div>
           )}
+          {goalPaceLabel && (
+            <div className={`env-pace-label ${goalPaceLabel.cls}`}>{goalPaceLabel.text}</div>
+          )}
+          {annualPaceLabel && (
+            <div className={`env-pace-label ${annualPaceLabel.cls}`}>{annualPaceLabel.text}</div>
+          )}
+          <div className="env-stats-row">
+            {envelope.filled === 0 ? (
+              <span className="env-stat-unfilled">Not filled — tap Fill Envelopes to allocate</span>
+            ) : (
+              <>
+                <span className="env-stat">
+                  <span className="env-stat-label">Filled</span>
+                  <span className="env-stat-value">₹{fmt(envelope.filled)}</span>
+                </span>
+                <span className="env-stat-dot">·</span>
+                <span className="env-stat">
+                  <span className="env-stat-label">Spent</span>
+                  <span className={`env-stat-value ${isOver ? 'negative' : ''}`}>₹{fmt(envelope.spent)}</span>
+                </span>
+                <span className="env-stat-dot">·</span>
+                <span className="env-stat">
+                  <span className="env-stat-label">Left</span>
+                  <span className={`env-stat-value ${isOver ? 'negative' : 'positive'}`}>
+                    {isOver ? '-' : ''}₹{fmt(envelope.remaining)}
+                  </span>
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Expanded details */}
+        {/* Expanded: actions only */}
         {isExpanded && (
           <div className="env-card-details">
-            <div className="env-detail-row">
-              <span>Filled this month</span>
-              <span>₹{fmt(envelope.filled)}</span>
-            </div>
-            <div className="env-detail-row">
-              <span>Spent</span>
-              <span className={isOver ? 'negative' : ''}>₹{fmt(envelope.spent)}</span>
-            </div>
-            <div className="env-detail-row">
-              <span>Remaining</span>
-              <span className={isOver ? 'negative' : 'positive'}>
-                {isOver ? '-' : ''}₹{fmt(envelope.remaining)}
-              </span>
-            </div>
             {envelope.suggestedFill !== null && envelope.suggestedFill > 0 && (
               <div className="env-detail-row hint">
                 <span>Suggested fill</span>
@@ -264,6 +400,9 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
               <button className="env-action-btn" onClick={() => { setTransferData({ from: envelope.name, to: '', amount: '' }); setShowTransferModal(true); }}>
                 Transfer
               </button>
+              <button className="env-action-btn" onClick={() => handleEditOpen(envelope)}>
+                Edit
+              </button>
               <button className="env-action-btn danger" onClick={() => handleDeleteEnvelope(envelope.name)}>
                 Delete
               </button>
@@ -276,7 +415,6 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
 
   const getCatIcon = (cat) => cat === 'need' ? '🛒' : cat === 'want' ? '🎉' : '💰';
 
-  const hasAnnualOrGoal = customEnvelopes.some(e => e.envelopeType !== 'regular');
 
   return (
     <div className="envelopes-view">
@@ -296,7 +434,17 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
             if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
             else setSelectedMonth(m => m - 1);
           }}>‹</button>
-          <span className="ev-month-label">{months[selectedMonth]} {selectedYear}</span>
+          <div className="ev-month-center">
+            <span className="ev-month-label">{months[selectedMonth]} {selectedYear}</span>
+            {(selectedMonth !== new Date().getMonth() || selectedYear !== new Date().getFullYear()) && (
+              <button
+                className="ev-today-btn"
+                onClick={() => { setSelectedMonth(new Date().getMonth()); setSelectedYear(new Date().getFullYear()); }}
+              >
+                Today
+              </button>
+            )}
+          </div>
           <button className="ev-month-arrow" onClick={() => {
             if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); }
             else setSelectedMonth(m => m + 1);
@@ -313,6 +461,11 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           <div className="ev-summary-item">
             <span className="ev-summary-label">Filled</span>
             <span className="ev-summary-value">₹{fmt(totalFilled)}</span>
+          </div>
+          <div className="ev-summary-divider" />
+          <div className="ev-summary-item">
+            <span className="ev-summary-label">Spent</span>
+            <span className="ev-summary-value">₹{fmt(totalSpent)}</span>
           </div>
           <div className="ev-summary-divider" />
           <div className={`ev-summary-item ${unallocated === 0 ? 'zero' : unallocated < 0 ? 'neg' : 'pos'}`}>
@@ -336,6 +489,35 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
 
       {/* Envelope sections */}
       <div className="ev-content">
+        {/* Accounts section */}
+        {Object.keys(accountBalances).length > 0 && (
+          <div className="ev-accounts-section">
+            <button
+              className="ev-accounts-header"
+              onClick={() => setShowAccounts(v => !v)}
+            >
+              <span>💳 Accounts</span>
+              <span className={`ev-accounts-chevron ${showAccounts ? 'open' : ''}`}>›</span>
+            </button>
+            {showAccounts && (
+              <div className="ev-accounts-list">
+                {Object.entries(accountBalances).map(([name, bal]) => (
+                  <div
+                    key={name}
+                    className="ev-account-row"
+                    onClick={() => onViewTransactions({ paymentMethod: name })}
+                  >
+                    <div className="ev-account-icon">💳</div>
+                    <span className="ev-account-name">{name}</span>
+                    <span className={`ev-account-bal ${bal >= 0 ? 'pos' : 'neg'}`}>
+                      {bal < 0 ? '-' : ''}₹{fmt(bal)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {customEnvelopes.length === 0 ? (
           <div className="ev-empty">
             <div className="ev-empty-icon">📦</div>
@@ -351,12 +533,34 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
               { key: 'saving', label: 'Savings & Goals', icon: '💰' }
             ].map(({ key, label, icon }) => {
               const list = envelopesByCategory[key] || [];
+              const allEnvsInCat = customEnvelopes.filter(e => e.category === key);
+              const catRemaining = list.reduce((s, e) => s + e.remaining, 0);
+              const catIsOver = catRemaining < 0;
+
+              // Show empty-category prompt only when not searching
+              if (list.length === 0) {
+                return (
+                  <div key={key} className="ev-section">
+                    <div className="ev-section-header">
+                      <span>{icon} {label}</span>
+                    </div>
+                    <div className="ev-cat-empty" onClick={() => setShowAddModal(true)}>
+                      + Add a {label.slice(0, -1)} envelope
+                    </div>
+                  </div>
+                );
+              }
               if (list.length === 0) return null;
               return (
                 <div key={key} className="ev-section">
                   <div className="ev-section-header">
                     <span>{icon} {label}</span>
-                    <span className="ev-section-count">{list.length}</span>
+                    <div className="ev-section-meta">
+                      <span className={`ev-section-remaining ${catIsOver ? 'neg' : ''}`}>
+                        {catIsOver ? '-' : ''}₹{fmt(catRemaining)} left
+                      </span>
+                      <span className="ev-section-count">{list.length}</span>
+                    </div>
                   </div>
                   {list.map(renderEnvelopeCard)}
                 </div>
@@ -385,26 +589,21 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
               </div>
               <div className="fill-summary-row">
                 <span>Filled</span>
-                <span>₹{fmt(Object.values(fillAmounts).reduce((s, v) => s + parseFloat(v || 0), 0))}</span>
+                <span>₹{fmt(totalFillAmounts)}</span>
               </div>
-              <div className={`fill-summary-row bold ${(monthlyIncome - Object.values(fillAmounts).reduce((s, v) => s + parseFloat(v || 0), 0)) < 0 ? 'neg' : 'pos'}`}>
+              <div className={`fill-summary-row bold ${(monthlyIncome - totalFillAmounts) < 0 ? 'neg' : 'pos'}`}>
                 <span>Remaining to fill</span>
-                <span>₹{fmt(monthlyIncome - Object.values(fillAmounts).reduce((s, v) => s + parseFloat(v || 0), 0))}</span>
+                <span>₹{fmt(monthlyIncome - totalFillAmounts)}</span>
               </div>
-            </div>
-
-            <div className="fill-actions-row">
-              {(monthlyIncome - Object.values(fillAmounts).reduce((s, v) => s + parseFloat(v || 0), 0)) > 0 && (
-                <button className="fill-quick-btn" onClick={handleAutoFill}>⚡ Auto-fill Remaining</button>
-              )}
-              {hasAnnualOrGoal && (
-                <button className="fill-quick-btn secondary" onClick={handleSuggestedFill}>📅 Use Suggested</button>
-              )}
             </div>
 
             <div className="fill-list">
               {customEnvelopes.map(env => {
                 const suggested = computeMonthlyFill(env, selectedYear, selectedMonth);
+                const spent = monthlySpending[env.name] || 0;
+                const filled = fillAmounts[env.name] || 0;
+                const remaining = filled - spent;
+                const isOver = remaining < 0 && filled > 0;
                 return (
                   <div key={env.name} className="fill-item">
                     <div className="fill-item-left">
@@ -413,21 +612,36 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
                       </span>
                       <div>
                         <div className="fill-item-name">{env.name}</div>
-                        {suggested !== null && suggested > 0 && (
-                          <div className="fill-item-hint">Suggested: ₹{fmt(suggested)}</div>
-                        )}
+                        <div className="fill-item-context">
+                          {spent > 0 && (
+                            <span className="fill-ctx-spent">Spent ₹{fmt(spent)}</span>
+                          )}
+                          {spent > 0 && filled > 0 && <span className="fill-ctx-sep">·</span>}
+                          {filled > 0 && (
+                            <span className={`fill-ctx-remaining ${isOver ? 'over' : ''}`}>
+                              {isOver ? `₹${fmt(Math.abs(remaining))} over` : `₹${fmt(remaining)} left`}
+                            </span>
+                          )}
+                          {spent === 0 && filled === 0 && suggested !== null && suggested > 0 && (
+                            <span className="fill-item-hint">Suggested ₹{fmt(suggested)}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="fill-item-right">
                       <input
                         type="number"
-                        className="fill-input"
+                        inputMode="numeric"
+                        className={`fill-input ${isOver ? 'fill-input-over' : ''}`}
                         value={fillAmounts[env.name] || ''}
                         onChange={e => handleFillChange(env.name, e.target.value)}
                         placeholder="0"
                         min="0"
                       />
-                      {suggested !== null && suggested > 0 && (
+                      {(fillAmounts[env.name] > 0) && (
+                        <button className="fill-clear-btn" onClick={() => handleFillChange(env.name, 0)} aria-label={`Clear ${env.name}`}>✕</button>
+                      )}
+                      {suggested !== null && suggested > 0 && !(spent === 0 && filled === 0) && (
                         <button className="fill-use-suggested" onClick={() => handleFillChange(env.name, suggested)}>
                           Use
                         </button>
@@ -536,7 +750,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
               <div className="form-field">
                 <label>From Envelope</label>
                 <select className="ev-input" value={transferData.from}
-                  onChange={e => setTransferData({ ...transferData, from: e.target.value })} required>
+                  onChange={e => { setTransferData({ ...transferData, from: e.target.value }); setTransferError(''); }} required>
                   <option value="">Select envelope</option>
                   {customEnvelopes.map(e => {
                     const filled = envelopeFills[e.name] || 0;
@@ -550,23 +764,124 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
                 <select className="ev-input" value={transferData.to}
                   onChange={e => setTransferData({ ...transferData, to: e.target.value })} required>
                   <option value="">Select envelope</option>
-                  {customEnvelopes.filter(e => e.name !== transferData.from).map(e => (
-                    <option key={e.name} value={e.name}>{e.name}</option>
-                  ))}
+                  {customEnvelopes.filter(e => e.name !== transferData.from).map(e => {
+                    const filled = envelopeFills[e.name] || 0;
+                    const spent = monthlySpending[e.name] || 0;
+                    return <option key={e.name} value={e.name}>{e.name} (₹{fmt(filled - spent)} left)</option>;
+                  })}
                 </select>
               </div>
               <div className="form-field">
                 <label>Amount (₹)</label>
-                <input className="ev-input" type="number" min="0.01" step="0.01"
+                <input className="ev-input" type="number" inputMode="numeric" min="0.01" step="0.01"
                   value={transferData.amount}
-                  onChange={e => setTransferData({ ...transferData, amount: e.target.value })}
+                  onChange={e => { setTransferData({ ...transferData, amount: e.target.value }); setTransferError(''); }}
                   placeholder="0" required />
+                {transferError && <div className="ev-transfer-error">{transferError}</div>}
               </div>
               <div className="ev-modal-footer">
-                <button type="button" className="ev-btn-ghost" onClick={() => setShowTransferModal(false)}>Cancel</button>
+                <button type="button" className="ev-btn-ghost" onClick={() => { setShowTransferModal(false); setTransferError(''); }}>Cancel</button>
                 <button type="submit" className="ev-btn-primary">Transfer</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== EDIT ENVELOPE MODAL ===== */}
+      {editTarget && (
+        <div className="ev-modal-overlay" onClick={() => setEditTarget(null)}>
+          <div className="ev-modal" onClick={e => e.stopPropagation()}>
+            <div className="ev-modal-header">
+              <h2>Edit Envelope</h2>
+              <button className="ev-modal-close" onClick={() => setEditTarget(null)}>×</button>
+            </div>
+            <form onSubmit={handleEditSave} className="add-env-form">
+              <div className="form-field">
+                <label>Name</label>
+                <input className="ev-input" type="text" value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  autoFocus required />
+              </div>
+
+              <div className="form-field">
+                <label>Category</label>
+                <div className="ev-seg-control">
+                  {[['need', '🛒 Need'], ['want', '🎉 Want'], ['saving', '💰 Saving']].map(([v, l]) => (
+                    <button key={v} type="button"
+                      className={`ev-seg-btn ${editForm.category === v ? 'active' : ''}`}
+                      onClick={() => setEditForm({ ...editForm, category: v })}>{l}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label>Type</label>
+                <div className="ev-seg-control">
+                  {[['regular', '📦 Regular'], ['annual', '📅 Annual'], ['goal', '🎯 Goal']].map(([v, l]) => (
+                    <button key={v} type="button"
+                      className={`ev-seg-btn ${editForm.envelopeType === v ? 'active' : ''}`}
+                      onClick={() => setEditForm({ ...editForm, envelopeType: v })}>{l}</button>
+                  ))}
+                </div>
+              </div>
+
+              {editForm.envelopeType === 'annual' && (
+                <div className="form-field">
+                  <label>Annual Amount (₹)</label>
+                  <input className="ev-input" type="number" min="0" value={editForm.annualAmount}
+                    onChange={e => setEditForm({ ...editForm, annualAmount: e.target.value })}
+                    placeholder="e.g. 12000" />
+                  {editForm.annualAmount && (
+                    <div className="ev-type-hint">Monthly fill: ₹{fmt(Math.ceil(parseFloat(editForm.annualAmount) / 12))}</div>
+                  )}
+                </div>
+              )}
+
+              {editForm.envelopeType === 'goal' && (
+                <>
+                  <div className="form-field">
+                    <label>Goal Amount (₹)</label>
+                    <input className="ev-input" type="number" min="0" value={editForm.goalAmount}
+                      onChange={e => setEditForm({ ...editForm, goalAmount: e.target.value })}
+                      placeholder="e.g. 50000" />
+                  </div>
+                  <div className="form-field">
+                    <label>Due Date (optional)</label>
+                    <input className="ev-input" type="month" value={editForm.dueDate}
+                      onChange={e => setEditForm({ ...editForm, dueDate: e.target.value })} />
+                  </div>
+                </>
+              )}
+
+              <div className="ev-modal-footer">
+                <button type="button" className="ev-btn-ghost" onClick={() => setEditTarget(null)}>Cancel</button>
+                <button type="submit" className="ev-btn-primary">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DELETE CONFIRM MODAL ===== */}
+      {deleteTarget && (
+        <div className="ev-modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="ev-modal ev-modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="ev-modal-header">
+              <h2>Delete Envelope</h2>
+              <button className="ev-modal-close" onClick={() => setDeleteTarget(null)}>×</button>
+            </div>
+            <div className="ev-delete-body">
+              <div className="ev-delete-icon">🗑️</div>
+              <p className="ev-delete-msg">
+                Delete <strong>"{deleteTarget}"</strong>? All budget allocations for this envelope will be removed.
+              </p>
+              <p className="ev-delete-sub">This cannot be undone.</p>
+            </div>
+            <div className="ev-modal-footer ev-delete-footer">
+              <button className="ev-btn-ghost" onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button className="ev-btn-danger" onClick={confirmDeleteEnvelope}>Delete</button>
+            </div>
           </div>
         </div>
       )}

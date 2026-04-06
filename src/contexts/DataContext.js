@@ -114,7 +114,6 @@ export const DataProvider = ({ children, onLoadFromCloud, onEnvelopesChange, onP
     safeLocalStorage.setItem('paymentMethods', JSON.stringify(paymentMethods));
 
     if (suppressSyncRef.current) return;
-    if (paymentMethods.length === 0) return;
 
     if (paymentMethodSyncRef.current) clearTimeout(paymentMethodSyncRef.current);
     paymentMethodSyncRef.current = setTimeout(async () => {
@@ -182,6 +181,23 @@ export const DataProvider = ({ children, onLoadFromCloud, onEnvelopesChange, onP
   const removeEnvelope = (name) => {
     setEnvelopesState(prev => prev.filter(env => env.name !== name));
     return name;
+  };
+
+  const updateEnvelope = (originalName, updates) => {
+    const trimmedName = updates.name?.trim();
+    if (!trimmedName) throw new Error('Envelope name cannot be empty');
+    if (trimmedName !== originalName && envelopes.some(env => env.name === trimmedName)) {
+      throw new Error('An envelope with that name already exists');
+    }
+    setEnvelopesState(prev => prev.map(env => {
+      if (env.name !== originalName) return env;
+      const updated = { ...env, ...updates, name: trimmedName };
+      if (updated.envelopeType === 'annual' && updated.annualAmount) {
+        updated.monthlyFill = Math.ceil(parseFloat(updated.annualAmount) / 12);
+      }
+      return updated;
+    }));
+    return { originalName, newName: trimmedName };
   };
 
   const getEnvelopeCategory = (name) => {
@@ -277,6 +293,7 @@ export const DataProvider = ({ children, onLoadFromCloud, onEnvelopesChange, onP
     paymentMethods,
     addEnvelope,
     removeEnvelope,
+    updateEnvelope,
     getEnvelopeCategory,
     addPaymentMethod,
     setEnvelopes,

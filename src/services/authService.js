@@ -156,8 +156,8 @@ class AuthService {
     const errorMessages = {
       'auth/email-already-in-use': 'This email is already registered. Try signing in instead.',
       'auth/invalid-email': 'Please enter a valid email address.',
-      'auth/user-not-found': 'No account found with this email. Please sign up.',
-      'auth/wrong-password': 'Incorrect password. Please try again.',
+      'auth/user-not-found': 'Invalid email or password.',
+      'auth/wrong-password': 'Invalid email or password.',
       'auth/weak-password': 'Password should be at least 6 characters long.',
       'auth/too-many-requests': 'Too many failed attempts. Please try again later or reset your password.',
       'auth/network-request-failed': 'Network error. Please check your internet connection.',

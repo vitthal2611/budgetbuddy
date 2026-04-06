@@ -3,7 +3,7 @@ import './TransactionModal.modern.css';
 import { useData } from '../contexts/DataContext';
 import { usePreferences } from '../contexts/PreferencesContext';
 
-const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transactions, onTransferRequest }) => {
+const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onClose, budgets, transactions, onTransferRequest }) => {
   const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
   const { preferences } = usePreferences();
   
@@ -157,7 +157,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
       defaultsInitialized.current = true;
     } else if (!defaultsInitialized.current && (paymentMethods.length > 0 || envelopes.length > 0)) {
       // New transaction - set defaults only once when data is available
-      const firstEnvelope = envelopes.length > 0 ? envelopes[0].name : '';
+      const firstEnvelope = initialEnvelope || (envelopes.length > 0 ? envelopes[0].name : '');
       const defaultPaymentMethod = paymentMethods.includes('HDFC') ? 'HDFC' : (paymentMethods[0] || '');
       setFormData(prev => ({
         ...prev,

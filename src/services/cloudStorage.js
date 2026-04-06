@@ -432,33 +432,37 @@ class CloudStorageService {
     }
 
     try {
-      // Delete all transactions
+      // Delete all transactions in chunks of 499 (leave room for the other deletes)
       const transactionsRef = this.getUserCollection('transactions');
       const transactionsSnapshot = await getDocs(transactionsRef);
-      const batch = writeBatch(db);
-      
-      transactionsSnapshot.docs.forEach(doc => {
-        batch.delete(doc.ref);
-      });
+      const transactionDocs = transactionsSnapshot.docs;
 
-      // Delete budgets
+      // Chunk transaction deletes into batches of 490
+      for (let i = 0; i < transactionDocs.length; i += 490) {
+        const chunk = transactionDocs.slice(i, i + 490);
+        const batch = writeBatch(db);
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+
+      // Delete the single-document collections in one final batch
+      const finalBatch = writeBatch(db);
+
       const budgetsRef = this.getUserCollection('budgets');
-      const budgetsDoc = doc(budgetsRef, 'current');
-      batch.delete(budgetsDoc);
+      finalBatch.delete(doc(budgetsRef, 'current'));
 
-      // Delete envelopes
       const envelopesRef = this.getUserCollection('envelopes');
-      const envelopesDoc = doc(envelopesRef, 'current');
-      batch.delete(envelopesDoc);
+      finalBatch.delete(doc(envelopesRef, 'current'));
 
-      // Delete payment methods
       const methodsRef = this.getUserCollection('paymentMethods');
-      const methodsDoc = doc(methodsRef, 'current');
-      batch.delete(methodsDoc);
+      finalBatch.delete(doc(methodsRef, 'current'));
 
-      await batch.commit();
+      const prefsRef = this.getUserCollection('preferences');
+      finalBatch.delete(doc(prefsRef, 'current'));
+
+      await finalBatch.commit();
       console.log('✅ All user data deleted from Firebase');
-      
+
       return {
         transactionsDeleted: transactionsSnapshot.size,
         success: true

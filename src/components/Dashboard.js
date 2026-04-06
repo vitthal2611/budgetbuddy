@@ -37,25 +37,32 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
   }), [transactions, selYear, selMonth]);
 
   // ── Summary numbers ───────────────────────────────────────────
-  const { income, expense, accountBalances } = useMemo(() => {
+  const { income, expense } = useMemo(() => {
     let inc = 0, exp = 0;
-    const accounts = {};
     monthTx.forEach(t => {
       const amt = parseFloat(t.amount);
+      if (t.type === 'income') inc += amt;
+      else if (t.type === 'expense') exp += amt;
+    });
+    return { income: inc, expense: exp };
+  }, [monthTx]);
+
+  // ── Account balances — all-time running totals ────────────────
+  const accountBalances = useMemo(() => {
+    const accounts = {};
+    transactions.forEach(t => {
+      const amt = parseFloat(t.amount);
       if (t.type === 'income') {
-        inc += amt;
         accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) + amt;
       } else if (t.type === 'expense') {
-        // credits have negative amount
-        exp += amt; // negative credits reduce expense naturally
         accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) - amt;
       } else if (t.type === 'transfer') {
         accounts[t.sourceAccount]      = (accounts[t.sourceAccount]      || 0) - amt;
         accounts[t.destinationAccount] = (accounts[t.destinationAccount] || 0) + amt;
       }
     });
-    return { income: inc, expense: exp, accountBalances: accounts };
-  }, [monthTx]);
+    return accounts;
+  }, [transactions]);
 
   const net = income - expense;
   const budgetKey = `${selYear}-${selMonth}`;
@@ -191,10 +198,10 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
           </div>
         ) : (
           <>
-            {/* Accounts */}
+            {/* Accounts — running balance */}
             {Object.keys(accountBalances).length > 0 && (
               <div className="db-section">
-                <div className="db-section-title">Accounts</div>
+                <div className="db-section-title">Accounts <span className="db-section-subtitle">(all-time balance)</span></div>
                 <div className="db-card">
                   {Object.entries(accountBalances).map(([name, bal], i, arr) => (
                     <div

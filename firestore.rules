@@ -61,6 +61,15 @@ service cloud.firestore {
                        request.resource.data.data is list;
         allow delete: if isOwner(userId);
       }
+
+      // Preferences collection
+      match /preferences/{prefId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+                       request.resource.data.keys().hasAll(['data']) &&
+                       request.resource.data.data is map;
+        allow delete: if isOwner(userId);
+      }
     }
     
     // Deny all other access

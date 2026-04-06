@@ -3,7 +3,6 @@ import './App.css';
 import './styles/animations.css';
 import './styles/accessibility.css';
 import EnvelopesView from './components/EnvelopesView';
-import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Settings from './components/settings/Settings';
 import Reports from './components/reports/Reports';
@@ -322,9 +321,9 @@ function App() {
     return () => window.removeEventListener('switchTab', handleTabSwitch);
   }, []);
 
-  const handleAddTransaction = (type) => {
+  const handleAddTransaction = (type, prefill = null) => {
     setModalType(type);
-    setEditTransaction(null);
+    setEditTransaction(prefill ? { _prefill: true, envelope: prefill.envelope } : null);
     setShowModal(true);
   };
 
@@ -530,7 +529,6 @@ function App() {
           <div className="App">
             <div className="tabs">
               <button className={activeTab === 'envelopes' ? 'active' : ''} onClick={() => setActiveTab('envelopes')}>Envelopes</button>
-              <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>Dashboard</button>
               <button className={activeTab === 'reports' ? 'active' : ''} onClick={() => setActiveTab('reports')}>Reports</button>
               <button className={activeTab === 'transactions' ? 'active' : ''} onClick={() => setActiveTab('transactions')}>Transactions</button>
               <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>Settings</button>
@@ -563,14 +561,6 @@ function App() {
                   onViewTransactions={handleViewTransactions}
                 />
               )}
-              {activeTab === 'dashboard' && (
-                <Dashboard
-                  transactions={transactions}
-                  budgets={budgets}
-                  onAddTransaction={handleAddTransaction}
-                  onViewTransactions={handleViewTransactions}
-                />
-              )}
               {activeTab === 'reports' && (
                 <Reports transactions={transactions} budgets={budgets} />
               )}
@@ -596,10 +586,6 @@ function App() {
               <button className={activeTab === 'envelopes' ? 'active' : ''} onClick={() => setActiveTab('envelopes')}>
                 <span className="nav-icon">📦</span>
                 <span>Envelopes</span>
-              </button>
-              <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
-                <span className="nav-icon">📊</span>
-                <span>Dashboard</span>
               </button>
               <button
                 className="nav-add-btn"
@@ -703,7 +689,8 @@ function App() {
             {showModal && (
               <TransactionModal
                 type={modalType}
-                transaction={editTransaction}
+                transaction={editTransaction?._prefill ? null : editTransaction}
+                initialEnvelope={editTransaction?._prefill ? editTransaction.envelope : undefined}
                 onSave={handleSaveTransaction}
                 onClose={() => setShowModal(false)}
                 budgets={budgets}
