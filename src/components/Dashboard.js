@@ -151,52 +151,50 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
         </div>
       </div>
 
+      {/* Date Filter */}
+      <div className="date-filter">
+        <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+          <option value="all">All Time</option>
+          {availableYears.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+        <select 
+          value={selectedMonth} 
+          onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+          disabled={selectedYear === 'all'}
+        >
+          <option value="all">All Months</option>
+          {months.map((month, idx) => (
+            <option key={idx} value={idx}>{month}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="dashboard-content">
-        {/* Hero Balance Section */}
-        <div className="balance-hero">
-          <div className="balance-label">Total Balance</div>
-          <div className="balance-amount">₹{totalBalance.toLocaleString('en-IN')}</div>
-          <div className={`balance-change ${totalBalance - totalIncome + totalExpense >= 0 ? '' : 'negative'}`}>
-            {totalBalance - totalIncome + totalExpense >= 0 ? '↑' : '↓'} ₹{Math.abs(totalIncome - totalExpense).toLocaleString('en-IN')} this month
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="summary-grid">
-          <div className="summary-card-modern">
-            <div className="summary-card-header">
-              <div className="summary-icon income">💰</div>
-              <div className="summary-label">Income</div>
+        {/* Compact Balance Row */}
+        <div className="balance-row">
+          <div className="balance-item balance-total">
+            <div className="balance-item-icon">💰</div>
+            <div className="balance-item-content">
+              <div className="balance-item-label">Balance</div>
+              <div className="balance-item-amount">₹{totalBalance.toLocaleString('en-IN')}</div>
             </div>
-            <div className="summary-amount">₹{totalIncome.toLocaleString('en-IN')}</div>
           </div>
-          <div className="summary-card-modern">
-            <div className="summary-card-header">
-              <div className="summary-icon expense">💸</div>
-              <div className="summary-label">Expense</div>
+          <div className="balance-item balance-income">
+            <div className="balance-item-icon">💰</div>
+            <div className="balance-item-content">
+              <div className="balance-item-label">Income</div>
+              <div className="balance-item-amount">₹{totalIncome.toLocaleString('en-IN')}</div>
             </div>
-            <div className="summary-amount">₹{totalExpense.toLocaleString('en-IN')}</div>
           </div>
-        </div>
-
-        {/* Date Filter */}
-        <div className="date-filter">
-          <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
-            <option value="all">All Time</option>
-            {availableYears.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-          <select 
-            value={selectedMonth} 
-            onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            disabled={selectedYear === 'all'}
-          >
-            <option value="all">All Months</option>
-            {months.map((month, idx) => (
-              <option key={idx} value={idx}>{month}</option>
-            ))}
-          </select>
+          <div className="balance-item balance-expense">
+            <div className="balance-item-icon">💸</div>
+            <div className="balance-item-content">
+              <div className="balance-item-label">Expense</div>
+              <div className="balance-item-amount">₹{totalExpense.toLocaleString('en-IN')}</div>
+            </div>
+          </div>
         </div>
 
         {/* Today's Expenses */}
@@ -275,6 +273,7 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                   .filter(([envelope]) => getEnvelopeCategory(envelope) === 'need')
                   .map(([envelope, spent]) => {
                     const budget = getBudgetForEnvelope(envelope);
+                    const remaining = budget - spent;
                     const percentage = budget > 0 ? (spent / budget) * 100 : 0;
                     return (
                       <div 
@@ -288,7 +287,9 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                       >
                         <div className="budget-header">
                           <span className="budget-name">{envelope}</span>
-                          <span className="budget-amounts">₹{spent.toLocaleString('en-IN')} / ₹{budget.toLocaleString('en-IN')}</span>
+                          <span className={`budget-remaining ${remaining < 0 ? 'negative' : 'positive'}`}>
+                            ₹{remaining.toLocaleString('en-IN')} left
+                          </span>
                         </div>
                         <div className="budget-progress">
                           <div className="budget-bar">
@@ -297,7 +298,9 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                               style={{ width: `${Math.min(percentage, 100)}%` }}
                             />
                           </div>
-                          <span className="budget-percentage">{Math.round(percentage)}%</span>
+                          <span className="budget-stats-text">
+                            ₹{spent.toLocaleString('en-IN')} of ₹{budget.toLocaleString('en-IN')}
+                          </span>
                         </div>
                       </div>
                     );
@@ -318,6 +321,7 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                   .filter(([envelope]) => getEnvelopeCategory(envelope) === 'want')
                   .map(([envelope, spent]) => {
                     const budget = getBudgetForEnvelope(envelope);
+                    const remaining = budget - spent;
                     const percentage = budget > 0 ? (spent / budget) * 100 : 0;
                     return (
                       <div 
@@ -331,7 +335,9 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                       >
                         <div className="budget-header">
                           <span className="budget-name">{envelope}</span>
-                          <span className="budget-amounts">₹{spent.toLocaleString('en-IN')} / ₹{budget.toLocaleString('en-IN')}</span>
+                          <span className={`budget-remaining ${remaining < 0 ? 'negative' : 'positive'}`}>
+                            ₹{remaining.toLocaleString('en-IN')} left
+                          </span>
                         </div>
                         <div className="budget-progress">
                           <div className="budget-bar">
@@ -340,7 +346,9 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                               style={{ width: `${Math.min(percentage, 100)}%` }}
                             />
                           </div>
-                          <span className="budget-percentage">{Math.round(percentage)}%</span>
+                          <span className="budget-stats-text">
+                            ₹{spent.toLocaleString('en-IN')} of ₹{budget.toLocaleString('en-IN')}
+                          </span>
                         </div>
                       </div>
                     );
@@ -361,6 +369,7 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                   .filter(([envelope]) => getEnvelopeCategory(envelope) === 'saving')
                   .map(([envelope, spent]) => {
                     const budget = getBudgetForEnvelope(envelope);
+                    const remaining = budget - spent;
                     const percentage = budget > 0 ? (spent / budget) * 100 : 0;
                     return (
                       <div 
@@ -374,7 +383,9 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                       >
                         <div className="budget-header">
                           <span className="budget-name">{envelope}</span>
-                          <span className="budget-amounts">₹{spent.toLocaleString('en-IN')} / ₹{budget.toLocaleString('en-IN')}</span>
+                          <span className={`budget-remaining ${remaining < 0 ? 'negative' : 'positive'}`}>
+                            ₹{remaining.toLocaleString('en-IN')} left
+                          </span>
                         </div>
                         <div className="budget-progress">
                           <div className="budget-bar">
@@ -383,7 +394,9 @@ const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions
                               style={{ width: `${Math.min(percentage, 100)}%` }}
                             />
                           </div>
-                          <span className="budget-percentage">{Math.round(percentage)}%</span>
+                          <span className="budget-stats-text">
+                            ₹{spent.toLocaleString('en-IN')} of ₹{budget.toLocaleString('en-IN')}
+                          </span>
                         </div>
                       </div>
                     );

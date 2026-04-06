@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './TransactionModal.modern.css';
 import { useData } from '../contexts/DataContext';
 
-const TransactionModal = ({ type, transaction, onSave, onClose }) => {
+const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transactions }) => {
   const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
   
   // Helper functions to convert between DD-MM-YYYY and YYYY-MM-DD formats
@@ -35,9 +35,57 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
   const [showAddEnvelope, setShowAddEnvelope] = useState(false);
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [newEnvelope, setNewEnvelope] = useState('');
+  const [spendingWarning, setSpendingWarning] = useState(null);
   
   // Track if we've initialized defaults to prevent overriding user selections
   const defaultsInitialized = React.useRef(false);
+
+  // Calculate remaining budget for selected envelope
+  useEffect(() => {
+    if (type === 'expense' && formData.envelope && formData.amount && formData.date) {
+      const [day, month, year] = formData.date.split('-');
+      const monthIndex = parseInt(month) - 1;
+      const budgetKey = `${year}-${monthIndex}`;
+      
+      const budget = budgets?.[budgetKey]?.[formData.envelope] || 0;
+      
+      // Calculate current spending for this envelope in this month
+      const currentSpending = (transactions || [])
+        .filter(t => {
+          if (t.type !== 'expense' || t.envelope !== formData.envelope) return false;
+          if (transaction && t.id === transaction.id) return false; // Exclude current transaction if editing
+          const [tDay, tMonth, tYear] = t.date.split('-');
+          return tYear === year && tMonth === month;
+        })
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      
+      const newAmount = parseFloat(formData.amount) || 0;
+      const remaining = budget - currentSpending - newAmount;
+      
+      if (budget === 0) {
+        setSpendingWarning({
+          type: 'no-budget',
+          message: `No budget set for ${formData.envelope} this month. Set a budget in the Allocate tab.`
+        });
+      } else if (remaining < 0) {
+        setSpendingWarning({
+          type: 'over-budget',
+          message: `⚠️ This will exceed your budget by ₹${Math.abs(remaining).toLocaleString('en-IN')}!`,
+          remaining: remaining
+        });
+      } else if (remaining < budget * 0.2) {
+        setSpendingWarning({
+          type: 'low-budget',
+          message: `Only ₹${remaining.toLocaleString('en-IN')} left in ${formData.envelope}`,
+          remaining: remaining
+        });
+      } else {
+        setSpendingWarning(null);
+      }
+    } else {
+      setSpendingWarning(null);
+    }
+  }, [type, formData.envelope, formData.amount, formData.date, budgets, transactions, transaction]);
 
   useEffect(() => {
     if (transaction) {
@@ -257,6 +305,12 @@ const TransactionModal = ({ type, transaction, onSave, onClose }) => {
                       <option value="__add_new__">+ Add New</option>
                     </select>
                   </div>
+                  
+                  {spendingWarning && (
+                    <div className={`spending-warning ${spendingWarning.type}`}>
+                      {spendingWarning.message}
+                    </div>
+                  )}
                 </div>
               )}
             </>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import EnvelopesView from './components/EnvelopesView';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import BudgetAllocation from './components/BudgetAllocation';
@@ -15,7 +16,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   
   // App state
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('envelopes');
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('expense');
   const [editTransaction, setEditTransaction] = useState(null);
@@ -669,6 +670,12 @@ function App() {
       <div className="App">
         <div className="tabs">
           <button 
+            className={activeTab === 'envelopes' ? 'active' : ''} 
+            onClick={() => setActiveTab('envelopes')}
+          >
+            Envelopes
+          </button>
+          <button 
             className={activeTab === 'dashboard' ? 'active' : ''} 
             onClick={() => setActiveTab('dashboard')}
           >
@@ -681,10 +688,10 @@ function App() {
             Transactions
           </button>
           <button 
-            className={activeTab === 'budget' ? 'active' : ''} 
-            onClick={() => setActiveTab('budget')}
+            className={activeTab === 'settings' ? 'active' : ''} 
+            onClick={() => setActiveTab('settings')}
           >
-            Budget
+            Settings
           </button>
           <button 
             className="export-btn" 
@@ -717,6 +724,22 @@ function App() {
         )}
 
         <div className="content">
+          {activeTab === 'envelopes' && (
+            <EnvelopesView 
+              transactions={transactions}
+              budgets={budgets}
+              setBudgets={async (newBudgets) => {
+                try {
+                  await cloudStorage.saveBudgets(newBudgets);
+                } catch (error) {
+                  console.error('Save budgets error:', error);
+                  alert('Failed to save budgets. Please try again.');
+                }
+              }}
+              onAddTransaction={handleAddTransaction}
+              onViewTransactions={handleViewTransactions}
+            />
+          )}
           {activeTab === 'dashboard' && (
             <Dashboard 
               transactions={transactions}
@@ -734,7 +757,7 @@ function App() {
               onFiltersCleared={() => setTransactionFilters({})}
             />
           )}
-          {activeTab === 'budget' && (
+          {activeTab === 'settings' && (
             <BudgetAllocation 
               budgets={budgets}
               setBudgets={async (newBudgets) => {
@@ -752,6 +775,13 @@ function App() {
 
         <div className="bottom-nav">
           <button 
+            className={activeTab === 'envelopes' ? 'active' : ''} 
+            onClick={() => setActiveTab('envelopes')}
+          >
+            <span className="nav-icon">📦</span>
+            <span>Envelopes</span>
+          </button>
+          <button 
             className={activeTab === 'dashboard' ? 'active' : ''} 
             onClick={() => setActiveTab('dashboard')}
           >
@@ -764,13 +794,6 @@ function App() {
           >
             <span className="nav-icon">💳</span>
             <span>Transactions</span>
-          </button>
-          <button 
-            className={activeTab === 'budget' ? 'active' : ''} 
-            onClick={() => setActiveTab('budget')}
-          >
-            <span className="nav-icon">💰</span>
-            <span>Budget</span>
           </button>
           <button 
             className={showMenu ? 'active' : ''} 
@@ -799,6 +822,14 @@ function App() {
               </div>
 
               <div className="mobile-menu-items">
+                <button className="menu-item" onClick={() => { setActiveTab('settings'); setShowMenu(false); }}>
+                  <span className="menu-icon">⚙️</span>
+                  <div className="menu-text">
+                    <div className="menu-title">Manage Envelopes</div>
+                    <div className="menu-subtitle">Create, edit, delete envelopes</div>
+                  </div>
+                </button>
+
                 <button className="menu-item" onClick={() => { handleExportData(); setShowMenu(false); }}>
                   <span className="menu-icon">📥</span>
                   <div className="menu-text">
@@ -837,6 +868,8 @@ function App() {
             transaction={editTransaction}
             onSave={handleSaveTransaction}
             onClose={() => setShowModal(false)}
+            budgets={budgets}
+            transactions={transactions}
           />
         )}
       </div>

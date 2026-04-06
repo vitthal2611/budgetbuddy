@@ -305,3 +305,30 @@ form {
     padding: 12px 20px;
   }
 }
+
+/* Spending Warnings */
+.spending-warning {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.spending-warning.no-budget {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.spending-warning.low-budget {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.spending-warning.over-budget {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #f87171;
+}
