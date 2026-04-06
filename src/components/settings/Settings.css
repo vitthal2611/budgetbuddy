@@ -1,105 +1,109 @@
+/* Settings — mobile-first, matching other tabs */
+
 .settings-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
 }
 
 .settings-header {
-  margin-bottom: 32px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  padding: 14px 16px 0;
+  position: relative;
+}
+
+.settings-header::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  width: 32px;
+  background: linear-gradient(to right, transparent, var(--bg-secondary));
+  pointer-events: none;
+  z-index: 1;
 }
 
 .settings-header h1 {
-  margin: 0 0 8px 0;
-  font-size: 32px;
+  margin: 0 0 12px 0;
+  font-size: 24px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-primary, #1f2937);
+  letter-spacing: -0.5px;
 }
 
-.settings-subtitle {
-  margin: 0;
-  font-size: 16px;
-  color: #6b7280;
-}
+.settings-subtitle { display: none; }
 
 .settings-nav {
   display: flex;
-  gap: 12px;
-  margin-bottom: 32px;
+  gap: 0;
   overflow-x: auto;
-  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+
+.settings-nav::-webkit-scrollbar { display: none; }
 
 .settings-nav-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  font-size: 15px;
+  gap: 6px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-tertiary, #6b7280);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   white-space: nowrap;
-}
-
-.settings-nav-btn:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  flex-shrink: 0;
 }
 
 .settings-nav-btn.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: white;
+  color: var(--primary, #6366f1);
+  border-bottom-color: var(--primary, #6366f1);
+  font-weight: 600;
 }
 
-.settings-nav-icon {
-  font-size: 20px;
-}
+.settings-nav-icon { font-size: 16px; }
+.settings-nav-label { font-size: 13px; }
 
 .settings-content {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px 16px calc(var(--nav-height, 64px) + 24px);
+  background: var(--bg-primary, #f7f8fa);
 }
+
+.settings-content::-webkit-scrollbar { display: none; }
+.settings-content { scrollbar-width: none; }
 
 .settings-section h2 {
   margin: 0 0 16px 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary, #1f2937);
 }
 
 .coming-soon {
   padding: 40px;
   text-align: center;
-  color: #6b7280;
+  color: var(--text-tertiary, #6b7280);
   font-size: 16px;
 }
 
-@media (max-width: 768px) {
-  .settings-container {
-    padding: 16px;
-  }
-
-  .settings-header h1 {
-    font-size: 28px;
-  }
-
-  .settings-nav {
-    gap: 8px;
-  }
-
-  .settings-nav-btn {
-    padding: 10px 16px;
-    font-size: 14px;
-  }
-
+@media (min-width: 481px) {
   .settings-content {
-    padding: 20px;
+    padding-bottom: 32px;
+    max-width: 680px;
+    margin: 0 auto;
   }
 }

@@ -1,419 +1,267 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import './Dashboard.modern.css';
 import { useData } from '../contexts/DataContext';
-import { safeSessionStorage } from '../utils/safeStorage';
+
+const fmt = (n) => Math.abs(n).toLocaleString('en-IN');
+
+const parseDate = (ddmmyyyy) => {
+  const [d, m, y] = ddmmyyyy.split('-');
+  return new Date(y, m - 1, d);
+};
+
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
 
 const Dashboard = ({ transactions, budgets, onAddTransaction, onViewTransactions }) => {
-  const { getEnvelopeCategory } = useData();
-  const currentDate = new Date();
-  
-  const [selectedYear, setSelectedYear] = useState(() => {
-    const saved = safeSessionStorage.getItem('dashboardYear');
-    return saved === 'all' ? 'all' : (saved ? Number(saved) : 'all');
-  });
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const saved = safeSessionStorage.getItem('dashboardMonth');
-    // Only restore from session if it's a valid month number (0-11), not 'all'
-    if (saved && saved !== 'all' && !isNaN(saved)) {
-      return Number(saved);
-    }
-    return currentDate.getMonth();
-  });
+  const { envelopes, getEnvelopeCategory } = useData();
+  const today = new Date();
 
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 
-                  'July', 'August', 'September', 'October', 'November', 'December'];
+  const [selYear, setSelYear]   = useState(today.getFullYear());
+  const [selMonth, setSelMonth] = useState(today.getMonth());
 
-  // Get unique years from transactions
-  const availableYears = useMemo(() => {
-    const years = new Set();
-    transactions.forEach(t => {
-      const tDate = new Date(t.date.split('-').reverse().join('-'));
-      years.add(tDate.getFullYear());
-    });
-    
-    // Always include 2026 and onward
-    const currentYear = new Date().getFullYear();
-    const startYear = Math.max(2026, currentYear);
-    for (let year = startYear; year <= startYear + 4; year++) {
-      years.add(year);
-    }
-    
-    return Array.from(years).sort((a, b) => b - a); // Sort descending
-  }, [transactions]);
-
-  // Save selections to sessionStorage
-  useEffect(() => {
-    safeSessionStorage.setItem('dashboardYear', selectedYear.toString());
-  }, [selectedYear]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    safeSessionStorage.setItem('dashboardMonth', selectedMonth.toString());
-  }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const filteredTransactions = useMemo(() => {
-    // If "All Time" is selected, return all transactions
-    if (selectedYear === 'all') {
-      return transactions;
-    }
-    
-    return transactions.filter(t => {
-      const tDate = new Date(t.date.split('-').reverse().join('-'));
-      if (tDate.getFullYear() !== selectedYear) return false;
-      if (selectedMonth !== 'all' && tDate.getMonth() !== selectedMonth) return false;
-      return true;
-    });
-  }, [transactions, selectedYear, selectedMonth]);
-
-  const { totalIncome, totalExpense, accountBalances, envelopeSpending } = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    const accounts = {};
-    const envelopes = {};
-
-    filteredTransactions.forEach(t => {
-      if (t.type === 'income') {
-        income += parseFloat(t.amount);
-        accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) + parseFloat(t.amount);
-      } else if (t.type === 'expense') {
-        expense += parseFloat(t.amount);
-        accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) - parseFloat(t.amount);
-        envelopes[t.envelope] = (envelopes[t.envelope] || 0) + parseFloat(t.amount);
-      } else if (t.type === 'transfer') {
-        // Single transfer transaction affects both accounts
-        accounts[t.sourceAccount] = (accounts[t.sourceAccount] || 0) - parseFloat(t.amount);
-        accounts[t.destinationAccount] = (accounts[t.destinationAccount] || 0) + parseFloat(t.amount);
-      }
-    });
-
-    return { 
-      totalIncome: income, 
-      totalExpense: expense, 
-      accountBalances: accounts,
-      envelopeSpending: envelopes
-    };
-  }, [filteredTransactions]);
-
-  const totalBalance = Object.values(accountBalances).reduce((sum, val) => sum + val, 0);
-
-  // Calculate today's expenses grouped by envelope
-  const todayExpenses = useMemo(() => {
-    const today = new Date();
-    const todayStr = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
-    
-    const byEnvelope = {};
-    let total = 0;
-    
-    transactions.forEach(t => {
-      if (t.type === 'expense' && t.date === todayStr) {
-        const envelope = t.envelope;
-        byEnvelope[envelope] = (byEnvelope[envelope] || 0) + parseFloat(t.amount);
-        total += parseFloat(t.amount);
-      }
-    });
-    
-    return { byEnvelope, total };
-  }, [transactions]);
-
-  const getBudgetForEnvelope = (envelope) => {
-    if (selectedYear === 'all') {
-      // Sum all budgets across all years and months
-      let total = 0;
-      Object.keys(budgets).forEach(key => {
-        total += budgets[key]?.[envelope] || 0;
-      });
-      return total;
-    } else if (selectedMonth === 'all') {
-      // Sum all months for the year
-      let total = 0;
-      for (let i = 0; i < 12; i++) {
-        const key = `${selectedYear}-${i}`;
-        total += budgets[key]?.[envelope] || 0;
-      }
-      return total;
-    } else {
-      const key = `${selectedYear}-${selectedMonth}`;
-      return budgets[key]?.[envelope] || 0;
-    }
+  // ── Month navigation ──────────────────────────────────────────
+  const prevMonth = () => {
+    if (selMonth === 0) { setSelMonth(11); setSelYear(y => y - 1); }
+    else setSelMonth(m => m - 1);
   };
+  const nextMonth = () => {
+    if (selMonth === 11) { setSelMonth(0); setSelYear(y => y + 1); }
+    else setSelMonth(m => m + 1);
+  };
+  const isCurrentMonth = selYear === today.getFullYear() && selMonth === today.getMonth();
+
+  // ── Filtered transactions ─────────────────────────────────────
+  const monthTx = useMemo(() => transactions.filter(t => {
+    const d = parseDate(t.date);
+    return d.getFullYear() === selYear && d.getMonth() === selMonth;
+  }), [transactions, selYear, selMonth]);
+
+  // ── Summary numbers ───────────────────────────────────────────
+  const { income, expense, accountBalances } = useMemo(() => {
+    let inc = 0, exp = 0;
+    const accounts = {};
+    monthTx.forEach(t => {
+      const amt = parseFloat(t.amount);
+      if (t.type === 'income') {
+        inc += amt;
+        accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) + amt;
+      } else if (t.type === 'expense') {
+        // credits have negative amount
+        exp += amt; // negative credits reduce expense naturally
+        accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) - amt;
+      } else if (t.type === 'transfer') {
+        accounts[t.sourceAccount]      = (accounts[t.sourceAccount]      || 0) - amt;
+        accounts[t.destinationAccount] = (accounts[t.destinationAccount] || 0) + amt;
+      }
+    });
+    return { income: inc, expense: exp, accountBalances: accounts };
+  }, [monthTx]);
+
+  const net = income - expense;
+  const budgetKey = `${selYear}-${selMonth}`;
+
+  // ── Budget vs actual per envelope ─────────────────────────────
+  const envelopeStats = useMemo(() => {
+    const spending = {};
+    monthTx.forEach(t => {
+      if (t.type === 'expense' && t.envelope) {
+        spending[t.envelope] = (spending[t.envelope] || 0) + parseFloat(t.amount);
+      }
+    });
+
+    const monthBudgets = budgets[budgetKey] || {};
+
+    // Union of all envelopes that have a budget OR spending this month
+    const allNames = new Set([
+      ...envelopes.map(e => e.name),
+      ...Object.keys(spending),
+      ...Object.keys(monthBudgets),
+    ]);
+
+    return Array.from(allNames).map(name => {
+      const budgeted = parseFloat(monthBudgets[name] || 0);
+      const spent    = parseFloat(spending[name]     || 0);
+      const remaining = budgeted - spent;
+      const pct = budgeted > 0 ? Math.min((spent / budgeted) * 100, 100) : 0;
+      const category = getEnvelopeCategory(name);
+      return { name, budgeted, spent, remaining, pct, category, isOver: remaining < 0 };
+    });
+  }, [monthTx, budgets, budgetKey, envelopes, getEnvelopeCategory]);
+
+  // ── Today's transactions (individual, not grouped) ────────────
+  const todayStr = `${String(today.getDate()).padStart(2,'0')}-${String(today.getMonth()+1).padStart(2,'0')}-${today.getFullYear()}`;
+  const todayTx = useMemo(() =>
+    transactions
+      .filter(t => t.date === todayStr && t.type === 'expense')
+      .sort((a, b) => parseFloat(b.amount) - parseFloat(a.amount)),
+    [transactions, todayStr]
+  );
+  const todayTotal = todayTx.reduce((s, t) => s + parseFloat(t.amount), 0);
+
+  // ── Render envelope row (shared for all categories) ───────────
+  const renderEnvelopeRow = useCallback((env) => (
+    <div
+      key={env.name}
+      className="db-env-item"
+      onClick={() => onViewTransactions({ envelope: env.name, year: selYear, month: selMonth })}
+    >
+      <div className="db-env-left">
+        <span className="db-env-name">{env.name}</span>
+        <div className="db-env-bar">
+          <div
+            className={`db-env-fill ${env.isOver ? 'over' : env.category}`}
+            style={{ width: `${env.pct}%` }}
+          />
+        </div>
+        <span className="db-env-meta">
+          ₹{fmt(env.spent)} of ₹{fmt(env.budgeted)}
+        </span>
+      </div>
+      <span className={`db-env-remaining ${env.isOver ? 'neg' : env.spent > 0 ? 'pos' : 'zero'}`}>
+        {env.isOver ? '-' : ''}₹{fmt(env.remaining)}
+      </span>
+    </div>
+  ), [onViewTransactions, selYear, selMonth]);
+
+  const hasData = monthTx.length > 0;
 
   return (
     <div className="dashboard">
-      {/* Modern Header */}
-      <div className="dashboard-header">
-        <div className="dashboard-logo">
-          <div className="dashboard-avatar">BB</div>
-          <h1 className="dashboard-title">BudgetBuddy</h1>
-        </div>
-        <div className="dashboard-actions">
-          <button className="icon-btn" aria-label="Notifications">
-            🔔
+
+      {/* ── Sticky header ── */}
+      <div className="db-header">
+        <div className="db-header-top">
+          <div className="db-logo">
+            <div className="db-avatar">BB</div>
+            <span className="db-app-name">BudgetBuddy</span>
+          </div>
+          <button
+            className="db-add-btn"
+            onClick={() => onAddTransaction('expense')}
+            aria-label="Add transaction"
+          >
+            + Add
           </button>
         </div>
-      </div>
 
-      {/* Date Filter */}
-      <div className="date-filter">
-        <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
-          <option value="all">All Time</option>
-          {availableYears.map(year => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </select>
-        <select 
-          value={selectedMonth} 
-          onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-          disabled={selectedYear === 'all'}
-        >
-          <option value="all">All Months</option>
-          {months.map((month, idx) => (
-            <option key={idx} value={idx}>{month}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="dashboard-content">
-        {/* Compact Balance Row */}
-        <div className="balance-row">
-          <div className="balance-item balance-total">
-            <div className="balance-item-icon">💰</div>
-            <div className="balance-item-content">
-              <div className="balance-item-label">Balance</div>
-              <div className="balance-item-amount">₹{totalBalance.toLocaleString('en-IN')}</div>
-            </div>
+        {/* Month nav */}
+        <div className="db-month-nav">
+          <button className="db-month-arrow" onClick={prevMonth}>‹</button>
+          <div className="db-month-center">
+            <span className="db-month-label">{MONTHS[selMonth]} {selYear}</span>
+            {!isCurrentMonth && (
+              <button className="db-today-btn" onClick={() => { setSelYear(today.getFullYear()); setSelMonth(today.getMonth()); }}>
+                Today
+              </button>
+            )}
           </div>
-          <div className="balance-item balance-income">
-            <div className="balance-item-icon">💰</div>
-            <div className="balance-item-content">
-              <div className="balance-item-label">Income</div>
-              <div className="balance-item-amount">₹{totalIncome.toLocaleString('en-IN')}</div>
-            </div>
-          </div>
-          <div className="balance-item balance-expense">
-            <div className="balance-item-icon">💸</div>
-            <div className="balance-item-content">
-              <div className="balance-item-label">Expense</div>
-              <div className="balance-item-amount">₹{totalExpense.toLocaleString('en-IN')}</div>
-            </div>
-          </div>
+          <button className="db-month-arrow" onClick={nextMonth}>›</button>
         </div>
 
-        {/* Today's Expenses */}
-        {todayExpenses.total > 0 && (
-          <div className="today-section">
-            <h2 className="section-header-modern">📅 Today's Expenses</h2>
-            <div className="expense-list">
-              {Object.entries(todayExpenses.byEnvelope).map(([envelope, amount]) => {
-                const category = getEnvelopeCategory(envelope);
-                return (
-                  <div key={envelope} className="expense-item">
-                    <div className={`expense-icon ${category}`}>
-                      {category === 'need' && '🛒'}
-                      {category === 'want' && '🎉'}
-                      {category === 'saving' && '💰'}
-                    </div>
-                    <div className="expense-details">
-                      <div className="expense-name">{envelope}</div>
-                      <div className="expense-category">{category}</div>
-                    </div>
-                    <div className="expense-amount">₹{amount.toLocaleString('en-IN')}</div>
-                  </div>
-                );
-              })}
-              <div className="expense-total">
-                <span className="expense-total-label">Total Today</span>
-                <span className="expense-total-amount">₹{todayExpenses.total.toLocaleString('en-IN')}</span>
-              </div>
-            </div>
+        {/* Summary strip */}
+        <div className="db-summary-strip">
+          <div className="db-strip-item">
+            <span className="db-strip-label">Income</span>
+            <span className="db-strip-value income">+₹{fmt(income)}</span>
           </div>
-        )}
+          <div className="db-strip-div" />
+          <div className="db-strip-item">
+            <span className="db-strip-label">Expense</span>
+            <span className="db-strip-value expense">₹{fmt(expense)}</span>
+          </div>
+          <div className="db-strip-div" />
+          <div className="db-strip-item">
+            <span className="db-strip-label">Net</span>
+            <span className={`db-strip-value ${net >= 0 ? 'income' : 'expense'}`}>
+              {net >= 0 ? '+' : '-'}₹{fmt(net)}
+            </span>
+          </div>
+        </div>
+      </div>
 
-        {/* Payment Methods */}
-        <div className="payment-section">
-          <h2 className="section-header-modern">💳 Payment Methods</h2>
-          <div className="payment-list">
-            {Object.entries(accountBalances).map(([account, balance]) => (
-              <div 
-                key={account} 
-                className="payment-item"
-                onClick={() => onViewTransactions({ 
-                  paymentMethod: account,
-                  year: selectedYear,
-                  month: selectedMonth
+      {/* ── Scrollable content ── */}
+      <div className="db-scroll">
+
+        {!hasData ? (
+          <div className="db-empty">
+            <div className="db-empty-icon">📊</div>
+            <div className="db-empty-title">No data for {MONTHS[selMonth]}</div>
+            <div className="db-empty-sub">Add income or expenses to see your dashboard</div>
+            <button className="db-empty-btn" onClick={() => onAddTransaction('income')}>Add Income</button>
+          </div>
+        ) : (
+          <>
+            {/* Accounts */}
+            {Object.keys(accountBalances).length > 0 && (
+              <div className="db-section">
+                <div className="db-section-title">Accounts</div>
+                <div className="db-card">
+                  {Object.entries(accountBalances).map(([name, bal], i, arr) => (
+                    <div
+                      key={name}
+                      className={`db-account-row ${i < arr.length - 1 ? 'bordered' : ''}`}
+                      onClick={() => onViewTransactions({ paymentMethod: name, year: selYear, month: selMonth })}
+                    >
+                      <div className="db-account-icon">💳</div>
+                      <span className="db-account-name">{name}</span>
+                      <span className={`db-account-bal ${bal >= 0 ? 'pos' : 'neg'}`}>
+                        {bal < 0 ? '-' : ''}₹{fmt(bal)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Today's spending — only show when viewing current month */}
+            {isCurrentMonth && todayTx.length > 0 && (
+              <div className="db-section">
+                <div className="db-section-title">
+                  Today
+                  <span className="db-section-badge">-₹{fmt(todayTotal)}</span>
+                </div>
+                <div className="db-card">
+                  {todayTx.map((t, i) => (
+                    <div key={t.id} className={`db-today-row ${i < todayTx.length - 1 ? 'bordered' : ''}`}>
+                      <div className={`db-today-icon ${getEnvelopeCategory(t.envelope)}`}>
+                        {getEnvelopeCategory(t.envelope) === 'need' ? '🛒' :
+                         getEnvelopeCategory(t.envelope) === 'want' ? '🎉' : '💰'}
+                      </div>
+                      <div className="db-today-body">
+                        <span className="db-today-note">{t.note}</span>
+                        <span className="db-today-env">{t.envelope}</span>
+                      </div>
+                      <span className="db-today-amt">-₹{fmt(t.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Budget overview — all categories */}
+            {envelopeStats.length > 0 && (
+              <div className="db-section">
+                <div className="db-section-title">Envelopes</div>
+                {[
+                  { key: 'need',   label: 'Needs',           icon: '🛒' },
+                  { key: 'want',   label: 'Wants',           icon: '🎉' },
+                  { key: 'saving', label: 'Savings & Goals', icon: '💰' },
+                ].map(({ key, label, icon }) => {
+                  const list = envelopeStats.filter(e => e.category === key);
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={key} className="db-env-group">
+                      <div className="db-env-group-label">{icon} {label}</div>
+                      <div className="db-card">
+                        {list.map(renderEnvelopeRow)}
+                      </div>
+                    </div>
+                  );
                 })}
-              >
-                <div className="payment-icon">💳</div>
-                <div className="payment-details">
-                  <div className="payment-name">{account}</div>
-                </div>
-                <div className={`payment-balance ${balance >= 0 ? 'positive' : 'negative'}`}>
-                  ₹{balance.toLocaleString('en-IN')}
-                </div>
               </div>
-            ))}
-            <div className="payment-total">
-              <span className="payment-total-label">Total Balance</span>
-              <span className="payment-total-amount">₹{totalBalance.toLocaleString('en-IN')}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Budget Overview */}
-        <div className="budget-section">
-          <h2 className="section-header-modern">💰 Budget Overview</h2>
-          
-          {/* Need Category */}
-          {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'need').length > 0 && (
-            <div className="budget-category">
-              <div className="category-header-modern">
-                <span className="category-icon-modern">🛒</span>
-                <span className="category-title-modern">Needs</span>
-              </div>
-              <div className="budget-list">
-                {Object.entries(envelopeSpending)
-                  .filter(([envelope]) => getEnvelopeCategory(envelope) === 'need')
-                  .map(([envelope, spent]) => {
-                    const budget = getBudgetForEnvelope(envelope);
-                    const remaining = budget - spent;
-                    const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-                    return (
-                      <div 
-                        key={envelope} 
-                        className="budget-item"
-                        onClick={() => onViewTransactions({ 
-                          envelope: envelope,
-                          year: selectedYear,
-                          month: selectedMonth
-                        })}
-                      >
-                        <div className="budget-header">
-                          <span className="budget-name">{envelope}</span>
-                          <span className={`budget-remaining ${remaining < 0 ? 'negative' : 'positive'}`}>
-                            ₹{remaining.toLocaleString('en-IN')} left
-                          </span>
-                        </div>
-                        <div className="budget-progress">
-                          <div className="budget-bar">
-                            <div 
-                              className={`budget-fill ${percentage > 100 ? 'over' : 'need'}`}
-                              style={{ width: `${Math.min(percentage, 100)}%` }}
-                            />
-                          </div>
-                          <span className="budget-stats-text">
-                            ₹{spent.toLocaleString('en-IN')} of ₹{budget.toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
-          {/* Want Category */}
-          {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'want').length > 0 && (
-            <div className="budget-category">
-              <div className="category-header-modern">
-                <span className="category-icon-modern">🎉</span>
-                <span className="category-title-modern">Wants</span>
-              </div>
-              <div className="budget-list">
-                {Object.entries(envelopeSpending)
-                  .filter(([envelope]) => getEnvelopeCategory(envelope) === 'want')
-                  .map(([envelope, spent]) => {
-                    const budget = getBudgetForEnvelope(envelope);
-                    const remaining = budget - spent;
-                    const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-                    return (
-                      <div 
-                        key={envelope} 
-                        className="budget-item"
-                        onClick={() => onViewTransactions({ 
-                          envelope: envelope,
-                          year: selectedYear,
-                          month: selectedMonth
-                        })}
-                      >
-                        <div className="budget-header">
-                          <span className="budget-name">{envelope}</span>
-                          <span className={`budget-remaining ${remaining < 0 ? 'negative' : 'positive'}`}>
-                            ₹{remaining.toLocaleString('en-IN')} left
-                          </span>
-                        </div>
-                        <div className="budget-progress">
-                          <div className="budget-bar">
-                            <div 
-                              className={`budget-fill ${percentage > 100 ? 'over' : 'want'}`}
-                              style={{ width: `${Math.min(percentage, 100)}%` }}
-                            />
-                          </div>
-                          <span className="budget-stats-text">
-                            ₹{spent.toLocaleString('en-IN')} of ₹{budget.toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
-          {/* Saving Category */}
-          {Object.entries(envelopeSpending).filter(([envelope]) => getEnvelopeCategory(envelope) === 'saving').length > 0 && (
-            <div className="budget-category">
-              <div className="category-header-modern">
-                <span className="category-icon-modern">💰</span>
-                <span className="category-title-modern">Savings</span>
-              </div>
-              <div className="budget-list">
-                {Object.entries(envelopeSpending)
-                  .filter(([envelope]) => getEnvelopeCategory(envelope) === 'saving')
-                  .map(([envelope, spent]) => {
-                    const budget = getBudgetForEnvelope(envelope);
-                    const remaining = budget - spent;
-                    const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-                    return (
-                      <div 
-                        key={envelope} 
-                        className="budget-item"
-                        onClick={() => onViewTransactions({ 
-                          envelope: envelope,
-                          year: selectedYear,
-                          month: selectedMonth
-                        })}
-                      >
-                        <div className="budget-header">
-                          <span className="budget-name">{envelope}</span>
-                          <span className={`budget-remaining ${remaining < 0 ? 'negative' : 'positive'}`}>
-                            ₹{remaining.toLocaleString('en-IN')} left
-                          </span>
-                        </div>
-                        <div className="budget-progress">
-                          <div className="budget-bar">
-                            <div 
-                              className={`budget-fill ${percentage > 100 ? 'over' : 'saving'}`}
-                              style={{ width: `${Math.min(percentage, 100)}%` }}
-                            />
-                          </div>
-                          <span className="budget-stats-text">
-                            ₹{spent.toLocaleString('en-IN')} of ₹{budget.toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Floating Action Button */}
-        <button 
-          className="fab" 
-          onClick={() => onAddTransaction('expense')}
-          aria-label="Add transaction"
-        >
-          +
-        </button>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

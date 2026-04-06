@@ -7,6 +7,12 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
   const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
   const { preferences } = usePreferences();
   
+  // Determine effective type - 'credit' is a special expense subtype (refund)
+  const effectiveType = type === 'credit' ? 'expense' : type;
+  const [txSubtype, setTxSubtype] = useState(
+    transaction?.subtype || (type === 'credit' ? 'credit' : 'normal')
+  );
+  
   // Helper functions to convert between DD-MM-YYYY and YYYY-MM-DD formats
   const toInputFormat = (ddmmyyyy) => {
     if (!ddmmyyyy) return '';
@@ -173,8 +179,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
       return;
     }
     
-    if (type === 'transfer') {
-      // Store transfer as single transaction with both accounts
+    if (effectiveType === 'transfer') {
       onSave({
         id: transaction?.id || generateTransactionId(),
         type: 'transfer',
@@ -184,8 +189,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
         sourceAccount: formData.sourceAccount,
         destinationAccount: formData.destinationAccount
       });
-    } else if (type === 'income') {
-      // Income transaction
+    } else if (effectiveType === 'income') {
       onSave({
         id: transaction?.id || generateTransactionId(),
         type: 'income',
@@ -195,11 +199,12 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
         paymentMethod: formData.paymentMethod
       });
     } else {
-      // Expense transaction
+      // Expense or credit (refund)
       onSave({
         id: transaction?.id || generateTransactionId(),
         type: 'expense',
-        amount: parseFloat(formData.amount),
+        subtype: txSubtype, // 'normal' or 'credit'
+        amount: txSubtype === 'credit' ? -Math.abs(parseFloat(formData.amount)) : parseFloat(formData.amount),
         note: formData.note,
         date: formData.date,
         paymentMethod: formData.paymentMethod,
@@ -237,14 +242,34 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">
-            {transaction ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1)}
+            {transaction ? 'Edit' : 'Add'} {type === 'credit' ? 'Credit/Refund' : type.charAt(0).toUpperCase() + type.slice(1)}
           </h2>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Credit toggle for expense type */}
+          {effectiveType === 'expense' && !transaction && (
+            <div className="form-group">
+              <div className="tx-type-toggle">
+                <button type="button"
+                  className={`tx-type-btn ${txSubtype === 'normal' ? 'active expense' : ''}`}
+                  onClick={() => setTxSubtype('normal')}>
+                  💸 Expense
+                </button>
+                <button type="button"
+                  className={`tx-type-btn ${txSubtype === 'credit' ? 'active credit' : ''}`}
+                  onClick={() => setTxSubtype('credit')}>
+                  ↩ Credit/Refund
+                </button>
+              </div>
+              {txSubtype === 'credit' && (
+                <div className="credit-hint">A refund or reimbursement — adds money back to the envelope</div>
+              )}
+            </div>
+          )}
           <div className="form-group">
-            <label>Amount (Rs)</label>
+            <label>Amount (₹)</label>
             <input
               type="number"
               className="form-input"
@@ -278,7 +303,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
             />
           </div>
 
-          {type === 'transfer' ? (
+          {effectiveType === 'transfer' ? (
             <>
               <div className="form-group">
                 <label>Source Account</label>
@@ -356,7 +381,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
                 </div>
               </div>
 
-              {type === 'expense' && (
+              {effectiveType === 'expense' && (
                 <div className="form-group">
                   <label>Envelope</label>
                   <div className="select-with-add">

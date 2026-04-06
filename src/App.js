@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import './styles/animations.css';
 import './styles/accessibility.css';
@@ -10,19 +10,20 @@ import Reports from './components/reports/Reports';
 import TransactionModal from './components/TransactionModal';
 import Auth from './components/Auth';
 import LoadingSpinner from './components/shared/LoadingSpinner';
+import Toast from './components/shared/Toast';
+import ErrorBoundary from './components/shared/ErrorBoundary';
 import RolloverModal from './components/envelopes/RolloverModal';
 import { DataProvider } from './contexts/DataContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import authService from './services/authService';
 import cloudStorage from './services/cloudStorage';
-import recurringService from './services/recurringService';
 import { calculateRollover, applyRollover, isNewMonth } from './utils/budgetRollover';
 
 function App() {
   // Auth state
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  
+
   // App state
   const [activeTab, setActiveTab] = useState('envelopes');
   const [showModal, setShowModal] = useState(false);
@@ -34,45 +35,35 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  
-  // New Phase 3 state
-  const [recurring, setRecurring] = useState([]);
-  const [templates, setTemplates] = useState([]);
   const [showRolloverModal, setShowRolloverModal] = useState(false);
   const [pendingRollover, setPendingRollover] = useState({});
+  const [toast, setToast] = useState(null);
+
+  // Ref to DataContext's loadFromCloud - set via callback prop on DataProvider
+  const loadFromCloudRef = useRef(null);
 
   // Monitor online/offline status
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-    };
-    
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
-    
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
 
-  // Listen to auth state changes - ALWAYS CHECK AUTH FIRST
+  // Listen to auth state changes
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((user) => {
-      setUser(user);
+    const unsubscribe = authService.onAuthStateChange((authUser) => {
+      setUser(authUser);
       setAuthLoading(false);
-      
-      if (!user) {
-        // User signed out, clear data
+      if (!authUser) {
         setTransactions([]);
         setBudgets({});
       }
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -81,56 +72,43 @@ function App() {
     if (!user) return;
 
     setSyncing(true);
-    
-    // Flag to prevent overwriting during initial load
     let isInitialLoad = true;
 
-    // Subscribe to transactions
     const unsubTransactions = cloudStorage.subscribeToTransactions((data) => {
       if (isInitialLoad) {
-        // First load: merge with any pending local changes
         setTransactions(prevLocal => {
-          // If we have local transactions that aren't in cloud yet, keep them
           const cloudIds = new Set(data.map(t => t.id));
           const localOnly = prevLocal.filter(t => !cloudIds.has(t.id));
-          
           if (localOnly.length > 0) {
             console.log(`Preserving ${localOnly.length} local-only transactions during initial sync`);
             return [...data, ...localOnly];
           }
-          
           return data;
         });
         isInitialLoad = false;
       } else {
-        // Subsequent updates: trust cloud as source of truth
         setTransactions(data);
       }
       setSyncing(false);
     });
 
-    // Subscribe to budgets
     const unsubBudgets = cloudStorage.subscribeToBudgets((data) => {
       setBudgets(data);
     });
 
-    // Subscribe to envelopes
+    // Use loadFromCloud directly instead of window events
     const unsubEnvelopes = cloudStorage.subscribeToEnvelopes((data) => {
-      // Update localStorage so DataContext picks it up (even if empty)
-      localStorage.setItem('envelopes', JSON.stringify(data || []));
-      // Trigger a storage event to notify DataContext
-      window.dispatchEvent(new CustomEvent('cloudEnvelopesLoaded', { detail: data || [] }));
+      if (loadFromCloudRef.current) {
+        loadFromCloudRef.current(data || [], undefined);
+      }
     });
 
-    // Subscribe to payment methods
     const unsubPaymentMethods = cloudStorage.subscribeToPaymentMethods((data) => {
-      // Update localStorage so DataContext picks it up (even if empty)
-      localStorage.setItem('paymentMethods', JSON.stringify(data || []));
-      // Trigger a storage event to notify DataContext
-      window.dispatchEvent(new CustomEvent('cloudPaymentMethodsLoaded', { detail: data || [] }));
+      if (loadFromCloudRef.current) {
+        loadFromCloudRef.current(undefined, data || []);
+      }
     });
 
-    // Cleanup subscriptions
     return () => {
       unsubTransactions();
       unsubBudgets();
@@ -139,231 +117,167 @@ function App() {
     };
   }, [user]);
 
-  // ONE-TIME SYNC: Extract payment methods from transactions and sync to DataContext
+  // ONE-TIME SYNC: Extract payment methods from transactions and add any missing ones
   useEffect(() => {
     if (!user || transactions.length === 0) return;
-    
+
     const syncPaymentMethodsFromTransactions = async () => {
       try {
-        // Get current payment methods from localStorage
         const savedMethods = localStorage.getItem('paymentMethods');
         const currentMethods = savedMethods ? JSON.parse(savedMethods) : [];
-        
-        // If payment methods list is empty and we have transactions, sync them
-        // But if both are empty, don't do anything (user might have deleted all data)
-        if (currentMethods.length === 0 && transactions.length === 0) {
-          return; // Both empty, nothing to sync
-        }
-        
-        // Extract all unique payment methods from transactions
+
         const methodsFromTransactions = new Set();
         transactions.forEach(t => {
-          if (t.paymentMethod) {
-            methodsFromTransactions.add(t.paymentMethod);
-          }
-          if (t.sourceAccount) {
-            methodsFromTransactions.add(t.sourceAccount);
-          }
-          if (t.destinationAccount) {
-            methodsFromTransactions.add(t.destinationAccount);
-          }
+          if (t.paymentMethod) methodsFromTransactions.add(t.paymentMethod);
+          if (t.sourceAccount) methodsFromTransactions.add(t.sourceAccount);
+          if (t.destinationAccount) methodsFromTransactions.add(t.destinationAccount);
         });
-        
-        // Find methods that exist in transactions but not in payment methods list
+
         const missingMethods = Array.from(methodsFromTransactions).filter(
-          method => !currentMethods.includes(method)
+          m => !currentMethods.includes(m)
         );
-        
+
         if (missingMethods.length > 0) {
-          console.log(`Found ${missingMethods.length} payment methods in transactions that aren't in the list:`, missingMethods);
-          
-          // Add missing methods to the list
+          console.log(`Syncing ${missingMethods.length} missing payment methods from transactions`);
           const updatedMethods = [...currentMethods, ...missingMethods];
-          
-          // Update localStorage
           localStorage.setItem('paymentMethods', JSON.stringify(updatedMethods));
-          
-          // Sync to cloud
           await cloudStorage.savePaymentMethods(updatedMethods);
-          
-          // Trigger event to update DataContext
-          window.dispatchEvent(new CustomEvent('cloudPaymentMethodsLoaded', { detail: updatedMethods }));
-          
-          console.log(`✅ Synced ${missingMethods.length} missing payment methods`);
+          if (loadFromCloudRef.current) {
+            loadFromCloudRef.current(undefined, updatedMethods);
+          }
         }
       } catch (error) {
         console.error('Failed to sync payment methods from transactions:', error);
       }
     };
-    
-    // Run once after transactions are loaded (but not immediately to avoid conflicts with delete)
+
     const timeoutId = setTimeout(syncPaymentMethodsFromTransactions, 3000);
-    
     return () => clearTimeout(timeoutId);
-  }, [user, transactions.length]); // Only run when user changes or transaction count changes
+  }, [user, transactions.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ONE-TIME MIGRATION: Load from localStorage and migrate to Firebase
   useEffect(() => {
     if (!user) return;
-    
+
     const savedTransactions = localStorage.getItem('transactions');
     const savedBudgets = localStorage.getItem('budgets');
-    
-    // Only migrate if we have localStorage data
-    if (savedTransactions || savedBudgets) {
-      console.log('🔄 Migrating localStorage data to Firebase...');
-      
-      const migrateData = async () => {
-        try {
-          if (savedTransactions) {
-            const parsed = JSON.parse(savedTransactions);
-            
-            // Migration: Convert old dual-transaction transfers to single transactions
-            const migratedTransactions = [];
-            const processedTransferIds = new Set();
-            
-            parsed.forEach(t => {
-              if (t.type === 'transfer' && t.isSource !== undefined) {
-                // Old format transfer (has isSource property)
-                const idStr = t.id.toString();
-                const baseId = idStr.endsWith('-source') || idStr.endsWith('-dest') 
+
+    if (!savedTransactions && !savedBudgets) return;
+
+    console.log('🔄 Migrating localStorage data to Firebase...');
+
+    const migrateData = async () => {
+      try {
+        if (savedTransactions) {
+          const parsed = JSON.parse(savedTransactions);
+          const migratedTransactions = [];
+          const processedTransferIds = new Set();
+
+          parsed.forEach(t => {
+            if (t.type === 'transfer' && t.isSource !== undefined) {
+              const idStr = t.id.toString();
+              const baseId =
+                idStr.endsWith('-source') || idStr.endsWith('-dest')
                   ? idStr.substring(0, idStr.lastIndexOf('-'))
                   : idStr;
-                
-                if (!processedTransferIds.has(baseId)) {
-                  migratedTransactions.push({
-                    id: baseId,
-                    type: 'transfer',
-                    amount: t.amount,
-                    note: t.note,
-                    date: t.date,
-                    sourceAccount: t.sourceAccount,
-                    destinationAccount: t.destinationAccount
-                  });
-                  processedTransferIds.add(baseId);
-                }
-              } else if (t.type !== 'transfer' || t.isSource === undefined) {
-                migratedTransactions.push(t);
+              if (!processedTransferIds.has(baseId)) {
+                migratedTransactions.push({
+                  id: baseId,
+                  type: 'transfer',
+                  amount: t.amount,
+                  note: t.note,
+                  date: t.date,
+                  sourceAccount: t.sourceAccount,
+                  destinationAccount: t.destinationAccount
+                });
+                processedTransferIds.add(baseId);
               }
-            });
-            
-            // Upload to Firebase using batch operation
-            if (migratedTransactions.length > 0) {
-              console.log(`Migrating ${migratedTransactions.length} transactions to Firebase...`);
-              await cloudStorage.batchAddTransactions(migratedTransactions);
-              console.log('✅ Transactions migrated to Firebase');
+            } else if (t.type !== 'transfer' || t.isSource === undefined) {
+              migratedTransactions.push(t);
             }
-          }
-          
-          if (savedBudgets) {
-            const budgetsData = JSON.parse(savedBudgets);
-            if (Object.keys(budgetsData).length > 0) {
-              console.log('Migrating budgets to Firebase...');
-              await cloudStorage.saveBudgets(budgetsData);
-              console.log('✅ Budgets migrated to Firebase');
-            }
-          }
-          
-          // Clear localStorage after successful migration
-          localStorage.removeItem('transactions');
-          localStorage.removeItem('budgets');
-          console.log('✅ Migration complete - localStorage cleared');
-          
-        } catch (error) {
-          console.error('Migration error:', error);
-          alert(
-            '⚠️ Migration Warning\n\n' +
-            'Failed to migrate some data to cloud.\n' +
-            'Your data is safe in localStorage.\n\n' +
-            'Please try refreshing the page.'
-          );
-        }
-      };
-      
-      migrateData();
-    }
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+          });
 
-  // Cleanup orphaned budget data on mount
-  useEffect(() => {
-    const cleanupOrphanedBudgets = () => {
-      if (Object.keys(budgets).length === 0) return;
-      
-      // Get valid envelope names from DataContext
-      const validEnvelopeNames = new Set();
-      
-      // Include envelopes from transactions
-      transactions.forEach(t => {
-        if (t.type === 'expense' && t.envelope) {
-          validEnvelopeNames.add(t.envelope);
-        }
-      });
-      
-      let hasOrphanedData = false;
-      const cleanedBudgets = { ...budgets };
-      
-      Object.keys(cleanedBudgets).forEach(monthKey => {
-        const monthBudgets = cleanedBudgets[monthKey];
-        Object.keys(monthBudgets).forEach(envelopeName => {
-          if (!validEnvelopeNames.has(envelopeName)) {
-            delete cleanedBudgets[monthKey][envelopeName];
-            hasOrphanedData = true;
+          if (migratedTransactions.length > 0) {
+            console.log(`Migrating ${migratedTransactions.length} transactions to Firebase...`);
+            await cloudStorage.batchAddTransactions(migratedTransactions);
+            console.log('✅ Transactions migrated');
           }
-        });
-        
-        // Remove empty month entries
-        if (Object.keys(cleanedBudgets[monthKey]).length === 0) {
-          delete cleanedBudgets[monthKey];
         }
-      });
-      
-      if (hasOrphanedData) {
-        console.log('Cleaned up orphaned budget data');
-        setBudgets(cleanedBudgets);
+
+        if (savedBudgets) {
+          const budgetsData = JSON.parse(savedBudgets);
+          if (Object.keys(budgetsData).length > 0) {
+            await cloudStorage.saveBudgets(budgetsData);
+            console.log('✅ Budgets migrated');
+          }
+        }
+
+        localStorage.removeItem('transactions');
+        localStorage.removeItem('budgets');
+        console.log('✅ Migration complete');
+      } catch (error) {
+        console.error('Migration error:', error);
+        alert(
+          '⚠️ Migration Warning\n\nFailed to migrate some data to cloud.\nYour data is safe in localStorage.\n\nPlease try refreshing the page.'
+        );
       }
     };
-    
-    // Run cleanup after budgets and transactions are loaded
-    if (Object.keys(budgets).length > 0 || transactions.length > 0) {
-      cleanupOrphanedBudgets();
+
+    migrateData();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup orphaned budget entries when budgets change
+  // Only removes entries for envelopes that have never had any transactions
+  useEffect(() => {
+    if (Object.keys(budgets).length === 0) return;
+
+    const validEnvelopeNames = new Set(
+      transactions.filter(t => t.type === 'expense' && t.envelope).map(t => t.envelope)
+    );
+
+    // Also keep envelopes that exist in DataContext (loaded from localStorage)
+    const savedEnvelopes = localStorage.getItem('envelopes');
+    if (savedEnvelopes) {
+      try {
+        JSON.parse(savedEnvelopes).forEach(env => validEnvelopeNames.add(env.name));
+      } catch (_) {}
     }
-  }, [budgets, transactions]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    let hasOrphanedData = false;
+    const cleanedBudgets = JSON.parse(JSON.stringify(budgets));
+
+    Object.keys(cleanedBudgets).forEach(monthKey => {
+      Object.keys(cleanedBudgets[monthKey]).forEach(envelopeName => {
+        if (!validEnvelopeNames.has(envelopeName)) {
+          delete cleanedBudgets[monthKey][envelopeName];
+          hasOrphanedData = true;
+        }
+      });
+      if (Object.keys(cleanedBudgets[monthKey]).length === 0) {
+        delete cleanedBudgets[monthKey];
+      }
+    });
+
+    if (hasOrphanedData) {
+      console.log('Cleaned up orphaned budget data');
+      setBudgets(cleanedBudgets);
+    }
+  }, [budgets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle import transactions event
   useEffect(() => {
     const handleImportEvent = async (event) => {
       const importedTransactions = event.detail;
-      
-      // Update local state immediately for responsive UI
-      setTransactions(prevTransactions => {
-        const newTransactions = [...prevTransactions, ...importedTransactions];
-        return newTransactions;
-      });
+      setTransactions(prev => [...prev, ...importedTransactions]);
 
-      // Sync to cloud storage in background using BATCH operations
       if (user) {
         setSyncing(true);
-        
         try {
-          // Use batch operation for much faster imports
-          const successCount = await cloudStorage.batchAddTransactions(importedTransactions);
-          const failCount = 0;
-          
-          if (failCount > 0) {
-            alert(
-              `⚠️ Partial Cloud Sync\n\n` +
-              `${successCount} transactions synced successfully.\n` +
-              `${failCount} transactions failed to sync.\n\n` +
-              `Data is saved locally. Try exporting and re-importing if issues persist.`
-            );
-          }
+          await cloudStorage.batchAddTransactions(importedTransactions);
         } catch (error) {
-          console.error('Cloud sync error:', error);
+          console.error('Cloud sync error during import:', error);
           alert(
-            '⚠️ Cloud Sync Failed\n\n' +
-            'Import completed but cloud sync failed.\n' +
-            'Data is saved locally only.\n\n' +
-            'Your data will be available on this device but may not sync across devices until you refresh.'
+            '⚠️ Cloud Sync Failed\n\nImport completed but cloud sync failed.\nData is saved locally only.\n\nYour data will sync when you refresh.'
           );
         } finally {
           setSyncing(false);
@@ -372,62 +286,25 @@ function App() {
     };
 
     window.addEventListener('importTransactions', handleImportEvent);
-    
-    return () => {
-      window.removeEventListener('importTransactions', handleImportEvent);
-    };
+    return () => window.removeEventListener('importTransactions', handleImportEvent);
   }, [user]);
 
   // Handle undo import event
   useEffect(() => {
     const handleUndoImport = async (event) => {
       const { transactions: importedTransactions } = event.detail;
-      
-      // Update local state immediately
-      setTransactions(prevTransactions => {
-        // Create a Set of imported transaction IDs for efficient lookup
-        const importedIds = new Set(importedTransactions.map(t => t.id));
-        
-        // Filter out the imported transactions
-        const filtered = prevTransactions.filter(t => !importedIds.has(t.id));
-        
-        return filtered;
-      });
+      const importedIds = new Set(importedTransactions.map(t => t.id));
+      setTransactions(prev => prev.filter(t => !importedIds.has(t.id)));
 
-      // Sync deletion to cloud storage
       if (user) {
         setSyncing(true);
-        
         try {
-          let successCount = 0;
-          let failCount = 0;
-          
-          // Delete each transaction from cloud storage
           for (const transaction of importedTransactions) {
-            try {
-              await cloudStorage.deleteTransaction(transaction.id);
-              successCount++;
-            } catch (error) {
-              console.error(`Failed to delete transaction ${transaction.id}:`, error);
-              failCount++;
-            }
-          }
-          
-          if (failCount > 0) {
-            alert(
-              `⚠️ Partial Undo Sync\n\n` +
-              `${successCount} transactions removed from cloud.\n` +
-              `${failCount} transactions failed to remove.\n\n` +
-              `Local data updated. Refresh to see cloud state.`
-            );
+            await cloudStorage.deleteTransaction(transaction.id);
           }
         } catch (error) {
           console.error('Undo sync error:', error);
-          alert(
-            '⚠️ Cloud Sync Failed\n\n' +
-            'Undo completed locally but cloud sync failed.\n' +
-            'Refresh the page to see the current cloud state.'
-          );
+          alert('⚠️ Cloud Sync Failed\n\nUndo completed locally but cloud sync failed.\nRefresh to see the current cloud state.');
         } finally {
           setSyncing(false);
         }
@@ -435,19 +312,12 @@ function App() {
     };
 
     window.addEventListener('undoImport', handleUndoImport);
-    
-    return () => {
-      window.removeEventListener('undoImport', handleUndoImport);
-    };
+    return () => window.removeEventListener('undoImport', handleUndoImport);
   }, [user]);
 
-  // Handle tab switch event
+  // Handle tab switch event (from other components)
   useEffect(() => {
-    const handleTabSwitch = (event) => {
-      const tab = event.detail;
-      setActiveTab(tab);
-    };
-
+    const handleTabSwitch = (event) => setActiveTab(event.detail);
     window.addEventListener('switchTab', handleTabSwitch);
     return () => window.removeEventListener('switchTab', handleTabSwitch);
   }, []);
@@ -466,45 +336,26 @@ function App() {
 
   const handleSaveTransaction = async (transaction) => {
     try {
-      console.log('Attempting to save transaction:', JSON.stringify(transaction, null, 2));
-      
-      // Optimistic update: Update UI immediately
       if (editTransaction) {
-        // Editing existing transaction - preserve the ID
         const updatedTransaction = { ...transaction, id: editTransaction.id };
-        setTransactions(prev => prev.map(t => 
-          t.id === editTransaction.id ? updatedTransaction : t
-        ));
-        
+        setTransactions(prev => prev.map(t => t.id === editTransaction.id ? updatedTransaction : t));
         setShowModal(false);
-        
-        // Sync to cloud in background
-        console.log('Updating transaction with ID:', editTransaction.id);
         await cloudStorage.updateTransaction(editTransaction.id, updatedTransaction);
-        console.log('Transaction updated successfully');
+        setToast({ message: 'Transaction updated', type: 'success' });
       } else {
-        // Adding new transaction
         setTransactions(prev => [...prev, transaction]);
         setShowModal(false);
-        
-        console.log('Adding new transaction');
         await cloudStorage.addTransaction(transaction);
-        console.log('Transaction added successfully');
+        setToast({ message: 'Transaction saved', type: 'success' });
       }
     } catch (error) {
       console.error('Save transaction error:', error);
-      console.error('Error details:', error.message, error.code);
-      console.error('Transaction data:', JSON.stringify(transaction, null, 2));
-      
-      // Rollback on error
+      // Rollback
       if (editTransaction) {
-        setTransactions(prev => prev.map(t => 
-          t.id === editTransaction.id ? editTransaction : t
-        ));
+        setTransactions(prev => prev.map(t => t.id === editTransaction.id ? editTransaction : t));
       } else {
         setTransactions(prev => prev.filter(t => t.id !== transaction.id));
       }
-      
       alert(`Failed to save transaction: ${error.message || 'Please try again.'}`);
     }
   };
@@ -513,43 +364,25 @@ function App() {
     const transaction = transactions.find(t => t.id === id);
     if (!transaction) return;
 
-    // Build confirmation message
-    const typeIcon = transaction.type === 'income' ? '💰' : 
-                     transaction.type === 'expense' ? '💸' : '🔄';
-    
+    const typeIcon = transaction.type === 'income' ? '💰' : transaction.type === 'expense' ? '💸' : '🔄';
     let details = `${transaction.date} • ₹${transaction.amount}\n${transaction.note}`;
-    
     if (transaction.type === 'transfer') {
       details += `\n${transaction.sourceAccount} → ${transaction.destinationAccount}`;
     } else {
       details += `\n${transaction.paymentMethod}`;
-      if (transaction.envelope) {
-        details += ` • ${transaction.envelope}`;
-      }
+      if (transaction.envelope) details += ` • ${transaction.envelope}`;
     }
 
-    const confirmMsg = 
-      `${typeIcon} Delete this transaction?\n\n` +
-      `${details}\n\n` +
-      `⚠️ This action cannot be undone.`;
-
-    if (!window.confirm(confirmMsg)) {
+    if (!window.confirm(`${typeIcon} Delete this transaction?\n\n${details}\n\n⚠️ This action cannot be undone.`)) {
       return;
     }
 
-    // Store current state for rollback
     const previousTransactions = [...transactions];
-
     try {
-      // Optimistic delete: Remove from UI immediately
       setTransactions(prev => prev.filter(t => t.id !== id));
-      
-      // Delete from cloud in background
       await cloudStorage.deleteTransaction(id);
     } catch (error) {
       console.error('Delete transaction error:', error);
-      
-      // Rollback on error
       setTransactions(previousTransactions);
       alert('Failed to delete transaction. Please try again.');
     }
@@ -563,26 +396,19 @@ function App() {
   const handleExportData = async () => {
     try {
       const exportData = await cloudStorage.exportAllData();
-      
-      // Add statistics
       exportData.statistics = {
         totalTransactions: transactions.length,
-        totalIncome: transactions.filter(t => t.type === 'income')
-          .reduce((sum, t) => sum + parseFloat(t.amount), 0),
-        totalExpense: transactions.filter(t => t.type === 'expense')
-          .reduce((sum, t) => sum + parseFloat(t.amount), 0),
+        totalIncome: transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount), 0),
+        totalExpense: transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount), 0)
       };
 
-      // Create JSON file
-      const jsonBlob = new Blob([JSON.stringify(exportData, null, 2)], 
-        { type: 'application/json' });
+      const jsonBlob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const jsonUrl = URL.createObjectURL(jsonBlob);
       const jsonLink = document.createElement('a');
       jsonLink.href = jsonUrl;
       jsonLink.download = `budgetbuddy-backup-${Date.now()}.json`;
       jsonLink.click();
       URL.revokeObjectURL(jsonUrl);
-
       alert('✅ Data exported successfully!');
     } catch (error) {
       console.error('Export error:', error);
@@ -602,110 +428,40 @@ function App() {
   };
 
   const handleDeleteAllData = async () => {
-    const confirmMsg = 
-      '⚠️ DELETE ALL DATA?\n\n' +
-      'This will permanently delete:\n' +
-      '• All transactions\n' +
-      '• All budgets\n' +
-      '• All envelopes\n' +
-      '• All payment methods\n' +
-      '• All recurring transactions\n' +
-      '• All templates\n\n' +
-      '🚨 THIS CANNOT BE UNDONE!\n\n' +
-      'Type "DELETE" to confirm:';
-    
-    const userInput = window.prompt(confirmMsg);
-    
+    const userInput = window.prompt(
+      '⚠️ DELETE ALL DATA?\n\nThis will permanently delete all transactions, budgets, envelopes, and payment methods.\n\n🚨 THIS CANNOT BE UNDONE!\n\nType "DELETE" to confirm:'
+    );
+
     if (userInput !== 'DELETE') {
-      if (userInput !== null) {
-        alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
-      }
+      if (userInput !== null) alert('Deletion cancelled. You must type "DELETE" exactly to confirm.');
       return;
     }
 
     try {
       setSyncing(true);
-      
-      // Delete from Firebase
       const result = await cloudStorage.deleteAllData();
-      
-      // Clear local state
+
       setTransactions([]);
       setBudgets({});
-      setRecurring([]);
-      setTemplates([]);
-      
-      // Clear localStorage
+
       localStorage.removeItem('transactions');
       localStorage.removeItem('budgets');
-      localStorage.removeItem('envelopes');
-      localStorage.removeItem('paymentMethods');
-      localStorage.removeItem('recurring');
-      localStorage.removeItem('templates');
       localStorage.removeItem('lastOpenDate');
-      
-      // Set empty arrays in localStorage to ensure they're cleared
       localStorage.setItem('envelopes', JSON.stringify([]));
       localStorage.setItem('paymentMethods', JSON.stringify([]));
-      
-      // Trigger events to update DataContext
-      window.dispatchEvent(new CustomEvent('cloudEnvelopesLoaded', { detail: [] }));
-      window.dispatchEvent(new CustomEvent('cloudPaymentMethodsLoaded', { detail: [] }));
-      
-      // Wait a bit for state to update
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+
+      if (loadFromCloudRef.current) {
+        loadFromCloudRef.current([], []);
+      }
+
       setSyncing(false);
-      
       alert(
-        `✅ All Data Deleted\n\n` +
-        `${result.transactionsDeleted} transactions deleted\n` +
-        `All budgets, envelopes, payment methods, recurring, and templates cleared\n\n` +
-        `Your account is now empty.`
+        `✅ All Data Deleted\n\n${result.transactionsDeleted} transactions deleted\nAll budgets, envelopes, and payment methods cleared.`
       );
     } catch (error) {
       console.error('Delete all data error:', error);
       setSyncing(false);
-      alert('❌ Failed to delete data. Please try again or contact support.');
-    }
-  };
-
-  // Handle template actions (save/load)
-  const handleTemplateAction = (action, data) => {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const budgetKey = `${currentYear}-${currentMonth}`;
-
-    if (action === 'save') {
-      // Save current budget as template
-      const templateName = data;
-      const currentBudget = budgets[budgetKey] || {};
-
-      if (Object.keys(currentBudget).length === 0) {
-        alert('No budget to save. Fill your envelopes first!');
-        return;
-      }
-
-      const newTemplate = {
-        id: `template-${Date.now()}`,
-        name: templateName,
-        data: currentBudget,
-        createdAt: new Date().toISOString()
-      };
-
-      setTemplates([...templates, newTemplate]);
-      alert(`✅ Template "${templateName}" saved!`);
-    } else if (action === 'load') {
-      // Load template into current budget
-      const template = data;
-      
-      setBudgets({
-        ...budgets,
-        [budgetKey]: template.data
-      });
-
-      alert(`✅ Template "${template.name}" loaded!`);
+      alert('❌ Failed to delete data. Please try again.');
     }
   };
 
@@ -718,35 +474,23 @@ function App() {
     const todayStr = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
 
     if (isNewMonth(lastOpenDate)) {
-      // Calculate rollover
       const rollover = calculateRollover(budgets, transactions, today.getFullYear(), today.getMonth());
-      
       if (Object.keys(rollover).length > 0) {
         setPendingRollover(rollover);
         setShowRolloverModal(true);
       }
     }
 
-    // Update last open date
     localStorage.setItem('lastOpenDate', todayStr);
   }, [user, transactions.length, budgets]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle rollover application
   const handleApplyRollover = () => {
     const today = new Date();
     const budgetKey = `${today.getFullYear()}-${today.getMonth()}`;
-    const currentBudget = budgets[budgetKey] || {};
-    
-    const updatedBudget = applyRollover(currentBudget, pendingRollover, 'automatic');
-    
-    setBudgets({
-      ...budgets,
-      [budgetKey]: updatedBudget
-    });
-
+    const updatedBudget = applyRollover(budgets[budgetKey] || {}, pendingRollover, 'automatic');
+    setBudgets({ ...budgets, [budgetKey]: updatedBudget });
     setShowRolloverModal(false);
     setPendingRollover({});
-    
     alert('✅ Rollover applied! Your envelopes have been updated.');
   };
 
@@ -755,7 +499,16 @@ function App() {
     setPendingRollover({});
   };
 
-  // Show loading screen while checking auth
+  const saveBudgets = useCallback(async (newBudgets) => {
+    setBudgets(newBudgets);
+    try {
+      await cloudStorage.saveBudgets(newBudgets);
+    } catch (error) {
+      console.error('Save budgets error:', error);
+      alert('Failed to save budgets. Please try again.');
+    }
+  }, []);
+
   if (authLoading) {
     return (
       <div className="loading-screen">
@@ -764,248 +517,219 @@ function App() {
     );
   }
 
-  // Show auth screen if not logged in - ALWAYS AUTH FIRST
   if (!user) {
     return <Auth onAuthSuccess={() => {}} />;
   }
 
-  // Show main app only after authentication
   return (
     <PreferencesProvider>
-      <DataProvider>
-        <div className="App">
-        <div className="tabs">
-          <button 
-            className={activeTab === 'envelopes' ? 'active' : ''} 
-            onClick={() => setActiveTab('envelopes')}
-          >
-            Envelopes
-          </button>
-          <button 
-            className={activeTab === 'dashboard' ? 'active' : ''} 
-            onClick={() => setActiveTab('dashboard')}
-          >
-            Dashboard
-          </button>
-          <button 
-            className={activeTab === 'reports' ? 'active' : ''} 
-            onClick={() => setActiveTab('reports')}
-          >
-            Reports
-          </button>
-          <button 
-            className={activeTab === 'transactions' ? 'active' : ''} 
-            onClick={() => setActiveTab('transactions')}
-          >
-            Transactions
-          </button>
-          <button 
-            className={activeTab === 'settings' ? 'active' : ''} 
-            onClick={() => setActiveTab('settings')}
-          >
-            Settings
-          </button>
-          <button 
-            className="export-btn" 
-            onClick={handleExportData}
-            title="Export all data as backup"
-          >
-            📥 Export
-          </button>
-          <button 
-            className="signout-btn" 
-            onClick={handleSignOut}
-            title="Sign out"
-          >
-            👤 Sign Out
-          </button>
-        </div>
+      <DataProvider
+        onLoadFromCloud={(fn) => { loadFromCloudRef.current = fn; }}
+      >
+        <ErrorBoundary>
+          <div className="App">
+            <div className="tabs">
+              <button className={activeTab === 'envelopes' ? 'active' : ''} onClick={() => setActiveTab('envelopes')}>Envelopes</button>
+              <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>Dashboard</button>
+              <button className={activeTab === 'reports' ? 'active' : ''} onClick={() => setActiveTab('reports')}>Reports</button>
+              <button className={activeTab === 'transactions' ? 'active' : ''} onClick={() => setActiveTab('transactions')}>Transactions</button>
+              <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>Settings</button>
+              <div className="tab-spacer" />
+              <button className="export-btn" onClick={handleExportData} title="Export all data as backup">📥 Export</button>
+              <button className="signout-btn" onClick={handleSignOut} title="Sign out">Sign Out</button>
+            </div>
 
-        {syncing && (
-          <div className="sync-indicator">
-            <span className="sync-icon">🔄</span>
-            Syncing...
-          </div>
-        )}
-
-        {!isOnline && (
-          <div className="offline-indicator">
-            <span className="offline-icon">📡</span>
-            Offline - Changes will sync when connected
-          </div>
-        )}
-
-        <div className="content">
-          {activeTab === 'envelopes' && (
-            <EnvelopesView 
-              transactions={transactions}
-              budgets={budgets}
-              setBudgets={async (newBudgets) => {
-                try {
-                  await cloudStorage.saveBudgets(newBudgets);
-                } catch (error) {
-                  console.error('Save budgets error:', error);
-                  alert('Failed to save budgets. Please try again.');
-                }
-              }}
-              onAddTransaction={handleAddTransaction}
-              onViewTransactions={handleViewTransactions}
-            />
-          )}
-          {activeTab === 'dashboard' && (
-            <Dashboard 
-              transactions={transactions}
-              budgets={budgets}
-              onAddTransaction={handleAddTransaction}
-              onViewTransactions={handleViewTransactions}
-            />
-          )}
-          {activeTab === 'reports' && (
-            <Reports 
-              transactions={transactions}
-              budgets={budgets}
-            />
-          )}
-          {activeTab === 'transactions' && (
-            <Transactions 
-              transactions={transactions}
-              onEdit={handleEditTransaction}
-              onDelete={handleDeleteTransaction}
-              initialFilters={transactionFilters}
-              onFiltersCleared={() => setTransactionFilters({})}
-            />
-          )}
-          {activeTab === 'settings' && (
-            <Settings 
-              budgets={budgets}
-              setBudgets={async (newBudgets) => {
-                try {
-                  await cloudStorage.saveBudgets(newBudgets);
-                } catch (error) {
-                  console.error('Save budgets error:', error);
-                  alert('Failed to save budgets. Please try again.');
-                }
-              }}
-              transactions={transactions}
-              recurring={recurring}
-              setRecurring={setRecurring}
-              templates={templates}
-              setTemplates={setTemplates}
-              onLoadTemplate={handleTemplateAction}
-            />
-          )}
-        </div>
-
-        <div className="bottom-nav">
-          <button 
-            className={activeTab === 'envelopes' ? 'active' : ''} 
-            onClick={() => setActiveTab('envelopes')}
-          >
-            <span className="nav-icon">📦</span>
-            <span>Envelopes</span>
-          </button>
-          <button 
-            className={activeTab === 'dashboard' ? 'active' : ''} 
-            onClick={() => setActiveTab('dashboard')}
-          >
-            <span className="nav-icon">📊</span>
-            <span>Dashboard</span>
-          </button>
-          <button 
-            className={activeTab === 'transactions' ? 'active' : ''} 
-            onClick={() => setActiveTab('transactions')}
-          >
-            <span className="nav-icon">💳</span>
-            <span>Transactions</span>
-          </button>
-          <button 
-            className={showMenu ? 'active' : ''} 
-            onClick={() => setShowMenu(!showMenu)}
-          >
-            <span className="nav-icon">⚙️</span>
-            <span>Menu</span>
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
-        {showMenu && (
-          <div className="mobile-menu-overlay" onClick={() => setShowMenu(false)}>
-            <div className="mobile-menu" onClick={(e) => e.stopPropagation()}>
-              <div className="mobile-menu-header">
-                <h3>Menu</h3>
-                <button className="close-menu" onClick={() => setShowMenu(false)}>×</button>
+            {syncing && (
+              <div className="sync-indicator">
+                <span className="sync-icon">🔄</span>
+                Syncing...
               </div>
-              
-              <div className="mobile-menu-user">
-                <div className="user-avatar">👤</div>
-                <div className="user-info">
-                  <div className="user-email">{user?.email}</div>
-                  <div className="user-status">Signed in</div>
+            )}
+
+            {!isOnline && (
+              <div className="offline-indicator">
+                <span className="offline-icon">📡</span>
+                Offline - Changes will sync when connected
+              </div>
+            )}
+
+            <div className="content">
+              {activeTab === 'envelopes' && (
+                <EnvelopesView
+                  transactions={transactions}
+                  budgets={budgets}
+                  setBudgets={saveBudgets}
+                  onAddTransaction={handleAddTransaction}
+                  onViewTransactions={handleViewTransactions}
+                />
+              )}
+              {activeTab === 'dashboard' && (
+                <Dashboard
+                  transactions={transactions}
+                  budgets={budgets}
+                  onAddTransaction={handleAddTransaction}
+                  onViewTransactions={handleViewTransactions}
+                />
+              )}
+              {activeTab === 'reports' && (
+                <Reports transactions={transactions} budgets={budgets} />
+              )}
+              {activeTab === 'transactions' && (
+                <Transactions
+                  transactions={transactions}
+                  onEdit={handleEditTransaction}
+                  onDelete={handleDeleteTransaction}
+                  initialFilters={transactionFilters}
+                  onFiltersCleared={() => setTransactionFilters({})}
+                />
+              )}
+              {activeTab === 'settings' && (
+                <Settings
+                  budgets={budgets}
+                  setBudgets={saveBudgets}
+                  transactions={transactions}
+                />
+              )}
+            </div>
+
+            <div className="bottom-nav">
+              <button className={activeTab === 'envelopes' ? 'active' : ''} onClick={() => setActiveTab('envelopes')}>
+                <span className="nav-icon">📦</span>
+                <span>Envelopes</span>
+              </button>
+              <button className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
+                <span className="nav-icon">📊</span>
+                <span>Dashboard</span>
+              </button>
+              <button
+                className="nav-add-btn"
+                onClick={() => setShowMenu(prev => (prev ? false : 'add'))}
+                aria-label="Add transaction"
+              >
+                <span className="nav-add-icon">+</span>
+              </button>
+              <button className={activeTab === 'transactions' ? 'active' : ''} onClick={() => setActiveTab('transactions')}>
+                <span className="nav-icon">💳</span>
+                <span>History</span>
+              </button>
+              <button className={showMenu === true ? 'active' : ''} onClick={() => setShowMenu(prev => (prev === true ? false : true))}>
+                <span className="nav-icon">☰</span>
+                <span>More</span>
+              </button>
+            </div>
+
+            {/* Add Transaction Quick Menu */}
+            {showMenu === 'add' && (
+              <div className="mobile-menu-overlay" onClick={() => setShowMenu(false)}>
+                <div className="add-menu" onClick={e => e.stopPropagation()}>
+                  <div className="add-menu-title">Add Transaction</div>
+                  <div className="add-menu-options">
+                    <button className="add-menu-btn income" onClick={() => { handleAddTransaction('income'); setShowMenu(false); }}>
+                      <span className="add-menu-icon">💰</span><span>Income</span>
+                    </button>
+                    <button className="add-menu-btn expense" onClick={() => { handleAddTransaction('expense'); setShowMenu(false); }}>
+                      <span className="add-menu-icon">💸</span><span>Expense</span>
+                    </button>
+                    <button className="add-menu-btn credit" onClick={() => { handleAddTransaction('credit'); setShowMenu(false); }}>
+                      <span className="add-menu-icon">↩</span><span>Credit</span>
+                    </button>
+                    <button className="add-menu-btn transfer" onClick={() => { handleAddTransaction('transfer'); setShowMenu(false); }}>
+                      <span className="add-menu-icon">🔄</span><span>Transfer</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+            )}
 
-              <div className="mobile-menu-items">
-                <button className="menu-item" onClick={() => { setActiveTab('settings'); setShowMenu(false); }}>
-                  <span className="menu-icon">⚙️</span>
-                  <div className="menu-text">
-                    <div className="menu-title">Manage Envelopes</div>
-                    <div className="menu-subtitle">Create, edit, delete envelopes</div>
+            {/* Mobile Menu */}
+            {showMenu === true && (
+              <div className="mobile-menu-overlay" onClick={() => setShowMenu(false)}>
+                <div className="mobile-menu" onClick={e => e.stopPropagation()}>
+                  <div className="mobile-menu-header">
+                    <h3>Menu</h3>
+                    <button className="close-menu" onClick={() => setShowMenu(false)}>×</button>
                   </div>
-                </button>
-
-                <button className="menu-item" onClick={() => { handleExportData(); setShowMenu(false); }}>
-                  <span className="menu-icon">📥</span>
-                  <div className="menu-text">
-                    <div className="menu-title">Export Data</div>
-                    <div className="menu-subtitle">Download backup</div>
+                  <div className="mobile-menu-user">
+                    <div className="user-avatar">👤</div>
+                    <div className="user-info">
+                      <div className="user-email">{user?.email}</div>
+                      <div className="user-status">Signed in</div>
+                    </div>
                   </div>
-                </button>
-
-                <button className="menu-item danger" onClick={() => { handleDeleteAllData(); setShowMenu(false); }}>
-                  <span className="menu-icon">🗑️</span>
-                  <div className="menu-text">
-                    <div className="menu-title">Delete All Data</div>
-                    <div className="menu-subtitle">Permanently erase everything</div>
+                  <div className="mobile-menu-items">
+                    <button className="menu-item" onClick={() => { setActiveTab('reports'); setShowMenu(false); }}>
+                      <span className="menu-icon">📊</span>
+                      <div className="menu-text">
+                        <div className="menu-title">Reports</div>
+                        <div className="menu-subtitle">Spending insights & trends</div>
+                      </div>
+                    </button>
+                    <button className="menu-item" onClick={() => { setActiveTab('settings'); setShowMenu(false); }}>
+                      <span className="menu-icon">⚙️</span>
+                      <div className="menu-text">
+                        <div className="menu-title">Settings</div>
+                        <div className="menu-subtitle">Envelopes, accounts, preferences</div>
+                      </div>
+                    </button>
+                    <button className="menu-item" onClick={() => { handleExportData(); setShowMenu(false); }}>
+                      <span className="menu-icon">📥</span>
+                      <div className="menu-text">
+                        <div className="menu-title">Export Data</div>
+                        <div className="menu-subtitle">Download backup</div>
+                      </div>
+                    </button>
+                    <button className="menu-item danger" onClick={() => { handleDeleteAllData(); setShowMenu(false); }}>
+                      <span className="menu-icon">🗑️</span>
+                      <div className="menu-text">
+                        <div className="menu-title">Delete All Data</div>
+                        <div className="menu-subtitle">Permanently erase everything</div>
+                      </div>
+                    </button>
+                    <button className="menu-item danger" onClick={() => { handleSignOut(); setShowMenu(false); }}>
+                      <span className="menu-icon">🚪</span>
+                      <div className="menu-text">
+                        <div className="menu-title">Sign Out</div>
+                        <div className="menu-subtitle">Log out of your account</div>
+                      </div>
+                    </button>
                   </div>
-                </button>
-
-                <button className="menu-item danger" onClick={() => { handleSignOut(); setShowMenu(false); }}>
-                  <span className="menu-icon">🚪</span>
-                  <div className="menu-text">
-                    <div className="menu-title">Sign Out</div>
-                    <div className="menu-subtitle">Log out of your account</div>
+                  <div className="mobile-menu-footer">
+                    <div className="app-version">Budget Buddy v2.0</div>
                   </div>
-                </button>
+                </div>
               </div>
+            )}
 
-              <div className="mobile-menu-footer">
-                <div className="app-version">Budget Buddy v1.0</div>
-              </div>
-            </div>
+            {showModal && (
+              <TransactionModal
+                type={modalType}
+                transaction={editTransaction}
+                onSave={handleSaveTransaction}
+                onClose={() => setShowModal(false)}
+                budgets={budgets}
+                transactions={transactions}
+              />
+            )}
+
+            {showRolloverModal && (
+              <RolloverModal
+                isOpen={showRolloverModal}
+                onClose={() => setShowRolloverModal(false)}
+                rollover={pendingRollover}
+                onApply={handleApplyRollover}
+                onSkip={handleSkipRollover}
+              />
+            )}
+
+            {toast && (
+              <Toast
+                message={toast.message}
+                type={toast.type}
+                onClose={() => setToast(null)}
+              />
+            )}
           </div>
-        )}
-
-        {showModal && (
-          <TransactionModal
-            type={modalType}
-            transaction={editTransaction}
-            onSave={handleSaveTransaction}
-            onClose={() => setShowModal(false)}
-            budgets={budgets}
-            transactions={transactions}
-          />
-        )}
-
-        {showRolloverModal && (
-          <RolloverModal
-            isOpen={showRolloverModal}
-            onClose={() => setShowRolloverModal(false)}
-            rollover={pendingRollover}
-            onApply={handleApplyRollover}
-            onSkip={handleSkipRollover}
-          />
-        )}
-        </div>
+        </ErrorBoundary>
       </DataProvider>
     </PreferencesProvider>
   );

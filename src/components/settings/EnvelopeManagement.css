@@ -209,3 +209,16 @@
     flex: 1;
   }
 }
+
+/* Envelope type tag */
+.envelope-type-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #eff6ff;
+  color: #1d4ed8;
+  margin-left: 6px;
+  text-transform: capitalize;
+}

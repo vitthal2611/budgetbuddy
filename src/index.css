@@ -19,15 +19,21 @@ body {
   color: var(--text-primary);
 }
 
-/* Ensure minimum touch target size (Apple HIG: 44px, Material: 48px) */
-button, a, input, select, textarea {
-  min-height: var(--touch-target-min);
-  touch-action: manipulation;
+/* Ensure minimum touch target size (Apple HIG: 44px, Material: 48px) - mobile only */
+@media (max-width: 480px) {
+  button, a, input, select, textarea {
+    min-height: var(--touch-target-min);
+    touch-action: manipulation;
+  }
+
+  button, a {
+    min-width: var(--touch-target-min);
+  }
 }
 
-/* Interactive elements should be easily tappable */
-button, a {
-  min-width: var(--touch-target-min);
+/* Always apply touch-action */
+button, a, input, select, textarea {
+  touch-action: manipulation;
 }
 
 /* Improve form input experience on mobile */

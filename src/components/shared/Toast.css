@@ -1,0 +1,43 @@
+.toast-bar {
+  position: fixed;
+  bottom: calc(var(--nav-height, 64px) + 16px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  z-index: 9999;
+  max-width: calc(100vw - 40px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  animation: toastIn 0.25s cubic-bezier(0,0,0.2,1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.toast-success { background: #10b981; }
+.toast-error   { background: #ef4444; }
+.toast-info    { background: #6366f1; }
+
+.toast-icon {
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+@media (min-width: 481px) {
+  .toast-bar {
+    bottom: 32px;
+  }
+}

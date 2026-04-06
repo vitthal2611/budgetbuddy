@@ -140,10 +140,12 @@
   --z-modal: 500;
   --z-fab: 600;
   --z-tooltip: 700;
-  
+
   /* ===== Component Specific ===== */
   --touch-target: 48px;
+  --touch-target-min: 48px;
   --nav-height: 64px;
+  --content-max-width: 680px;
   --header-height: 56px;
   --fab-size: 56px;
   --icon-size: 24px;

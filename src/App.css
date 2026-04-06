@@ -88,23 +88,10 @@
   flex: 1;
   min-height: 0;
   background: var(--bg-primary);
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overflow: hidden; /* children manage their own scroll */
   position: relative;
-  will-change: scroll-position;
-}
-
-/* Ensure scroll works on all browsers */
-.content::-webkit-scrollbar {
-  width: 0;
-  background: transparent;
-}
-
-.content {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Floating Action Button for Quick Add */
@@ -145,6 +132,8 @@
 @media (min-width: 481px) {
   .App {
     background: white;
+    max-width: 100%;
+    height: 100vh;
   }
   
   .tabs {
@@ -154,40 +143,70 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    gap: 10px;
-    padding: 0 10px;
+    gap: 0;
+    padding: 0;
+    max-width: 100%;
+    align-items: center;
   }
   
   .tabs button {
-    flex: 1;
-    padding: 16px;
+    padding: 0 20px;
+    height: 52px;
     border: none;
     background: white;
     font-size: 14px;
     font-weight: 500;
     color: #666;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.2s;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
   }
 
   .tabs button.active {
     color: #6366f1;
-    border-bottom: 3px solid #6366f1;
+    border-bottom-color: #6366f1;
+    font-weight: 600;
+  }
+
+  .tabs button:hover:not(.active) {
+    color: #374151;
+    background: #f9fafb;
+  }
+
+  .tabs .tab-spacer {
+    flex: 1;
   }
 
   .tabs button.export-btn {
-    flex: 0 0 auto;
-    color: #2196F3;
+    color: #6366f1;
     font-weight: 600;
-    padding: 10px 20px;
-    border-radius: 8px;
     border-bottom: none;
-    margin: 6px 0;
+    border-radius: 8px;
+    margin: 8px 4px;
+    height: auto;
+    padding: 8px 16px;
+    background: #eef2ff;
   }
 
   .tabs button.export-btn:hover {
-    background: #E3F2FD;
-    color: #1976D2;
+    background: #e0e7ff;
+  }
+
+  .tabs button.signout-btn {
+    color: #ef4444;
+    font-weight: 600;
+    border-bottom: none;
+    border-radius: 8px;
+    margin: 8px 8px 8px 4px;
+    height: auto;
+    padding: 8px 16px;
+    background: #fef2f2;
+  }
+
+  .tabs button.signout-btn:hover {
+    background: #fee2e2;
   }
   
   .bottom-nav {
@@ -195,8 +214,29 @@
   }
   
   .content {
-    padding-bottom: 20px;
-    background: white;
+    overflow: hidden;
+    background: var(--bg-primary);
+    max-width: 100%;
+  }
+
+  /* Center content with max-width on large screens */
+  .content > * {
+    max-width: var(--content-max-width);
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+  }
+}
+
+@media (min-width: 900px) {
+  :root {
+    --content-max-width: 800px;
+  }
+}
+
+@media (min-width: 1200px) {
+  :root {
+    --content-max-width: 960px;
   }
 }
 
@@ -207,11 +247,13 @@
   }
 }
 
-/* iOS safe area support */
-@supports (padding: max(0px)) {
-  .content {
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
+/* iOS safe area support - mobile only */
+@media (max-width: 480px) {
+  @supports (padding: max(0px)) {
+    .content {
+      padding-left: max(0px, env(safe-area-inset-left));
+      padding-right: max(0px, env(safe-area-inset-right));
+    }
   }
 }
 
@@ -309,10 +351,12 @@
   right: 0;
   background: white;
   border-radius: 20px 20px 0 0;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow-y: auto;
   animation: slideUpMenu 0.3s ease-out;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  padding-bottom: calc(var(--nav-height, 64px) + env(safe-area-inset-bottom));
+  z-index: 1001;
 }
 
 @keyframes slideUpMenu {
@@ -463,14 +507,35 @@
   font-weight: 500;
 }
 
-/* Desktop: Hide mobile menu button */
+/* Desktop: Hide mobile menu button, center menus instead */
 @media (min-width: 481px) {
   .bottom-nav button:last-child {
     display: none;
   }
-  
+
+  /* On desktop, show menus as centered modals instead of bottom sheets */
   .mobile-menu-overlay {
-    display: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-menu {
+    position: relative;
+    bottom: auto;
+    border-radius: 20px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 80vh;
+    padding-bottom: 20px;
+  }
+
+  .add-menu {
+    position: relative;
+    border-radius: 20px;
+    max-width: 400px;
+    width: 100%;
+    padding-bottom: 20px;
   }
 }
 
@@ -495,25 +560,30 @@
 .sync-indicator,
 .offline-indicator {
   position: fixed;
-  top: 16px;
+  top: 12px;
   right: 16px;
-  background: rgba(99, 102, 241, 0.95);
   color: white;
-  padding: 8px 16px;
+  padding: 7px 14px;
   border-radius: 20px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   animation: slideInRight 0.3s ease-out;
+  pointer-events: none;
+}
+
+.sync-indicator {
+  background: rgba(99, 102, 241, 0.92);
 }
 
 .offline-indicator {
-  background: rgba(239, 68, 68, 0.95);
-  top: 56px;
+  background: rgba(239, 68, 68, 0.92);
+  /* Stack below sync indicator if both show */
+  top: 48px;
 }
 
 .sync-icon,
@@ -541,3 +611,101 @@
     opacity: 0.5;
   }
 }
+
+/* ===== Add Transaction Quick Menu ===== */
+.add-menu {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  padding: 20px 20px calc(var(--nav-height, 64px) + env(safe-area-inset-bottom) + 8px);
+  animation: slideUpMenu 0.25s var(--ease-out);
+  z-index: 1001;
+  position: relative;
+}
+
+.add-menu-title {
+  font-size: var(--text-body-sm, 14px);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.add-menu-options {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.add-menu-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.add-menu-btn:active { transform: scale(0.94); }
+
+.add-menu-btn.income { background: #ecfdf5; color: #047857; }
+.add-menu-btn.expense { background: #fef2f2; color: #dc2626; }
+.add-menu-btn.credit { background: #eff6ff; color: #1d4ed8; }
+.add-menu-btn.transfer { background: #f5f3ff; color: #6d28d9; }
+
+.add-menu-icon { font-size: 28px; }
+
+/* ===== Nav Add Button ===== */
+.bottom-nav .nav-add-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  color: white;
+  border: 3px solid white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  margin-top: -16px;
+  padding: 0;
+  min-width: unset;
+  flex-shrink: 0;
+}
+
+.nav-add-icon {
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.bottom-nav .nav-add-btn:active {
+  transform: scale(0.9);
+}
+
+/* Override grid for 5-item nav with center add button */
+@media (max-width: 480px) {
+  .bottom-nav {
+    display: flex !important;
+    justify-content: space-around;
+    align-items: center;
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav button {
+    flex: 1;
+    padding: 8px 4px;
+    font-size: 10px;
+  }
+
+  .bottom-nav .nav-add-btn {
+    flex: 0 0 52px;
+  }
+}
+
+/* stat-item credit color */
+.stat-item.credit .stat-value { color: #1d4ed8; }

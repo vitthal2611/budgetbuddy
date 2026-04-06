@@ -29,6 +29,23 @@
   position: relative;
 }
 
+/* Drag handle on mobile */
+.modal-content::before {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 4px;
+  background: var(--border-medium);
+  border-radius: var(--radius-full);
+  margin: 12px auto 0;
+}
+
+@media (min-width: 768px) {
+  .modal-content::before {
+    display: none;
+  }
+}
+
 @media (min-width: 768px) {
   .modal-content {
     border-radius: var(--radius-2xl);
@@ -334,9 +351,9 @@ form {
 }
 
 .spending-warning.ok {
-  background: #d1fae5;
-  border: 2px solid #6ee7b7;
-  color: #065f46;
+  background: var(--success-bg);
+  border: 1.5px solid var(--success-light);
+  color: var(--success-text);
 }
 
 .warning-message {
@@ -397,4 +414,47 @@ form {
 .btn-modal:disabled:hover {
   background: #9ca3af;
   transform: none;
+}
+
+/* Credit/Refund toggle */
+.tx-type-toggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.tx-type-btn {
+  flex: 1;
+  padding: 10px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--ease-standard);
+}
+
+.tx-type-btn.active.expense {
+  background: var(--bg-secondary);
+  color: var(--danger);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.tx-type-btn.active.credit {
+  background: var(--bg-secondary);
+  color: var(--success);
+  font-weight: var(--weight-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.credit-hint {
+  font-size: var(--text-caption);
+  color: var(--success);
+  font-style: italic;
+  padding: 4px 2px 0;
 }

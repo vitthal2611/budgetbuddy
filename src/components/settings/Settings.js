@@ -6,8 +6,34 @@ import RecurringTransactions from './RecurringTransactions';
 import BudgetTemplates from './BudgetTemplates';
 import BudgetPreferences from './BudgetPreferences';
 
-const Settings = ({ budgets, setBudgets, transactions, recurring, setRecurring, templates, setTemplates, onLoadTemplate }) => {
+const Settings = ({ budgets, setBudgets, transactions }) => {
   const [activeSection, setActiveSection] = useState('envelopes');
+  const [recurring, setRecurring] = useState([]);
+  const [templates, setTemplates] = useState([]);
+
+  const handleTemplateAction = (action, data) => {
+    const today = new Date();
+    const budgetKey = `${today.getFullYear()}-${today.getMonth()}`;
+
+    if (action === 'save') {
+      const currentBudget = budgets[budgetKey] || {};
+      if (Object.keys(currentBudget).length === 0) {
+        alert('No budget to save. Fill your envelopes first!');
+        return;
+      }
+      const newTemplate = {
+        id: `template-${Date.now()}`,
+        name: data,
+        data: currentBudget,
+        createdAt: new Date().toISOString()
+      };
+      setTemplates(prev => [...prev, newTemplate]);
+      alert(`✅ Template "${data}" saved!`);
+    } else if (action === 'load') {
+      setBudgets({ ...budgets, [budgetKey]: data.data });
+      alert(`✅ Template "${data.name}" loaded!`);
+    }
+  };
 
   const sections = [
     { id: 'envelopes', label: 'Envelopes', icon: '📦' },
@@ -48,7 +74,7 @@ const Settings = ({ budgets, setBudgets, transactions, recurring, setRecurring, 
           <RecurringTransactions recurring={recurring} setRecurring={setRecurring} />
         )}
         {activeSection === 'templates' && (
-          <BudgetTemplates templates={templates} setTemplates={setTemplates} onLoadTemplate={onLoadTemplate} />
+          <BudgetTemplates templates={templates} setTemplates={setTemplates} onLoadTemplate={handleTemplateAction} />
         )}
         {activeSection === 'preferences' && (
           <BudgetPreferences />

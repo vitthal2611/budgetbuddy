@@ -6,6 +6,10 @@ const EnvelopeManagement = ({ budgets, setBudgets, transactions }) => {
   const { envelopes, addEnvelope, removeEnvelope, setEnvelopes } = useData();
   const [newEnvelopeName, setNewEnvelopeName] = useState('');
   const [newEnvelopeCategory, setNewEnvelopeCategory] = useState('need');
+  const [newEnvelopeType, setNewEnvelopeType] = useState('regular');
+  const [newAnnualAmount, setNewAnnualAmount] = useState('');
+  const [newGoalAmount, setNewGoalAmount] = useState('');
+  const [newDueDate, setNewDueDate] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
   const handleAddEnvelope = (e) => {
@@ -13,9 +17,18 @@ const EnvelopeManagement = ({ budgets, setBudgets, transactions }) => {
     if (!newEnvelopeName.trim()) return;
 
     try {
-      addEnvelope(newEnvelopeName.trim(), newEnvelopeCategory);
+      addEnvelope(newEnvelopeName.trim(), newEnvelopeCategory, {
+        envelopeType: newEnvelopeType,
+        annualAmount: newAnnualAmount,
+        goalAmount: newGoalAmount,
+        dueDate: newDueDate
+      });
       setNewEnvelopeName('');
       setNewEnvelopeCategory('need');
+      setNewEnvelopeType('regular');
+      setNewAnnualAmount('');
+      setNewGoalAmount('');
+      setNewDueDate('');
       setShowAddForm(false);
     } catch (error) {
       alert(error.message);
@@ -103,9 +116,32 @@ const EnvelopeManagement = ({ budgets, setBudgets, transactions }) => {
               <option value="want">🎉 Want</option>
               <option value="saving">💰 Saving</option>
             </select>
-            <button type="submit" className="btn-save-envelope">
-              Add
-            </button>
+            <select
+              className="envelope-category-select"
+              value={newEnvelopeType}
+              onChange={(e) => setNewEnvelopeType(e.target.value)}
+            >
+              <option value="regular">📦 Regular</option>
+              <option value="annual">📅 Annual</option>
+              <option value="goal">🎯 Goal</option>
+            </select>
+          </div>
+          {newEnvelopeType === 'annual' && (
+            <div className="form-row">
+              <input type="number" className="envelope-name-input" placeholder="Annual amount (₹)..."
+                value={newAnnualAmount} onChange={e => setNewAnnualAmount(e.target.value)} min="0" />
+            </div>
+          )}
+          {newEnvelopeType === 'goal' && (
+            <div className="form-row">
+              <input type="number" className="envelope-name-input" placeholder="Goal amount (₹)..."
+                value={newGoalAmount} onChange={e => setNewGoalAmount(e.target.value)} min="0" />
+              <input type="month" className="envelope-name-input" placeholder="Due date (optional)"
+                value={newDueDate} onChange={e => setNewDueDate(e.target.value)} />
+            </div>
+          )}
+          <div className="form-row">
+            <button type="submit" className="btn-save-envelope">Add</button>
           </div>
         </form>
       )}
@@ -133,9 +169,12 @@ const EnvelopeManagement = ({ budgets, setBudgets, transactions }) => {
                     <div key={envelope.name} className="envelope-item">
                       <div className="envelope-item-info">
                         <span className="envelope-item-icon">
-                          {getCategoryIcon(envelope.category)}
+                          {envelope.envelopeType === 'goal' ? '🎯' : envelope.envelopeType === 'annual' ? '📅' : getCategoryIcon(envelope.category)}
                         </span>
                         <span className="envelope-item-name">{envelope.name}</span>
+                        {envelope.envelopeType !== 'regular' && (
+                          <span className="envelope-type-tag">{envelope.envelopeType}</span>
+                        )}
                       </div>
                       <div className="envelope-item-actions">
                         <select

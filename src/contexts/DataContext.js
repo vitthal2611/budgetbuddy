@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { safeLocalStorage } from '../utils/safeStorage';
 
 const DataContext = createContext();
@@ -11,29 +11,36 @@ export const useData = () => {
   return context;
 };
 
-export const DataProvider = ({ children }) => {
-  // Envelopes with categories
-  const [envelopes, setEnvelopes] = useState(() => {
+// Envelope types:
+// regular - standard monthly envelope
+// annual  - spreads a yearly amount across 12 months (e.g. ₹12000/yr → ₹1000/mo fill)
+// goal    - one-time savings goal with optional due date
+
+export const DataProvider = ({ children, onLoadFromCloud, onEnvelopesChange, onPaymentMethodsChange }) => {
+  // Envelopes with categories and types
+  const [envelopes, setEnvelopesState] = useState(() => {
     const saved = safeLocalStorage.getItem('envelopes');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return parsed.map(env => ({ envelopeType: 'regular', ...env }));
       } catch (error) {
         console.error('Failed to parse envelopes:', error);
         return [];
       }
     }
-    
+
     // Migration: Check for old data structure
     const oldEnvelopes = safeLocalStorage.getItem('customEnvelopes');
     const oldCategories = safeLocalStorage.getItem('envelopeCategories');
-    if (oldEnvelopes) {
+    if (oldEnvelopes && !saved) {
       try {
         const envelopeNames = JSON.parse(oldEnvelopes);
         const categories = oldCategories ? JSON.parse(oldCategories) : {};
         const migrated = envelopeNames.map(name => ({
           name,
-          category: categories[name] || 'need'
+          category: categories[name] || 'need',
+          envelopeType: 'regular'
         }));
         safeLocalStorage.setItem('envelopes', JSON.stringify(migrated));
         safeLocalStorage.removeItem('customEnvelopes');
@@ -44,17 +51,16 @@ export const DataProvider = ({ children }) => {
         return [];
       }
     }
-    
+
     return [];
   });
 
   // Payment methods
-  const [paymentMethods, setPaymentMethods] = useState(() => {
+  const [paymentMethods, setPaymentMethodsState] = useState(() => {
     const saved = safeLocalStorage.getItem('paymentMethods');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        return parsed;
+        return JSON.parse(saved);
       } catch (error) {
         console.error('Failed to parse payment methods:', error);
         return [];
@@ -63,124 +69,118 @@ export const DataProvider = ({ children }) => {
     return [];
   });
 
-  // Track if we should sync to cloud (to avoid syncing during cloud data load)
-  const [shouldSyncToCloud, setShouldSyncToCloud] = useState(false);
-  const syncTimeoutRef = React.useRef(null);
+  // Separate timeout refs so envelope and payment method debounces don't cancel each other
+  const envelopeSyncRef = useRef(null);
+  const paymentMethodSyncRef = useRef(null);
+  // Flag to suppress cloud sync when data is being loaded from cloud
+  const suppressSyncRef = useRef(true);
 
-  const debouncedSyncEnvelopes = React.useCallback((envelopesData) => {
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-    }
-    
-    syncTimeoutRef.current = setTimeout(async () => {
-      try {
-        const cloudStorage = (await import('../services/cloudStorage')).default;
-        await cloudStorage.saveEnvelopes(envelopesData);
-      } catch (error) {
-        console.error('Failed to sync envelopes to cloud:', error);
-      }
-    }, 1000); // Wait 1 second after last change
-  }, []);
-
-  const debouncedSyncPaymentMethods = React.useCallback((methodsData) => {
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-    }
-    
-    syncTimeoutRef.current = setTimeout(async () => {
-      try {
-        const cloudStorage = (await import('../services/cloudStorage')).default;
-        await cloudStorage.savePaymentMethods(methodsData);
-      } catch (error) {
-        console.error('Failed to sync payment methods to cloud:', error);
-      }
-    }, 1000); // Wait 1 second after last change
-  }, []);
-
-  // Sync envelopes to localStorage
+  // Enable cloud sync after initial load delay
   useEffect(() => {
-    safeLocalStorage.setItem('envelopes', JSON.stringify(envelopes));
-    
-    // Sync to cloud storage if this is a user-initiated change
-    if (shouldSyncToCloud && envelopes.length > 0) {
-      debouncedSyncEnvelopes(envelopes);
-    }
-  }, [envelopes, shouldSyncToCloud]); // Removed debouncedSyncEnvelopes from deps
-
-  // Sync payment methods to localStorage
-  useEffect(() => {
-    safeLocalStorage.setItem('paymentMethods', JSON.stringify(paymentMethods));
-    
-    // Sync to cloud storage if this is a user-initiated change
-    // Don't sync if empty or if sync is disabled
-    if (shouldSyncToCloud && paymentMethods.length > 0) {
-      debouncedSyncPaymentMethods(paymentMethods);
-    }
-  }, [paymentMethods, shouldSyncToCloud]); // Removed debouncedSyncPaymentMethods from deps
-
-  // Enable cloud sync after initial load
-  useEffect(() => {
-    // Wait a bit to ensure initial data is loaded before enabling sync
     const timer = setTimeout(() => {
-      setShouldSyncToCloud(true);
-    }, 1000);
-    
+      suppressSyncRef.current = false;
+    }, 1500);
     return () => clearTimeout(timer);
   }, []);
 
-  // Listen for cloud data updates from App.js
+  const setEnvelopes = useCallback((data) => {
+    setEnvelopesState(data);
+  }, []);
+
+  const setPaymentMethods = useCallback((data) => {
+    setPaymentMethodsState(data);
+  }, []);
+
+  // Sync envelopes to localStorage and optionally cloud
   useEffect(() => {
-    const handleCloudEnvelopes = (event) => {
-      const cloudEnvelopes = event.detail;
-      
-      // Temporarily disable cloud sync to avoid circular updates
-      setShouldSyncToCloud(false);
-      setEnvelopes(cloudEnvelopes);
-      
-      // Re-enable after a delay
-      setTimeout(() => setShouldSyncToCloud(true), 2000); // Increased to 2 seconds
-    };
+    safeLocalStorage.setItem('envelopes', JSON.stringify(envelopes));
 
-    const handleCloudPaymentMethods = (event) => {
-      const cloudMethods = event.detail;
-      
-      // Temporarily disable cloud sync to avoid circular updates
-      setShouldSyncToCloud(false);
-      setPaymentMethods(cloudMethods);
-      
-      // Re-enable after a delay
-      setTimeout(() => setShouldSyncToCloud(true), 2000); // Increased to 2 seconds
-    };
+    if (suppressSyncRef.current) return;
 
-    window.addEventListener('cloudEnvelopesLoaded', handleCloudEnvelopes);
-    window.addEventListener('cloudPaymentMethodsLoaded', handleCloudPaymentMethods);
-
-    return () => {
-      window.removeEventListener('cloudEnvelopesLoaded', handleCloudEnvelopes);
-      window.removeEventListener('cloudPaymentMethodsLoaded', handleCloudPaymentMethods);
-      
-      // Cleanup timeout on unmount
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
+    if (envelopeSyncRef.current) clearTimeout(envelopeSyncRef.current);
+    envelopeSyncRef.current = setTimeout(async () => {
+      try {
+        const cloudStorage = (await import('../services/cloudStorage')).default;
+        await cloudStorage.saveEnvelopes(envelopes);
+        if (onEnvelopesChange) onEnvelopesChange(envelopes);
+      } catch (error) {
+        console.error('Failed to sync envelopes to cloud:', error);
       }
+    }, 1000);
+  }, [envelopes]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync payment methods to localStorage and optionally cloud
+  useEffect(() => {
+    safeLocalStorage.setItem('paymentMethods', JSON.stringify(paymentMethods));
+
+    if (suppressSyncRef.current) return;
+    if (paymentMethods.length === 0) return;
+
+    if (paymentMethodSyncRef.current) clearTimeout(paymentMethodSyncRef.current);
+    paymentMethodSyncRef.current = setTimeout(async () => {
+      try {
+        const cloudStorage = (await import('../services/cloudStorage')).default;
+        await cloudStorage.savePaymentMethods(paymentMethods);
+        if (onPaymentMethodsChange) onPaymentMethodsChange(paymentMethods);
+      } catch (error) {
+        console.error('Failed to sync payment methods to cloud:', error);
+      }
+    }, 1000);
+  }, [paymentMethods]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (envelopeSyncRef.current) clearTimeout(envelopeSyncRef.current);
+      if (paymentMethodSyncRef.current) clearTimeout(paymentMethodSyncRef.current);
     };
   }, []);
 
+  // Called by App.js when cloud data arrives - suppresses re-sync back to cloud
+  const loadFromCloud = useCallback((cloudEnvelopes, cloudPaymentMethods) => {
+    suppressSyncRef.current = true;
+
+    if (cloudEnvelopes !== undefined) {
+      setEnvelopesState(cloudEnvelopes);
+      safeLocalStorage.setItem('envelopes', JSON.stringify(cloudEnvelopes));
+    }
+    if (cloudPaymentMethods !== undefined) {
+      setPaymentMethodsState(cloudPaymentMethods);
+      safeLocalStorage.setItem('paymentMethods', JSON.stringify(cloudPaymentMethods));
+    }
+
+    // Re-enable sync after writes settle
+    setTimeout(() => {
+      suppressSyncRef.current = false;
+    }, 2000);
+  }, []);
+
+  // Register loadFromCloud with parent on every render so the ref stays current
+  if (onLoadFromCloud) {
+    onLoadFromCloud(loadFromCloud);
+  }
+
   // Helper functions
-  const addEnvelope = (name, category = 'need') => {
+  const addEnvelope = (name, category = 'need', options = {}) => {
     const trimmedName = name.trim();
-    if (!trimmedName) {
-      throw new Error('Envelope name cannot be empty');
+    if (!trimmedName) throw new Error('Envelope name cannot be empty');
+    if (envelopes.some(env => env.name === trimmedName)) throw new Error('Envelope already exists');
+
+    const { envelopeType = 'regular', annualAmount, goalAmount, dueDate } = options;
+    const newEnv = { name: trimmedName, category, envelopeType };
+    if (envelopeType === 'annual' && annualAmount) {
+      newEnv.annualAmount = parseFloat(annualAmount);
+      newEnv.monthlyFill = Math.ceil(parseFloat(annualAmount) / 12);
     }
-    if (envelopes.some(env => env.name === trimmedName)) {
-      throw new Error('Envelope already exists');
+    if (envelopeType === 'goal') {
+      if (goalAmount) newEnv.goalAmount = parseFloat(goalAmount);
+      if (dueDate) newEnv.dueDate = dueDate;
     }
-    setEnvelopes([...envelopes, { name: trimmedName, category }]);
+    setEnvelopesState(prev => [...prev, newEnv]);
   };
 
   const removeEnvelope = (name) => {
-    setEnvelopes(envelopes.filter(env => env.name !== name));
-    // Return the envelope name so components can clean up related data
+    setEnvelopesState(prev => prev.filter(env => env.name !== name));
     return name;
   };
 
@@ -191,20 +191,14 @@ export const DataProvider = ({ children }) => {
 
   const addPaymentMethod = (method) => {
     const trimmedMethod = method.trim();
-    if (!trimmedMethod) {
-      throw new Error('Payment method cannot be empty');
-    }
-    if (paymentMethods.includes(trimmedMethod)) {
-      throw new Error('Payment method already exists');
-    }
-    setPaymentMethods([...paymentMethods, trimmedMethod]);
+    if (!trimmedMethod) throw new Error('Payment method cannot be empty');
+    if (paymentMethods.includes(trimmedMethod)) throw new Error('Payment method already exists');
+    setPaymentMethodsState(prev => [...prev, trimmedMethod]);
   };
 
-  // Validation functions for imports
   const validateTransaction = (transaction) => {
     const errors = [];
 
-    // Validate required fields
     if (!transaction.date) {
       errors.push('Date is required');
     } else if (!isValidDate(transaction.date)) {
@@ -225,73 +219,55 @@ export const DataProvider = ({ children }) => {
       errors.push('Note is required');
     }
 
-    // Type-specific validation
     if (transaction.type === 'transfer') {
-      if (!transaction.sourceAccount) {
-        errors.push('Source account is required for transfers');
-      }
-      if (!transaction.destinationAccount) {
-        errors.push('Destination account is required for transfers');
-      }
+      if (!transaction.sourceAccount) errors.push('Source account is required for transfers');
+      if (!transaction.destinationAccount) errors.push('Destination account is required for transfers');
       if (transaction.sourceAccount === transaction.destinationAccount) {
         errors.push('Source and destination accounts must be different');
       }
     } else {
-      if (!transaction.paymentMethod) {
-        errors.push('Payment method is required');
-      }
+      if (!transaction.paymentMethod) errors.push('Payment method is required');
       if (transaction.type === 'expense' && !transaction.envelope) {
         errors.push('Envelope is required for expenses');
       }
     }
 
-    return {
-      isValid: errors.length === 0,
-      errors
-    };
+    return { isValid: errors.length === 0, errors };
   };
 
   const isValidDate = (dateStr) => {
     const match = dateStr.match(/^(\d{2})-(\d{2})-(\d{4})$/);
     if (!match) return false;
-
     const [, day, month, year] = match;
     const date = new Date(year, month - 1, day);
-    
-    return date.getFullYear() === parseInt(year) &&
-           date.getMonth() === parseInt(month) - 1 &&
-           date.getDate() === parseInt(day);
+    return (
+      date.getFullYear() === parseInt(year) &&
+      date.getMonth() === parseInt(month) - 1 &&
+      date.getDate() === parseInt(day)
+    );
   };
 
   const detectDuplicates = (newTransactions, existingTransactions) => {
-    const duplicates = [];
-    
-    newTransactions.forEach((newTx, idx) => {
-      const isDuplicate = existingTransactions.some(existingTx => {
-        return existingTx.date === newTx.date &&
-               existingTx.amount === newTx.amount &&
-               existingTx.type === newTx.type &&
-               existingTx.note === newTx.note;
-      });
-      
-      if (isDuplicate) {
-        duplicates.push({ index: idx, transaction: newTx });
-      }
-    });
-
-    return duplicates;
+    return newTransactions.reduce((acc, newTx, idx) => {
+      const isDuplicate = existingTransactions.some(
+        ex =>
+          ex.date === newTx.date &&
+          ex.amount === newTx.amount &&
+          ex.type === newTx.type &&
+          ex.note === newTx.note
+      );
+      if (isDuplicate) acc.push({ index: idx, transaction: newTx });
+      return acc;
+    }, []);
   };
 
   const normalizeAmount = (amount) => {
     if (typeof amount === 'number') return Math.abs(amount);
-    
     const cleaned = amount.toString().replace(/[^\d.-]/g, '');
     const parsed = parseFloat(cleaned);
-    
     return isNaN(parsed) ? 0 : Math.abs(parsed);
   };
 
-  // Generate unique transaction ID with collision prevention
   const generateTransactionId = () => {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
@@ -305,7 +281,7 @@ export const DataProvider = ({ children }) => {
     addPaymentMethod,
     setEnvelopes,
     setPaymentMethods,
-    // Validation functions
+    loadFromCloud,
     validateTransaction,
     isValidDate,
     detectDuplicates,
