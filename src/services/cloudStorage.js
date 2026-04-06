@@ -280,6 +280,52 @@ class CloudStorageService {
     return unsubscribe;
   }
 
+  // ==================== PREFERENCES ====================
+
+  // Save user preferences
+  async savePreferences(preferences) {
+    const prefsRef = this.getUserCollection('preferences');
+    const docRef = doc(prefsRef, 'current');
+    
+    await setDoc(docRef, {
+      data: preferences,
+      updatedAt: serverTimestamp()
+    });
+    
+    return preferences;
+  }
+
+  // Get user preferences
+  async getPreferences() {
+    const prefsRef = this.getUserCollection('preferences');
+    const docRef = doc(prefsRef, 'current');
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      return docSnap.data().data;
+    }
+    return null;
+  }
+
+  // Real-time sync for preferences
+  subscribeToPreferences(callback) {
+    const prefsRef = this.getUserCollection('preferences');
+    const docRef = doc(prefsRef, 'current');
+    
+    const unsubscribe = onSnapshot(docRef, (doc) => {
+      if (doc.exists()) {
+        callback(doc.data().data);
+      } else {
+        callback(null);
+      }
+    }, (error) => {
+      console.error('Preferences sync error:', error);
+    });
+    
+    this.listeners.set('preferences', unsubscribe);
+    return unsubscribe;
+  }
+
   // ==================== BULK OPERATIONS ====================
 
   // Batch add transactions (up to 500 per batch - Firestore limit)

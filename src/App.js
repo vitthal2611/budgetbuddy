@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import './styles/animations.css';
+import './styles/accessibility.css';
 import EnvelopesView from './components/EnvelopesView';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
-import BudgetAllocation from './components/BudgetAllocation';
+import Settings from './components/settings/Settings';
+import Reports from './components/reports/Reports';
 import TransactionModal from './components/TransactionModal';
 import Auth from './components/Auth';
+import LoadingSpinner from './components/shared/LoadingSpinner';
+import RolloverModal from './components/envelopes/RolloverModal';
 import { DataProvider } from './contexts/DataContext';
+import { PreferencesProvider } from './contexts/PreferencesContext';
 import authService from './services/authService';
 import cloudStorage from './services/cloudStorage';
+import recurringService from './services/recurringService';
+import { calculateRollover, applyRollover, isNewMonth } from './utils/budgetRollover';
 
 function App() {
   // Auth state
@@ -26,6 +34,12 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  // New Phase 3 state
+  const [recurring, setRecurring] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [showRolloverModal, setShowRolloverModal] = useState(false);
+  const [pendingRollover, setPendingRollover] = useState({});
 
   // Monitor online/offline status
   useEffect(() => {
@@ -594,7 +608,9 @@ function App() {
       '• All transactions\n' +
       '• All budgets\n' +
       '• All envelopes\n' +
-      '• All payment methods\n\n' +
+      '• All payment methods\n' +
+      '• All recurring transactions\n' +
+      '• All templates\n\n' +
       '🚨 THIS CANNOT BE UNDONE!\n\n' +
       'Type "DELETE" to confirm:';
     
@@ -616,12 +632,17 @@ function App() {
       // Clear local state
       setTransactions([]);
       setBudgets({});
+      setRecurring([]);
+      setTemplates([]);
       
       // Clear localStorage
       localStorage.removeItem('transactions');
       localStorage.removeItem('budgets');
       localStorage.removeItem('envelopes');
       localStorage.removeItem('paymentMethods');
+      localStorage.removeItem('recurring');
+      localStorage.removeItem('templates');
+      localStorage.removeItem('lastOpenDate');
       
       // Set empty arrays in localStorage to ensure they're cleared
       localStorage.setItem('envelopes', JSON.stringify([]));
@@ -639,7 +660,7 @@ function App() {
       alert(
         `✅ All Data Deleted\n\n` +
         `${result.transactionsDeleted} transactions deleted\n` +
-        `All budgets, envelopes, and payment methods cleared\n\n` +
+        `All budgets, envelopes, payment methods, recurring, and templates cleared\n\n` +
         `Your account is now empty.`
       );
     } catch (error) {
@@ -649,12 +670,96 @@ function App() {
     }
   };
 
+  // Handle template actions (save/load)
+  const handleTemplateAction = (action, data) => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const budgetKey = `${currentYear}-${currentMonth}`;
+
+    if (action === 'save') {
+      // Save current budget as template
+      const templateName = data;
+      const currentBudget = budgets[budgetKey] || {};
+
+      if (Object.keys(currentBudget).length === 0) {
+        alert('No budget to save. Fill your envelopes first!');
+        return;
+      }
+
+      const newTemplate = {
+        id: `template-${Date.now()}`,
+        name: templateName,
+        data: currentBudget,
+        createdAt: new Date().toISOString()
+      };
+
+      setTemplates([...templates, newTemplate]);
+      alert(`✅ Template "${templateName}" saved!`);
+    } else if (action === 'load') {
+      // Load template into current budget
+      const template = data;
+      
+      setBudgets({
+        ...budgets,
+        [budgetKey]: template.data
+      });
+
+      alert(`✅ Template "${template.name}" loaded!`);
+    }
+  };
+
+  // Check for rollover on app load
+  useEffect(() => {
+    if (!user || transactions.length === 0) return;
+
+    const lastOpenDate = localStorage.getItem('lastOpenDate');
+    const today = new Date();
+    const todayStr = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+
+    if (isNewMonth(lastOpenDate)) {
+      // Calculate rollover
+      const rollover = calculateRollover(budgets, transactions, today.getFullYear(), today.getMonth());
+      
+      if (Object.keys(rollover).length > 0) {
+        setPendingRollover(rollover);
+        setShowRolloverModal(true);
+      }
+    }
+
+    // Update last open date
+    localStorage.setItem('lastOpenDate', todayStr);
+  }, [user, transactions.length, budgets]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle rollover application
+  const handleApplyRollover = () => {
+    const today = new Date();
+    const budgetKey = `${today.getFullYear()}-${today.getMonth()}`;
+    const currentBudget = budgets[budgetKey] || {};
+    
+    const updatedBudget = applyRollover(currentBudget, pendingRollover, 'automatic');
+    
+    setBudgets({
+      ...budgets,
+      [budgetKey]: updatedBudget
+    });
+
+    setShowRolloverModal(false);
+    setPendingRollover({});
+    
+    alert('✅ Rollover applied! Your envelopes have been updated.');
+  };
+
+  const handleSkipRollover = () => {
+    setShowRolloverModal(false);
+    setPendingRollover({});
+  };
+
   // Show loading screen while checking auth
   if (authLoading) {
     return (
       <div className="loading-screen">
-        <div className="loading-spinner"></div>
-        <p>Loading...</p>
+        <LoadingSpinner size="large" message="Loading..." />
       </div>
     );
   }
@@ -666,8 +771,9 @@ function App() {
 
   // Show main app only after authentication
   return (
-    <DataProvider>
-      <div className="App">
+    <PreferencesProvider>
+      <DataProvider>
+        <div className="App">
         <div className="tabs">
           <button 
             className={activeTab === 'envelopes' ? 'active' : ''} 
@@ -680,6 +786,12 @@ function App() {
             onClick={() => setActiveTab('dashboard')}
           >
             Dashboard
+          </button>
+          <button 
+            className={activeTab === 'reports' ? 'active' : ''} 
+            onClick={() => setActiveTab('reports')}
+          >
+            Reports
           </button>
           <button 
             className={activeTab === 'transactions' ? 'active' : ''} 
@@ -748,6 +860,12 @@ function App() {
               onViewTransactions={handleViewTransactions}
             />
           )}
+          {activeTab === 'reports' && (
+            <Reports 
+              transactions={transactions}
+              budgets={budgets}
+            />
+          )}
           {activeTab === 'transactions' && (
             <Transactions 
               transactions={transactions}
@@ -758,7 +876,7 @@ function App() {
             />
           )}
           {activeTab === 'settings' && (
-            <BudgetAllocation 
+            <Settings 
               budgets={budgets}
               setBudgets={async (newBudgets) => {
                 try {
@@ -769,6 +887,11 @@ function App() {
                 }
               }}
               transactions={transactions}
+              recurring={recurring}
+              setRecurring={setRecurring}
+              templates={templates}
+              setTemplates={setTemplates}
+              onLoadTemplate={handleTemplateAction}
             />
           )}
         </div>
@@ -872,8 +995,19 @@ function App() {
             transactions={transactions}
           />
         )}
-      </div>
-    </DataProvider>
+
+        {showRolloverModal && (
+          <RolloverModal
+            isOpen={showRolloverModal}
+            onClose={() => setShowRolloverModal(false)}
+            rollover={pendingRollover}
+            onApply={handleApplyRollover}
+            onSkip={handleSkipRollover}
+          />
+        )}
+        </div>
+      </DataProvider>
+    </PreferencesProvider>
   );
 }
 

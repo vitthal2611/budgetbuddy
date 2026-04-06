@@ -332,3 +332,69 @@ form {
   color: #991b1b;
   border: 1px solid #f87171;
 }
+
+.spending-warning.ok {
+  background: #d1fae5;
+  border: 2px solid #6ee7b7;
+  color: #065f46;
+}
+
+.warning-message {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.warning-suggestion {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.transfer-suggestions {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.suggestions-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+
+.btn-transfer-suggestion {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-transfer-suggestion:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  transform: translateX(4px);
+}
+
+.btn-transfer-suggestion:last-child {
+  margin-bottom: 0;
+}
+
+.btn-modal:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #9ca3af;
+}
+
+.btn-modal:disabled:hover {
+  background: #9ca3af;
+  transform: none;
+}

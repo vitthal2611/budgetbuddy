@@ -1,0 +1,139 @@
+.envelope-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 2px solid transparent;
+}
+
+.envelope-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.envelope-card.over-budget {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.envelope-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.envelope-icon-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.env-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.env-icon.need {
+  filter: hue-rotate(200deg);
+}
+
+.env-icon.want {
+  filter: hue-rotate(280deg);
+}
+
+.env-icon.saving {
+  filter: hue-rotate(100deg);
+}
+
+.env-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-remaining {
+  font-size: 20px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.env-remaining.positive {
+  color: #10b981;
+}
+
+.env-remaining.negative {
+  color: #ef4444;
+}
+
+.envelope-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.envelope-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.envelope-bar-fill.need {
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+}
+
+.envelope-bar-fill.want {
+  background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+}
+
+.envelope-bar-fill.saving {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.envelope-bar-fill.over {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.envelope-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.env-spent {
+  font-weight: 500;
+}
+
+.env-filled {
+  color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+  .envelope-card {
+    padding: 14px;
+  }
+
+  .env-name {
+    font-size: 15px;
+  }
+
+  .env-remaining {
+    font-size: 18px;
+  }
+
+  .envelope-card-footer {
+    font-size: 13px;
+  }
+}

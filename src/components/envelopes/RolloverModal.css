@@ -1,0 +1,148 @@
+.rollover-content {
+  padding: 8px 0;
+}
+
+.rollover-message {
+  margin-bottom: 24px;
+}
+
+.rollover-message p {
+  margin: 0;
+  font-size: 16px;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.rollover-summary {
+  background: linear-gradient(135deg, #10b981, #059669);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.rollover-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rollover-total-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.rollover-total-amount {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+}
+
+.rollover-list {
+  margin-bottom: 24px;
+}
+
+.rollover-list h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rollover-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.rollover-item:last-child {
+  margin-bottom: 0;
+}
+
+.rollover-envelope-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.rollover-envelope-amount {
+  font-size: 16px;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.rollover-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.btn-rollover-skip,
+.btn-rollover-apply {
+  flex: 1;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-rollover-skip {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.btn-rollover-skip:hover {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.btn-rollover-apply {
+  background: #10b981;
+  color: white;
+}
+
+.btn-rollover-apply:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.rollover-note {
+  background: #eff6ff;
+  border: 2px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.rollover-note p {
+  margin: 0;
+  font-size: 13px;
+  color: #1e40af;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .rollover-total-amount {
+    font-size: 24px;
+  }
+
+  .rollover-actions {
+    flex-direction: column;
+  }
+
+  .btn-rollover-skip,
+  .btn-rollover-apply {
+    width: 100%;
+  }
+}

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './TransactionModal.modern.css';
 import { useData } from '../contexts/DataContext';
+import { usePreferences } from '../contexts/PreferencesContext';
 
-const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transactions }) => {
+const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transactions, onTransferRequest }) => {
   const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
+  const { preferences } = usePreferences();
   
   // Helper functions to convert between DD-MM-YYYY and YYYY-MM-DD formats
   const toInputFormat = (ddmmyyyy) => {
@@ -36,6 +38,8 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [newEnvelope, setNewEnvelope] = useState('');
   const [spendingWarning, setSpendingWarning] = useState(null);
+  const [showTransferSuggestion, setShowTransferSuggestion] = useState(false);
+  const [alternativeEnvelopes, setAlternativeEnvelopes] = useState([]);
   
   // Track if we've initialized defaults to prevent overriding user selections
   const defaultsInitialized = React.useRef(false);
@@ -62,30 +66,75 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
       const newAmount = parseFloat(formData.amount) || 0;
       const remaining = budget - currentSpending - newAmount;
       
+      // Find alternative envelopes with enough money
+      const alternatives = envelopes
+        .filter(env => env.name !== formData.envelope)
+        .map(env => {
+          const envBudget = budgets?.[budgetKey]?.[env.name] || 0;
+          const envSpending = (transactions || [])
+            .filter(t => {
+              if (t.type !== 'expense' || t.envelope !== env.name) return false;
+              const [tDay, tMonth, tYear] = t.date.split('-');
+              return tYear === year && tMonth === month;
+            })
+            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+          const envRemaining = envBudget - envSpending;
+          
+          return {
+            name: env.name,
+            category: env.category,
+            remaining: envRemaining,
+            canCover: envRemaining >= newAmount
+          };
+        })
+        .filter(env => env.canCover)
+        .sort((a, b) => b.remaining - a.remaining)
+        .slice(0, 3);
+      
+      setAlternativeEnvelopes(alternatives);
+      
       if (budget === 0) {
         setSpendingWarning({
           type: 'no-budget',
-          message: `No budget set for ${formData.envelope} this month. Set a budget in the Allocate tab.`
+          message: `No budget set for ${formData.envelope} this month.`,
+          suggestion: 'Set a budget in the Envelopes tab or choose a different envelope.'
         });
+        setShowTransferSuggestion(false);
       } else if (remaining < 0) {
+        const isBlocked = preferences.blockOverspending;
         setSpendingWarning({
           type: 'over-budget',
-          message: `⚠️ This will exceed your budget by ₹${Math.abs(remaining).toLocaleString('en-IN')}!`,
-          remaining: remaining
+          message: isBlocked 
+            ? `🚫 Cannot spend! This exceeds your budget by ₹${Math.abs(remaining).toLocaleString('en-IN')}.`
+            : `⚠️ This will exceed your budget by ₹${Math.abs(remaining).toLocaleString('en-IN')}!`,
+          remaining: remaining,
+          isBlocked: isBlocked,
+          suggestion: alternatives.length > 0 
+            ? 'Transfer money from another envelope or choose a different envelope.'
+            : 'Set a higher budget or choose a different envelope.'
         });
+        setShowTransferSuggestion(alternatives.length > 0);
       } else if (remaining < budget * 0.2) {
         setSpendingWarning({
           type: 'low-budget',
-          message: `Only ₹${remaining.toLocaleString('en-IN')} left in ${formData.envelope}`,
+          message: `⚠️ Only ₹${remaining.toLocaleString('en-IN')} will be left in ${formData.envelope}`,
+          remaining: remaining,
+          suggestion: 'Consider if this expense is necessary.'
+        });
+        setShowTransferSuggestion(false);
+      } else {
+        setSpendingWarning({
+          type: 'ok',
+          message: `✓ ₹${remaining.toLocaleString('en-IN')} will remain in ${formData.envelope}`,
           remaining: remaining
         });
-      } else {
-        setSpendingWarning(null);
+        setShowTransferSuggestion(false);
       }
     } else {
       setSpendingWarning(null);
+      setShowTransferSuggestion(false);
     }
-  }, [type, formData.envelope, formData.amount, formData.date, budgets, transactions, transaction]);
+  }, [type, formData.envelope, formData.amount, formData.date, budgets, transactions, transaction, envelopes, preferences.blockOverspending]);
 
   useEffect(() => {
     if (transaction) {
@@ -117,6 +166,12 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Block submission if overspending is not allowed
+    if (spendingWarning?.isBlocked) {
+      alert('Cannot save: This transaction exceeds your budget. Transfer money from another envelope first.');
+      return;
+    }
     
     if (type === 'transfer') {
       // Store transfer as single transaction with both accounts
@@ -150,6 +205,30 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
         paymentMethod: formData.paymentMethod,
         envelope: formData.envelope
       });
+    }
+  };
+
+  const handleTransferAndContinue = (sourceEnvelope) => {
+    // Close this modal and open transfer modal
+    if (onTransferRequest) {
+      onTransferRequest({
+        from: sourceEnvelope,
+        to: formData.envelope,
+        amount: parseFloat(formData.amount),
+        returnToExpense: {
+          ...formData,
+          amount: parseFloat(formData.amount)
+        }
+      });
+    }
+  };
+
+  const getCategoryIcon = (category) => {
+    switch(category) {
+      case 'need': return '🛒';
+      case 'want': return '🎉';
+      case 'saving': return '💰';
+      default: return '📦';
     }
   };
 
@@ -297,7 +376,7 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
                         {envelopes.length === 0 ? 'No envelopes - Add one below' : 'Select envelope'}
                       </option>
                       {envelopes.map(env => {
-                        const icon = env.category === 'need' ? '🛒' : env.category === 'want' ? '🎉' : '💰';
+                        const icon = getCategoryIcon(env.category);
                         return (
                           <option key={env.name} value={env.name}>{icon} {env.name}</option>
                         );
@@ -308,7 +387,26 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
                   
                   {spendingWarning && (
                     <div className={`spending-warning ${spendingWarning.type}`}>
-                      {spendingWarning.message}
+                      <div className="warning-message">{spendingWarning.message}</div>
+                      {spendingWarning.suggestion && (
+                        <div className="warning-suggestion">{spendingWarning.suggestion}</div>
+                      )}
+                      
+                      {showTransferSuggestion && alternativeEnvelopes.length > 0 && (
+                        <div className="transfer-suggestions">
+                          <div className="suggestions-title">Transfer from:</div>
+                          {alternativeEnvelopes.map(env => (
+                            <button
+                              key={env.name}
+                              type="button"
+                              className="btn-transfer-suggestion"
+                              onClick={() => handleTransferAndContinue(env.name)}
+                            >
+                              {getCategoryIcon(env.category)} {env.name} (₹{env.remaining.toLocaleString('en-IN')})
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -320,8 +418,12 @@ const TransactionModal = ({ type, transaction, onSave, onClose, budgets, transac
             <button type="button" className="btn-modal btn-cancel" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-modal btn-save">
-              Save
+            <button 
+              type="submit" 
+              className="btn-modal btn-save"
+              disabled={spendingWarning?.isBlocked}
+            >
+              {spendingWarning?.isBlocked ? 'Cannot Save' : 'Save'}
             </button>
           </div>
         </form>
