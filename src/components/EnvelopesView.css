@@ -704,28 +704,45 @@
 /* ===== ENVELOPE LIST ROW (Goodbudget style) ===== */
 
 .ev-envelope-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.env-row {
-  padding: 10px 14px 8px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xl);
   background: var(--bg-secondary);
-  cursor: pointer;
-  transition: background var(--transition-fast) var(--ease-standard);
-  position: relative;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
 
+.env-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background var(--transition-fast) var(--ease-standard);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.env-row:last-child { border-bottom: none; }
 .env-row:hover { background: var(--bg-tertiary); }
-.env-row:active { background: var(--bg-tertiary); }
-.env-row.env-over { background: var(--danger-bg); border-color: var(--danger); }
+.env-row.env-over { background: var(--danger-bg); }
 .env-row.env-unfilled { opacity: 0.55; }
+
+/* Left status bar */
+.env-status-bar {
+  width: 4px;
+  flex-shrink: 0;
+}
+.env-status-bar.status-ok    { background: var(--success); }
+.env-status-bar.status-low   { background: var(--warning); }
+.env-status-bar.status-warn  { background: #f97316; }
+.env-status-bar.status-over  { background: var(--danger); }
+.env-status-bar.status-empty { background: var(--border-medium); }
+
+/* Row body */
+.env-row-body {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px 8px 12px;
+}
 
 /* Name left — remaining right */
 .env-row-top {
@@ -759,7 +776,7 @@
 
 /* Full-width progress bar */
 .env-row-bar {
-  height: 5px;
+  height: 6px;
   background: var(--bg-tertiary);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -776,10 +793,10 @@
 .env-row-fill.need    { background: linear-gradient(90deg, #059669, #10b981); }
 .env-row-fill.want    { background: linear-gradient(90deg, #d97706, #f59e0b); }
 .env-row-fill.saving  { background: linear-gradient(90deg, #2563eb, #3b82f6); }
-.env-row-fill.warning { background: linear-gradient(90deg, #d97706, #fbbf24); }
+.env-row-fill.warning { background: linear-gradient(90deg, #ea580c, #f97316); }
 .env-row-fill.over    { background: linear-gradient(90deg, #dc2626, #ef4444); }
 
-/* Sub info: filled · spent */
+/* Sub info: spent/filled */
 .env-row-sub {
   display: flex;
   align-items: center;

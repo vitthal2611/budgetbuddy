@@ -20,11 +20,15 @@ const renderEnvelopeCard = (envelope, {
   const pct = envelope.filled > 0 ? Math.min((envelope.spent / envelope.filled) * 100, 100) : 0;
   const isOver    = envelope.remaining < 0;
   const isWarning = !isOver && pct >= 80;
+  const isLow     = !isOver && !isWarning && pct >= 50;
   const isGoal    = envelope.envelopeType === 'goal';
   const isAnnual  = envelope.envelopeType === 'annual';
   const goalPct   = isGoal && envelope.goalAmount > 0
     ? Math.min((goalProgress[envelope.name] / envelope.goalAmount) * 100, 100) : 0;
   const isExpanded = expandedEnv === envelope.name;
+
+  // Status color for left bar
+  const statusCls = isOver ? 'status-over' : isWarning ? 'status-warn' : isLow ? 'status-low' : 'status-ok';
 
   let goalPaceLabel = null;
   if (isGoal && envelope.goalAmount > 0 && envelope.dueDate) {
@@ -61,46 +65,49 @@ const renderEnvelopeCard = (envelope, {
       onDoubleClick={() => onAddTransaction('expense', { envelope: envelope.name })}
       title="Double-click to add expense"
     >
-      {/* Main info line: name left, remaining right */}
-      <div className="env-row-top" onClick={() => setExpandedEnv(isExpanded ? null : envelope.name)}>
-        <span className="env-row-name">{envelope.name}</span>
-        <span className={`env-row-remaining ${isOver ? 'negative' : envelope.filled === 0 ? 'unfilled' : 'positive'}`}>
-          {envelope.filled === 0 ? 'Not filled' : `${isOver ? '-' : ''}₹${fmt(envelope.remaining)}`}
-        </span>
+      {/* Left status bar */}
+      <div className={`env-status-bar ${envelope.filled === 0 ? 'status-empty' : statusCls}`} />
+
+      <div className="env-row-body">
+        {/* Row 1: name + remaining */}
+        <div className="env-row-top" onClick={() => setExpandedEnv(isExpanded ? null : envelope.name)}>
+          <span className="env-row-name">{envelope.name}</span>
+          <span className={`env-row-remaining ${isOver ? 'negative' : envelope.filled === 0 ? 'unfilled' : 'positive'}`}>
+            {envelope.filled === 0 ? 'Not filled' : `${isOver ? '-' : ''}₹${fmt(envelope.remaining)}`}
+          </span>
+        </div>
+
+        {/* Row 2: progress bar */}
+        {envelope.filled > 0 && (
+          <div className="env-row-bar">
+            <div className={`env-row-fill ${isOver ? 'over' : isWarning ? 'warning' : envelope.category}`}
+              style={{ width: `${isGoal ? goalPct : pct}%` }} />
+          </div>
+        )}
+
+        {/* Row 3: spent/filled + pace */}
+        {envelope.filled > 0 && (
+          <div className="env-row-sub">
+            <span>₹{fmt(envelope.spent)} / ₹{fmt(envelope.filled)}</span>
+            {(goalPaceLabel || annualPaceLabel) && (
+              <>
+                <span className="env-row-dot">·</span>
+                <span className={`env-pace-label ${(goalPaceLabel || annualPaceLabel).cls}`}>
+                  {(goalPaceLabel || annualPaceLabel).text}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Expanded: view transactions */}
+        {isExpanded && (
+          <button className="env-view-txn-btn"
+            onClick={e => { e.stopPropagation(); onViewTransactions({ envelope: envelope.name, year: selectedYear, month: selectedMonth }); }}>
+            📋 View Transactions
+          </button>
+        )}
       </div>
-
-      {/* Progress bar — full width */}
-      {envelope.filled > 0 && (
-        <div className="env-row-bar">
-          <div className={`env-row-fill ${isOver ? 'over' : isWarning ? 'warning' : envelope.category}`}
-            style={{ width: `${isGoal ? goalPct : pct}%` }} />
-        </div>
-      )}
-
-      {/* Sub-info: filled · spent (only when filled) */}
-      {envelope.filled > 0 && (
-        <div className="env-row-sub">
-          <span>₹{fmt(envelope.filled)} filled</span>
-          <span className="env-row-dot">·</span>
-          <span>₹{fmt(envelope.spent)} spent</span>
-          {(goalPaceLabel || annualPaceLabel) && (
-            <>
-              <span className="env-row-dot">·</span>
-              <span className={`env-pace-label ${(goalPaceLabel || annualPaceLabel).cls}`}>
-                {(goalPaceLabel || annualPaceLabel).text}
-              </span>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Expanded: view transactions */}
-      {isExpanded && (
-        <button className="env-view-txn-btn"
-          onClick={e => { e.stopPropagation(); onViewTransactions({ envelope: envelope.name, year: selectedYear, month: selectedMonth }); }}>
-          📋 View Transactions
-        </button>
-      )}
     </div>
   );
 };
@@ -123,7 +130,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   // ── Month selection ──────────────────────────────────────────
   const today = new Date();
   const [selectedYear,  setSelectedYear]  = useState(today.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
+  const [selectedMonth, setSelectedMonth] = useState('all');
 
   const prevMonth = () => {
     if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }

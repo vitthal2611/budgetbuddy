@@ -26,87 +26,68 @@ const FillEnvelopesModal = ({
 
   const budgetKey = `${year}-${month}`;
 
-  // Initialize fill amounts and calculate rollover
+  // Initialize fill amounts ONCE when modal opens — don't re-init on budgets change
   useEffect(() => {
     if (isOpen) {
       const currentBudget = budgets[budgetKey] || {};
       const initial = {};
-      
       customEnvelopes.forEach(env => {
         initial[env.name] = currentBudget[env.name] || 0;
       });
-      
       setFillAmounts(initial);
 
-      // Calculate rollover if enabled
       if (preferences.rolloverMode !== 'none') {
         const rollover = calculateRollover(budgets, transactions, year, month);
         setRolloverData(rollover);
         setShowRollover(Object.keys(rollover).length > 0);
       }
     }
-  }, [isOpen, budgets, budgetKey, customEnvelopes, preferences.rolloverMode, transactions, year, month]);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save to budgets — called on blur or explicit actions, NOT on every keystroke
+  const saveFills = (fills) => {
+    setBudgets({ ...budgets, [budgetKey]: fills });
+  };
 
   const handleFillAmountChange = (envelopeName, value) => {
+    // Only update local state while typing — no parent re-render
+    setFillAmounts(prev => ({ ...prev, [envelopeName]: value }));
+  };
+
+  const handleFillAmountBlur = (envelopeName, value) => {
     const numValue = value === '' ? 0 : parseFloat(value) || 0;
-    
-    const newFillAmounts = {
-      ...fillAmounts,
-      [envelopeName]: numValue
-    };
-    
-    setFillAmounts(newFillAmounts);
-    
-    // Auto-save to budgets immediately
-    setBudgets({
-      ...budgets,
-      [budgetKey]: newFillAmounts
-    });
+    const newFills = { ...fillAmounts, [envelopeName]: numValue };
+    setFillAmounts(newFills);
+    saveFills(newFills);
   };
 
   const handleQuickFill = () => {
     const currentFilled = Object.values(fillAmounts).reduce((sum, val) => sum + parseFloat(val || 0), 0);
     const currentUnallocated = monthlyIncome - currentFilled;
-    
     if (currentUnallocated <= 0 || customEnvelopes.length === 0) return;
-    
     const perEnvelope = Math.floor(currentUnallocated / customEnvelopes.length);
     const newFills = { ...fillAmounts };
-    
     customEnvelopes.forEach(env => {
-      newFills[env.name] = (newFills[env.name] || 0) + perEnvelope;
+      newFills[env.name] = (parseFloat(newFills[env.name]) || 0) + perEnvelope;
     });
-    
     setFillAmounts(newFills);
-    setBudgets({
-      ...budgets,
-      [budgetKey]: newFills
-    });
+    saveFills(newFills);
   };
 
   const handleApplyRollover = () => {
     const newFills = { ...fillAmounts };
-    
     Object.keys(rolloverData).forEach(envelope => {
-      newFills[envelope] = (newFills[envelope] || 0) + rolloverData[envelope];
+      newFills[envelope] = (parseFloat(newFills[envelope]) || 0) + rolloverData[envelope];
     });
-    
     setFillAmounts(newFills);
-    setBudgets({
-      ...budgets,
-      [budgetKey]: newFills
-    });
-    
+    saveFills(newFills);
     setShowRollover(false);
   };
 
   const handleLoadTemplate = (template) => {
     const newFills = { ...template.data };
     setFillAmounts(newFills);
-    setBudgets({
-      ...budgets,
-      [budgetKey]: newFills
-    });
+    saveFills(newFills);
     setShowTemplates(false);
   };
 
@@ -248,16 +229,18 @@ const FillEnvelopesModal = ({
               <input
                 type="number"
                 className="fill-input"
-                value={fillAmounts[env.name] || ''}
+                value={fillAmounts[env.name] ?? ''}
                 onChange={(e) => handleFillAmountChange(env.name, e.target.value)}
+                onBlur={(e) => handleFillAmountBlur(env.name, e.target.value)}
                 placeholder="0"
+                inputMode="numeric"
               />
             </div>
           ))}
         </div>
 
         <div className="fill-modal-actions">
-          <button className="btn-done" onClick={onClose}>
+          <button className="btn-done" onClick={() => { saveFills(fillAmounts); onClose(); }}>
             Done
           </button>
         </div>
