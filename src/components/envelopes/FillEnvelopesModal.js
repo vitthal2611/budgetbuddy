@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './FillEnvelopesModal.css';
 import { useData } from '../../contexts/DataContext';
 import { usePreferences } from '../../contexts/PreferencesContext';
-import { calculateRollover, getRolloverSummary } from '../../utils/budgetRollover';
+import { calculateRollover } from '../../utils/budgetRollover';
 
 const FillEnvelopesModal = ({ 
   isOpen, 
@@ -141,7 +141,7 @@ const FillEnvelopesModal = ({
 
   const currentFilled = Object.values(fillAmounts).reduce((s, v) => s + parseFloat(v || 0), 0);
   const unallocated = monthlyIncome - currentFilled;
-  const rolloverSummary = getRolloverSummary(rolloverData);
+  const rolloverTotal = Object.values(rolloverData).reduce((s, v) => s + v, 0);
 
   if (!isOpen) return null;
 
@@ -170,13 +170,13 @@ const FillEnvelopesModal = ({
           </div>
         </div>
 
-        {showRollover && rolloverSummary.totalAmount > 0 && (
+        {showRollover && rolloverTotal !== 0 && (
           <div className="rollover-banner">
             <div className="rollover-info">
               <span className="rollover-icon">🔄</span>
               <div className="rollover-text">
-                <strong>Rollover Available:</strong> ₹{rolloverSummary.totalAmount.toLocaleString('en-IN')} 
-                from {rolloverSummary.envelopeCount} envelope(s)
+                <strong>Rollover Available:</strong> ₹{Math.abs(rolloverTotal).toLocaleString('en-IN')}
+                from {Object.keys(rolloverData).length} envelope(s)
               </div>
             </div>
             <button className="btn-apply-rollover" onClick={handleApplyRollover}>

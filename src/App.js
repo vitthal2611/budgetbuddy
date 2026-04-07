@@ -11,7 +11,6 @@ import Auth from './components/Auth';
 import LoadingSpinner from './components/shared/LoadingSpinner';
 import Toast from './components/shared/Toast';
 import ErrorBoundary from './components/shared/ErrorBoundary';
-import RolloverModal from './components/envelopes/RolloverModal';
 import BottomNav from './components/shared/BottomNav';
 import AddMenu from './components/shared/AddMenu';
 import MobileMenu from './components/shared/MobileMenu';
@@ -37,8 +36,6 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [showRolloverModal, setShowRolloverModal] = useState(false);
-  const [pendingRollover, setPendingRollover] = useState({});
   const [toast, setToast] = useState(null);
 
   // Ref to DataContext's loadFromCloud - set via callback prop on DataProvider
@@ -460,9 +457,9 @@ function App() {
     }
   };
 
-  // Check for rollover on app load
+  // Auto rollover on new month — no modal, applies immediately
   useEffect(() => {
-    if (!user || transactions.length === 0) return;
+    if (!user || transactions.length === 0 || Object.keys(budgets).length === 0) return;
 
     const lastOpenDate = localStorage.getItem('lastOpenDate');
     const today = new Date();
@@ -471,28 +468,27 @@ function App() {
     if (isNewMonth(lastOpenDate)) {
       const rollover = calculateRollover(budgets, transactions, today.getFullYear(), today.getMonth());
       if (Object.keys(rollover).length > 0) {
-        setPendingRollover(rollover);
-        setShowRolloverModal(true);
+        const budgetKey = `${today.getFullYear()}-${today.getMonth()}`;
+        const updatedBudget = applyRollover(budgets[budgetKey] || {}, rollover);
+        const newBudgets = { ...budgets, [budgetKey]: updatedBudget };
+        setBudgets(newBudgets);
+        cloudStorage.saveBudgets(newBudgets).catch(e => console.error('Rollover save error:', e));
+
+        // Show a toast summary
+        const surplus = Object.values(rollover).filter(v => v > 0).reduce((s, v) => s + v, 0);
+        const deficit = Object.values(rollover).filter(v => v < 0).reduce((s, v) => s + v, 0);
+        const fmt = n => Math.abs(n).toLocaleString('en-IN');
+        const msg = surplus > 0 && deficit < 0
+          ? `Rollover applied: +₹${fmt(surplus)} surplus, -₹${fmt(deficit)} overspend`
+          : surplus > 0
+          ? `Rollover applied: +₹${fmt(surplus)} carried forward`
+          : `Rollover applied: -₹${fmt(deficit)} overspend deducted`;
+        setToast({ message: msg, type: 'success' });
       }
     }
 
     localStorage.setItem('lastOpenDate', todayStr);
   }, [user, transactions.length, budgets]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleApplyRollover = () => {
-    const today = new Date();
-    const budgetKey = `${today.getFullYear()}-${today.getMonth()}`;
-    const updatedBudget = applyRollover(budgets[budgetKey] || {}, pendingRollover, 'automatic');
-    setBudgets({ ...budgets, [budgetKey]: updatedBudget });
-    setShowRolloverModal(false);
-    setPendingRollover({});
-    alert('✅ Rollover applied! Your envelopes have been updated.');
-  };
-
-  const handleSkipRollover = () => {
-    setShowRolloverModal(false);
-    setPendingRollover({});
-  };
 
   const saveBudgets = useCallback(async (newBudgets) => {
     setBudgets(newBudgets);
@@ -612,16 +608,6 @@ function App() {
                 onClose={() => setShowModal(false)}
                 budgets={budgets}
                 transactions={transactions}
-              />
-            )}
-
-            {showRolloverModal && (
-              <RolloverModal
-                isOpen={showRolloverModal}
-                onClose={() => setShowRolloverModal(false)}
-                rollover={pendingRollover}
-                onApply={handleApplyRollover}
-                onSkip={handleSkipRollover}
               />
             )}
 
