@@ -474,5 +474,36 @@
     --text-h2: 28px;
     --padding-card: 24px;
     --padding-section: 32px;
+
+    /* Desktop-specific overrides */
+    --bg-primary:    #F7F8FA;   /* slightly warmer than mobile */
+    --bg-canvas:     #FFFFFF;   /* pure white for main content panels */
+    --border-light:  #EAECF0;
+    --border-medium: #D0D5DD;
+
+    /* Desktop sidebar tokens */
+    --sidebar-bg:        #1C1F3A;   /* deep navy — less harsh than pure indigo */
+    --sidebar-bg-hover:  rgba(255,255,255,0.06);
+    --sidebar-bg-active: rgba(99,102,241,0.18);
+    --sidebar-text:      rgba(255,255,255,0.55);
+    --sidebar-text-active: #FFFFFF;
+    --sidebar-accent:    #6366F1;
+    --sidebar-width:     220px;
+
+    /* Desktop topbar */
+    --topbar-height:     56px;
+    --topbar-bg:         #FFFFFF;
+    --topbar-border:     #EAECF0;
+
+    /* Table */
+    --table-row-hover:   #F8F9FC;
+    --table-row-selected:#EEF2FF;
+    --table-header-bg:   #FFFFFF;
+    --table-group-bg:    #F8F9FC;
+
+    /* Shadows — slightly more visible on desktop */
+    --shadow-sm: 0 1px 3px rgba(16,24,40,0.08), 0 1px 2px rgba(16,24,40,0.04);
+    --shadow-md: 0 4px 8px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.04);
+    --shadow-lg: 0 12px 24px rgba(16,24,40,0.10), 0 4px 8px rgba(16,24,40,0.04);
   }
 }

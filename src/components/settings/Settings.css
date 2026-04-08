@@ -129,5 +129,18 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    background: var(--bg-primary, #F7F8FA);
+  }
+
+  /* Settings nav section label */
+  .settings-nav::before {
+    content: 'Settings';
+    display: block;
+    padding: 16px 16px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-tertiary);
   }
 }

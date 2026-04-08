@@ -698,3 +698,141 @@
   background: var(--border-light);
   margin: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   DESKTOP ENHANCEMENTS  (768px+)
+   ══════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+
+  .transactions {
+    background: var(--bg-primary, #F7F8FA);
+  }
+
+  /* Topbar — matches budget view height */
+  .tx-top {
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+  }
+
+  .tx-header {
+    padding: 0 24px;
+    height: var(--topbar-height, 56px);
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .tx-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  /* Search bar — wider, cleaner */
+  .tx-search-wrap {
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .tx-search-input {
+    background: var(--bg-primary);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  /* Month nav */
+  .tx-month-nav {
+    padding: 8px 24px;
+  }
+
+  .tx-month-arrow {
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid var(--border-medium);
+    border-radius: 7px;
+    background: #fff;
+    font-size: 18px;
+  }
+  .tx-month-arrow:hover { background: var(--bg-tertiary); border-color: var(--border-dark); }
+
+  .tx-month-label {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+
+  /* Stats bar — horizontal, no scroll */
+  .tx-stats {
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border-light);
+    overflow: visible;
+    background: #fff;
+  }
+
+  .tx-stat-label { font-size: 10px; letter-spacing: 0.8px; }
+  .tx-stat-value { font-size: 15px; }
+
+  /* Transaction list */
+  .tx-scroll {
+    padding-bottom: 32px;
+  }
+
+  .tx-group-header {
+    padding: 12px 24px 6px;
+  }
+
+  /* Transaction item — table-like on desktop */
+  .tx-item {
+    padding: 11px 24px;
+    border-bottom: 1px solid var(--border-light);
+    background: #fff;
+  }
+
+  .tx-item:hover {
+    background: var(--table-row-hover, #F8F9FC);
+  }
+
+  .tx-item-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .tx-item-note { font-size: 14px; }
+  .tx-item-amount { font-size: 14px; }
+  .tx-item-sub { font-size: 12px; }
+
+  /* Desktop action buttons */
+  .desktop-only {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  .tx-item:hover .desktop-only { opacity: 1; }
+
+  .tx-action {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border-medium);
+    background: #fff;
+    font-size: 13px;
+  }
+  .tx-action:hover { background: var(--bg-tertiary); border-color: var(--border-dark); }
+  .tx-action.delete:hover { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+
+  /* Filter sheet becomes a proper modal */
+  .tx-sheet {
+    width: 520px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-xl);
+  }
+
+  .tx-sheet-footer {
+    padding: 16px 20px;
+  }
+}

@@ -1,249 +1,221 @@
 import React, { useState, useEffect } from 'react';
 import './FillEnvelopesModal.css';
 import { useData } from '../../contexts/DataContext';
-import { usePreferences } from '../../contexts/PreferencesContext';
-import { calculateRollover } from '../../utils/budgetRollover';
 
-const FillEnvelopesModal = ({ 
-  isOpen, 
-  onClose, 
-  budgets, 
-  setBudgets, 
-  transactions,
-  monthlyIncome,
-  year,
-  month,
-  templates = []
+const fmt = (n) => Math.abs(n).toLocaleString('en-IN');
+
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const CATS = [
+  { key: 'need',   label: 'Needs',   icon: '🛒' },
+  { key: 'want',   label: 'Wants',   icon: '🎉' },
+  { key: 'saving', label: 'Savings', icon: '💰' },
+];
+
+const FillEnvelopesModal = ({
+  isOpen, onClose,
+  budgets, setBudgets,
+  transactions, monthlyIncome,
+  year: initYear, month: initMonth,
 }) => {
-  const { envelopes: customEnvelopes } = useData();
-  const { preferences } = usePreferences();
-  const [fillAmounts, setFillAmounts] = useState({});
-  const [showRollover, setShowRollover] = useState(false);
-  const [rolloverData, setRolloverData] = useState({});
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const { envelopes } = useData();
 
-  const budgetKey = `${year}-${month}`;
+  // Internal month state — independent of main view
+  const today = new Date();
+  const [fillYear,  setFillYear]  = useState(initYear  ?? today.getFullYear());
+  const [fillMonth, setFillMonth] = useState(
+    initMonth === 'all' || initMonth === undefined ? today.getMonth() : initMonth
+  );
+  const [fills, setFills] = useState({});
+  const [copySource, setCopySource] = useState('');
 
-  // Initialize fill amounts ONCE when modal opens — don't re-init on budgets change
+  const budgetKey = `${fillYear}-${fillMonth}`;
+
+  // Build list of months that have budget data (for copy dropdown)
+  const availableMonths = React.useMemo(() => {
+    const months = [];
+    Object.keys(budgets).forEach(key => {
+      if (key.startsWith('_')) return;
+      const [y, m] = key.split('-');
+      if (!y || m === undefined) return;
+      const hasData = Object.values(budgets[key]).some(v => parseFloat(v) > 0);
+      if (hasData) months.push({ key, label: `${MONTHS_SHORT[parseInt(m)]} ${y}` });
+    });
+    return months.sort((a, b) => b.key.localeCompare(a.key));
+  }, [budgets]);
+
+  // Load fills when month changes
   useEffect(() => {
-    if (isOpen) {
-      const currentBudget = budgets[budgetKey] || {};
-      const initial = {};
-      customEnvelopes.forEach(env => {
-        initial[env.name] = currentBudget[env.name] || 0;
-      });
-      setFillAmounts(initial);
+    if (!isOpen) return;
+    const current = budgets[budgetKey] || {};
+    const init = {};
+    envelopes.forEach(e => { init[e.name] = current[e.name] || 0; });
+    setFills(init);
+    setCopySource('');
+  }, [isOpen, budgetKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      if (preferences.rolloverMode !== 'none') {
-        const rollover = calculateRollover(budgets, transactions, year, month);
-        setRolloverData(rollover);
-        setShowRollover(Object.keys(rollover).length > 0);
-      }
-    }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Save to budgets — called on blur or explicit actions, NOT on every keystroke
-  const saveFills = (fills) => {
-    setBudgets({ ...budgets, [budgetKey]: fills });
+  // Month navigation
+  const prevMonth = () => {
+    if (fillMonth === 0) { setFillMonth(11); setFillYear(y => y - 1); }
+    else setFillMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (fillMonth === 11) { setFillMonth(0); setFillYear(y => y + 1); }
+    else setFillMonth(m => m + 1);
   };
 
-  const handleFillAmountChange = (envelopeName, value) => {
-    // Only update local state while typing — no parent re-render
-    setFillAmounts(prev => ({ ...prev, [envelopeName]: value }));
+  // Copy from another month
+  const handleCopy = (sourceKey) => {
+    if (!sourceKey) return;
+    const source = budgets[sourceKey] || {};
+    const next = {};
+    envelopes.forEach(e => { next[e.name] = source[e.name] || 0; });
+    setFills(next);
+    setBudgets({ ...budgets, [budgetKey]: next });
+    setCopySource('');
   };
 
-  const handleFillAmountBlur = (envelopeName, value) => {
-    const numValue = value === '' ? 0 : parseFloat(value) || 0;
-    const newFills = { ...fillAmounts, [envelopeName]: numValue };
-    setFillAmounts(newFills);
-    saveFills(newFills);
+  // Compute income for the selected fill month
+  const fillMonthIncome = React.useMemo(() => {
+    return transactions
+      .filter(t => {
+        if (t.type !== 'income') return false;
+        const d = new Date(t.date.split('-').reverse().join('-'));
+        return d.getFullYear() === fillYear && d.getMonth() === fillMonth;
+      })
+      .reduce((s, t) => s + parseFloat(t.amount), 0);
+  }, [transactions, fillYear, fillMonth]);
+
+  const totalFilled  = Object.values(fills).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+  const unallocated  = fillMonthIncome - totalFilled;
+
+  const handleChange = (name, val) => setFills(p => ({ ...p, [name]: val }));
+
+  const handleBlur = (name, val) => {
+    const num = parseFloat(val) || 0;
+    const next = { ...fills, [name]: num };
+    setFills(next);
+    setBudgets({ ...budgets, [budgetKey]: next });
   };
 
-  const handleQuickFill = () => {
-    const currentFilled = Object.values(fillAmounts).reduce((sum, val) => sum + parseFloat(val || 0), 0);
-    const currentUnallocated = monthlyIncome - currentFilled;
-    if (currentUnallocated <= 0 || customEnvelopes.length === 0) return;
-    const perEnvelope = Math.floor(currentUnallocated / customEnvelopes.length);
-    const newFills = { ...fillAmounts };
-    customEnvelopes.forEach(env => {
-      newFills[env.name] = (parseFloat(newFills[env.name]) || 0) + perEnvelope;
-    });
-    setFillAmounts(newFills);
-    saveFills(newFills);
+  const handleDone = () => {
+    const next = {};
+    Object.entries(fills).forEach(([k, v]) => { next[k] = parseFloat(v) || 0; });
+    setBudgets({ ...budgets, [budgetKey]: next });
+    onClose();
   };
-
-  const handleApplyRollover = () => {
-    const newFills = { ...fillAmounts };
-    Object.keys(rolloverData).forEach(envelope => {
-      newFills[envelope] = (parseFloat(newFills[envelope]) || 0) + rolloverData[envelope];
-    });
-    setFillAmounts(newFills);
-    saveFills(newFills);
-    setShowRollover(false);
-  };
-
-  const handleLoadTemplate = (template) => {
-    const newFills = { ...template.data };
-    setFillAmounts(newFills);
-    saveFills(newFills);
-    setShowTemplates(false);
-  };
-
-  const handleSaveTemplate = () => {
-    if (!templateName.trim()) {
-      alert('Please enter a template name');
-      return;
-    }
-
-    const newTemplate = {
-      id: `template-${Date.now()}`,
-      name: templateName.trim(),
-      data: fillAmounts,
-      createdAt: new Date().toISOString()
-    };
-
-    // This should be passed from parent to save to Firebase
-    // For now, just close the modal
-    setShowSaveTemplate(false);
-    setTemplateName('');
-    alert(`Template "${newTemplate.name}" saved! (Integration pending)`);
-  };
-
-  const getCategoryIcon = (category) => {
-    switch(category) {
-      case 'need': return '🛒';
-      case 'want': return '🎉';
-      case 'saving': return '💰';
-      default: return '📦';
-    }
-  };
-
-  const currentFilled = Object.values(fillAmounts).reduce((s, v) => s + parseFloat(v || 0), 0);
-  const unallocated = monthlyIncome - currentFilled;
-  const rolloverTotal = Object.values(rolloverData).reduce((s, v) => s + v, 0);
 
   if (!isOpen) return null;
 
+  const isCurrentMonth = fillYear === today.getFullYear() && fillMonth === today.getMonth();
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="fill-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="fill-modal" onClick={e => e.stopPropagation()}>
+
+        {/* ── Header ── */}
         <div className="fill-modal-header">
-          <h2>💰 Fill Envelopes</h2>
+          <div className="fill-modal-title-wrap">
+            <h2>💰 Fill Envelopes</h2>
+          </div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
+        {/* ── Month navigator ── */}
+        <div className="fill-month-nav">
+          <button className="fill-month-arrow" onClick={prevMonth}>‹</button>
+          <div className="fill-month-center">
+            <span className="fill-month-label">{MONTHS[fillMonth]} {fillYear}</span>
+            {!isCurrentMonth && (
+              <button
+                className="fill-today-chip"
+                onClick={() => { setFillMonth(today.getMonth()); setFillYear(today.getFullYear()); }}
+              >
+                Today
+              </button>
+            )}
+          </div>
+          <button className="fill-month-arrow" onClick={nextMonth}>›</button>
+
+          {/* Copy from month */}
+          <div className="fill-copy-wrap">
+            <select
+              className="fill-copy-select"
+              value={copySource}
+              onChange={e => { setCopySource(e.target.value); handleCopy(e.target.value); }}
+            >
+              <option value="">📋 Copy from…</option>
+              {availableMonths
+                .filter(m => m.key !== budgetKey)
+                .map(m => (
+                  <option key={m.key} value={m.key}>{m.label}</option>
+                ))
+              }
+            </select>
+          </div>
+        </div>
+
+        {/* ── Summary bar ── */}
         <div className="fill-summary">
           <div className="fill-summary-item">
-            <span>Income:</span>
-            <span>₹{monthlyIncome.toLocaleString('en-IN')}</span>
+            <span>Income</span>
+            <span>₹{fmt(fillMonthIncome)}</span>
           </div>
+          <div className="fill-summary-divider" />
           <div className="fill-summary-item">
-            <span>To Allocate:</span>
-            <span className={unallocated < 0 ? 'negative' : 'positive'}>
-              ₹{unallocated.toLocaleString('en-IN')}
-            </span>
+            <span>Assigned</span>
+            <span>₹{fmt(totalFilled)}</span>
           </div>
-          <div className="auto-save-indicator">
-            <span className="save-icon">✓</span>
-            <span className="save-text">Auto-saved</span>
+          <div className="fill-summary-divider" />
+          <div className={`fill-summary-item ${unallocated === 0 ? 'zero' : unallocated < 0 ? 'neg' : 'pos'}`}>
+            <span>To Allocate</span>
+            <span>{unallocated < 0 ? '-' : ''}₹{fmt(unallocated)}</span>
           </div>
         </div>
 
-        {showRollover && rolloverTotal !== 0 && (
-          <div className="rollover-banner">
-            <div className="rollover-info">
-              <span className="rollover-icon">🔄</span>
-              <div className="rollover-text">
-                <strong>Rollover Available:</strong> ₹{Math.abs(rolloverTotal).toLocaleString('en-IN')}
-                from {Object.keys(rolloverData).length} envelope(s)
-              </div>
-            </div>
-            <button className="btn-apply-rollover" onClick={handleApplyRollover}>
-              Apply Rollover
-            </button>
-          </div>
-        )}
-
-        <div className="fill-actions-bar">
-          {unallocated > 0 && (
-            <button className="btn-quick-fill" onClick={handleQuickFill}>
-              ⚡ Quick Fill Remaining
-            </button>
-          )}
-          <button className="btn-templates" onClick={() => setShowTemplates(!showTemplates)}>
-            📋 Templates
-          </button>
-          <button className="btn-save-template" onClick={() => setShowSaveTemplate(!showSaveTemplate)}>
-            💾 Save as Template
-          </button>
-        </div>
-
-        {showTemplates && templates.length > 0 && (
-          <div className="templates-list">
-            <h4>Load Template:</h4>
-            {templates.map(template => (
-              <button
-                key={template.id}
-                className="template-item"
-                onClick={() => handleLoadTemplate(template)}
-              >
-                <span className="template-name">{template.name}</span>
-                <span className="template-arrow">→</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {showSaveTemplate && (
-          <div className="save-template-form">
-            <input
-              type="text"
-              className="template-name-input"
-              placeholder="Template name (e.g., Regular Month, Tight Budget)..."
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              autoFocus
-            />
-            <button className="btn-save-template-confirm" onClick={handleSaveTemplate}>
-              Save
-            </button>
-          </div>
-        )}
-
+        {/* ── Envelope list — 3 columns ── */}
         <div className="fill-list">
-          {customEnvelopes.map(env => (
-            <div key={env.name} className="fill-item">
-              <div className="fill-item-name">
-                <span className={`fill-icon ${env.category}`}>
-                  {getCategoryIcon(env.category)}
-                </span>
-                <span>{env.name}</span>
-                {rolloverData[env.name] > 0 && (
-                  <span className="rollover-badge">
-                    +₹{rolloverData[env.name].toLocaleString('en-IN')}
-                  </span>
-                )}
+          {CATS.map(({ key, label, icon }) => {
+            const group = envelopes.filter(e => e.category === key);
+            if (group.length === 0) return null;
+            return (
+              <div key={key} className="fill-col">
+                <div className={`fill-col-header fill-col-${key}`}>
+                  <span>{icon}</span>
+                  <span>{label}</span>
+                  <span className="fill-col-count">{group.length}</span>
+                </div>
+                {group.map(env => (
+                  <div key={env.name} className="fill-item">
+                    <span className="fill-item-name">{env.name}</span>
+                    <input
+                      className="fill-input"
+                      type="number"
+                      min="0"
+                      inputMode="numeric"
+                      value={fills[env.name] ?? ''}
+                      placeholder="0"
+                      onChange={e => handleChange(env.name, e.target.value)}
+                      onBlur={e => handleBlur(env.name, e.target.value)}
+                    />
+                  </div>
+                ))}
               </div>
-              <input
-                type="number"
-                className="fill-input"
-                value={fillAmounts[env.name] ?? ''}
-                onChange={(e) => handleFillAmountChange(env.name, e.target.value)}
-                onBlur={(e) => handleFillAmountBlur(env.name, e.target.value)}
-                placeholder="0"
-                inputMode="numeric"
-              />
-            </div>
-          ))}
+            );
+          })}
         </div>
 
+        {/* ── Footer ── */}
         <div className="fill-modal-actions">
-          <button className="btn-done" onClick={() => { saveFills(fillAmounts); onClose(); }}>
-            Done
+          <button className="btn-done" onClick={handleDone}>
+            Done — {MONTHS_SHORT[fillMonth]} {fillYear}
           </button>
         </div>
+
       </div>
     </div>
   );

@@ -5,7 +5,6 @@ const fmt  = (n) => Math.abs(n).toLocaleString('en-IN');
 const fmtS = (n) => n < 0 ? `-₹${fmt(n)}` : `₹${fmt(n)}`;
 
 const MONTHS_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const CATEGORIES   = ['need','want','saving'];
 
 const CAT_META = {
@@ -87,8 +86,9 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
   if (!envelope) return (
     <div className="yn-inspector yn-inspector-empty">
       <div className="yn-inspector-hint">
-        <span className="yn-inspector-hint-icon">👆</span>
-        <span>Click an envelope to see details</span>
+        <span className="yn-inspector-hint-icon">📊</span>
+        <span className="yn-inspector-hint-title">Envelope Details</span>
+        <span className="yn-inspector-hint-sub">Click any envelope row to see its balance, spending progress, and quick actions.</span>
       </div>
     </div>
   );
@@ -161,19 +161,19 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
       <div className="yn-inspector-actions">
         <button className="yn-insp-btn primary"
           onClick={() => onAddTransaction('expense', { envelope: envelope.name })}>
-          + Add Expense
+          ＋ Add Expense
         </button>
         <button className="yn-insp-btn"
           onClick={() => onViewTransactions({ envelope: envelope.name, year: selectedYear, month: selectedMonth })}>
-          View Transactions
+          ↗ View Transactions
         </button>
         <button className="yn-insp-btn"
           onClick={() => onEdit(envelope)}>
-          Edit Envelope
+          ✏️ Edit Envelope
         </button>
         <button className="yn-insp-btn danger"
           onClick={() => onDelete(envelope.name)}>
-          Delete
+          🗑️ Delete Envelope
         </button>
       </div>
     </div>
@@ -318,8 +318,8 @@ const DesktopBudgetView = ({
   budgets,
   handleSettleBorrow,
 }) => {
-  const [collapsed,    setCollapsed]    = useState({});
-  const [selectedEnv,  setSelectedEnv]  = useState(null);
+  const [collapsed,       setCollapsed]       = useState({});
+  const [selectedEnv,     setSelectedEnv]     = useState(null);
 
   const toggleCat = (cat) => setCollapsed(p => ({ ...p, [cat]: !p[cat] }));
 
@@ -327,7 +327,7 @@ const DesktopBudgetView = ({
 
   const monthLabel = selectedMonth === 'all'
     ? 'All Months'
-    : `${MONTHS_LONG[selectedMonth]} ${selectedYear}`;
+    : (MONTHS_LONG[selectedMonth] ?? 'Unknown') + ' ' + selectedYear;
 
   const rtaCls = unallocated === 0 ? 'rta-zero' : unallocated < 0 ? 'rta-over' : 'rta-pos';
 
@@ -339,7 +339,7 @@ const DesktopBudgetView = ({
       {/* ══ TOP BAR ══════════════════════════════════════════════ */}
       <div className="yn-topbar">
 
-        {/* Month navigation — centered */}
+        {/* Month navigation */}
         <div className="yn-month-nav">
           <button className="yn-month-arrow" onClick={onPrevMonth}>‹</button>
           <div className="yn-month-label">
@@ -372,21 +372,6 @@ const DesktopBudgetView = ({
           <button className="yn-topbar-btn" onClick={onTransfer}>
             ⇄ Transfer
           </button>
-          <select
-            className="yn-month-select-sm"
-            value={selectedMonth === 'all' ? 'all' : `${selectedYear}-${selectedMonth}`}
-            onChange={onMonthChange}
-            title="Jump to month"
-          >
-            <option value="all">All Months</option>
-            {(availableYears || []).map(year =>
-              MONTHS_SHORT.map((label, idx) => (
-                <option key={`${year}-${idx}`} value={`${year}-${idx}`}>
-                  {label} {year}
-                </option>
-              ))
-            )}
-          </select>
         </div>
       </div>
 
@@ -420,16 +405,6 @@ const DesktopBudgetView = ({
 
           {/* Scrollable envelope list */}
           <div className="yn-table-scroll">
-
-            {/* Accounts row */}
-            {Object.keys(accountBalances).length > 0 && (
-              <div className="yn-accounts-row">
-                <span className="yn-accounts-label">💳 Total Balance</span>
-                <span className={`yn-accounts-total ${totalAccountBalance >= 0 ? 'ok' : 'over'}`}>
-                  {totalAccountBalance < 0 ? '-' : ''}₹{fmt(totalAccountBalance)}
-                </span>
-              </div>
-            )}
 
             {/* Category groups */}
             {hasEnvelopes ? (

@@ -147,6 +147,7 @@
     flex-direction: row;
     height: 100vh;
     overflow: hidden;
+    background: var(--bg-primary, #F7F8FA);
   }
 
   /* app-main takes remaining space, scrolls internally */
@@ -157,14 +158,14 @@
     min-width: 0;
     height: 100vh;
     overflow: hidden;
-    background: #f5f6fa;
+    background: var(--bg-primary, #F7F8FA);
   }
 
   .content {
     flex: 1;
     min-height: 0;
     overflow: hidden;
-    background: #f5f6fa;
+    background: var(--bg-primary, #F7F8FA);
   }
 
   /* Content views fill the space nicely */
@@ -173,18 +174,13 @@
     max-width: 100%;
   }
 
-  .bottom-nav {
-    display: none;
-  }
-
-  .tabs {
-    display: none;
-  }
+  .bottom-nav { display: none; }
+  .tabs       { display: none; }
 
   /* Sync/offline indicators shift right of sidebar */
   .sync-indicator,
   .offline-indicator {
-    left: calc(220px + 16px);
+    left: calc(var(--sidebar-width, 220px) + 16px);
     right: auto;
   }
 }

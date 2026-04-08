@@ -416,3 +416,108 @@
     margin: 0 auto;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   DESKTOP ENHANCEMENTS  (768px+)
+   ══════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+
+  .rp-root {
+    background: var(--bg-primary, #F7F8FA);
+  }
+
+  /* Header — matches topbar height */
+  .rp-header {
+    background: #fff;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .rp-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: var(--topbar-height, 56px);
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .rp-title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .rp-month-nav {
+    padding: 8px 24px;
+    border-top: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .rp-arrow {
+    width: 28px;
+    height: 28px;
+    border: 1.5px solid var(--border-medium);
+    border-radius: 7px;
+    background: #fff;
+    font-size: 18px;
+  }
+  .rp-arrow:hover { background: var(--bg-tertiary); border-color: var(--border-dark); }
+
+  .rp-month-label {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+
+  /* Tabs */
+  .rp-tabs {
+    padding: 0 24px;
+    overflow: visible;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .rp-tab {
+    flex: 0 0 auto;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  /* Content — two-column grid on wide screens */
+  .rp-scroll {
+    padding: 24px;
+    padding-bottom: 40px;
+  }
+
+  .rp-content {
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* KPI strip spans full width */
+  .rp-kpi-strip {
+    grid-column: 1 / -1;
+    padding: 16px 24px;
+  }
+
+  .rp-kpi-label { font-size: 10px; letter-spacing: 0.8px; }
+  .rp-kpi-value { font-size: 15px; }
+
+  /* Cards */
+  .rp-card {
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Insights span full width */
+  .rp-insights { grid-column: 1 / -1; }
+
+  /* Section titles */
+  .rp-section-title {
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+}

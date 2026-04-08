@@ -42,6 +42,23 @@ function App() {
   // Ref to DataContext's loadFromCloud - set via callback prop on DataProvider
   const loadFromCloudRef = useRef(null);
 
+  // Compute account balances from transactions (for sidebar)
+  const accountBalances = React.useMemo(() => {
+    const accounts = {};
+    transactions.forEach(t => {
+      const amt = parseFloat(t.amount);
+      if (t.type === 'income')
+        accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) + amt;
+      else if (t.type === 'expense')
+        accounts[t.paymentMethod] = (accounts[t.paymentMethod] || 0) - amt;
+      else if (t.type === 'transfer') {
+        accounts[t.sourceAccount]      = (accounts[t.sourceAccount]      || 0) - amt;
+        accounts[t.destinationAccount] = (accounts[t.destinationAccount] || 0) + amt;
+      }
+    });
+    return accounts;
+  }, [transactions]);
+
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -530,6 +547,11 @@ function App() {
               user={user}
               syncing={syncing}
               isOnline={isOnline}
+              accountBalances={accountBalances}
+              onViewAccount={(paymentMethod) => {
+                setTransactionFilters({ paymentMethod });
+                setActiveTab('transactions');
+              }}
             />
 
             <div className="app-main">

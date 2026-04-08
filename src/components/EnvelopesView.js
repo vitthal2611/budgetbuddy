@@ -146,10 +146,12 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   const [selectedMonth, setSelectedMonth] = useState('all');
 
   const prevMonth = () => {
+    if (selectedMonth === 'all') { setSelectedMonth(today.getMonth()); return; }
     if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
     else setSelectedMonth(m => m - 1);
   };
   const nextMonth = () => {
+    if (selectedMonth === 'all') { setSelectedMonth(today.getMonth()); return; }
     if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); }
     else setSelectedMonth(m => m + 1);
   };
@@ -361,7 +363,10 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           onViewTransactions={onViewTransactions}
           onFillEnvelopes={() => setShowFillModal(true)}
           onTransfer={() => setShowTransferModal(true)}
-          onAddEnvelope={() => setShowAddModal(true)}
+          onAddEnvelope={(cat) => {
+            setNewEnv({ ...EMPTY_ENV, category: cat || 'need' });
+            setShowAddModal(true);
+          }}
           onEditEnvelope={handleEditOpen}
           onDeleteEnvelope={setDeleteTarget}
           budgets={budgets}
@@ -386,7 +391,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
             newEnv={newEnv}
             setNewEnv={setNewEnv}
             onSubmit={handleAddEnvelope}
-            onClose={() => setShowAddModal(false)}
+            onClose={() => { setShowAddModal(false); setNewEnv(EMPTY_ENV); }}
           />
         )}
         {showTransferModal && (
@@ -560,7 +565,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
             <div className="ev-empty-icon">📦</div>
             <div className="ev-empty-title">No envelopes yet</div>
             <div className="ev-empty-sub">Create envelopes to start budgeting</div>
-            <button className="ev-add-envelope-row" style={{ marginTop: 16 }} onClick={() => setShowAddModal(true)}>
+            <button className="ev-add-envelope-row" style={{ marginTop: 16 }} onClick={() => { setNewEnv(EMPTY_ENV); setShowAddModal(true); }}>
               <span className="ev-add-envelope-icon">＋</span>
               <span>Create First Envelope</span>
             </button>
@@ -590,7 +595,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
                 </div>
               );
             })()}
-            <button className="ev-add-envelope-row" onClick={() => setShowAddModal(true)}>
+            <button className="ev-add-envelope-row" onClick={() => { setNewEnv(EMPTY_ENV); setShowAddModal(true); }}>
               <span className="ev-add-envelope-icon">＋</span>
               <span>Add Envelope</span>
             </button>
@@ -620,7 +625,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           newEnv={newEnv}
           setNewEnv={setNewEnv}
           onSubmit={handleAddEnvelope}
-          onClose={() => setShowAddModal(false)}
+          onClose={() => { setShowAddModal(false); setNewEnv(EMPTY_ENV); }}
         />
       )}
 
