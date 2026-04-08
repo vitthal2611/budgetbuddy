@@ -1,10 +1,22 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import './EnvelopesView.css';
 import { useData } from '../contexts/DataContext';
 import { useEnvelopesData, computeMonthlyFill } from '../hooks/useEnvelopesData';
 import FillEnvelopesModal from './envelopes/FillEnvelopesModal';
 import TransferModal from './envelopes/TransferModal';
 import { AddEnvelopeModal, EditEnvelopeModal, DeleteEnvelopeModal } from './envelopes/EnvelopeFormModals';
+import DesktopBudgetView from './envelopes/DesktopBudgetView';
+
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const handler = (e) => setIsDesktop(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isDesktop;
+};
 
 const fmt = (n) => Math.abs(n).toLocaleString('en-IN');
 const getCatIcon = (cat) => cat === 'need' ? '🛒' : cat === 'want' ? '🎉' : '💰';
@@ -126,6 +138,7 @@ const EMPTY_ENV = { name: '', category: 'need', envelopeType: 'regular', annualA
 
 const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, onViewTransactions }) => {
   const { envelopes: customEnvelopes, addEnvelope, removeEnvelope, updateEnvelope } = useData();
+  const isDesktop = useIsDesktop();
 
   // ── Month selection ──────────────────────────────────────────
   const today = new Date();
@@ -322,6 +335,92 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   };
 
   // ── Render ────────────────────────────────────────────────────
+  // Desktop: YNAB-style table view
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopBudgetView
+          envelopesByCategory={envelopesByCategory}
+          envelopeFills={envelopeFills}
+          monthlyIncome={monthlyIncome}
+          totalFilled={totalFilled}
+          totalSpent={totalSpent}
+          unallocated={unallocated}
+          accountBalances={accountBalances}
+          totalAccountBalance={totalAccountBalance}
+          selectedYear={selectedYear}
+          selectedMonth={selectedMonth}
+          availableYears={availableYears}
+          onMonthChange={handleMonthDropdownChange}
+          onPrevMonth={prevMonth}
+          onNextMonth={nextMonth}
+          onGoToday={goToday}
+          isCurrentMonth={isCurrentMonth}
+          onAssign={handleFillChange}
+          onAddTransaction={onAddTransaction}
+          onViewTransactions={onViewTransactions}
+          onFillEnvelopes={() => setShowFillModal(true)}
+          onTransfer={() => setShowTransferModal(true)}
+          onAddEnvelope={() => setShowAddModal(true)}
+          onEditEnvelope={handleEditOpen}
+          onDeleteEnvelope={setDeleteTarget}
+          budgets={budgets}
+          handleSettleBorrow={handleSettleBorrow}
+        />
+
+        {/* Shared modals */}
+        {showFillModal && (
+          <FillEnvelopesModal
+            isOpen={showFillModal}
+            onClose={() => setShowFillModal(false)}
+            budgets={budgets}
+            setBudgets={setBudgets}
+            transactions={transactions}
+            monthlyIncome={monthlyIncome}
+            year={selectedYear}
+            month={selectedMonth}
+          />
+        )}
+        {showAddModal && (
+          <AddEnvelopeModal
+            newEnv={newEnv}
+            setNewEnv={setNewEnv}
+            onSubmit={handleAddEnvelope}
+            onClose={() => setShowAddModal(false)}
+          />
+        )}
+        {showTransferModal && (
+          <TransferModal
+            transferData={transferData}
+            setTransferData={setTransferData}
+            transferError={transferError}
+            setTransferError={setTransferError}
+            envelopeFills={budgets[`${today.getFullYear()}-${today.getMonth()}`] || envelopeFills}
+            monthlySpending={monthlySpending}
+            customEnvelopes={customEnvelopes}
+            onSubmit={handleEnvelopeTransfer}
+            onClose={() => setShowTransferModal(false)}
+          />
+        )}
+        {editTarget && (
+          <EditEnvelopeModal
+            editForm={editForm}
+            setEditForm={setEditForm}
+            onSubmit={handleEditSave}
+            onClose={() => setEditTarget(null)}
+          />
+        )}
+        {deleteTarget && (
+          <DeleteEnvelopeModal
+            name={deleteTarget}
+            onConfirm={confirmDeleteEnvelope}
+            onClose={() => setDeleteTarget(null)}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="envelopes-view">
 

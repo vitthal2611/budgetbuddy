@@ -14,6 +14,7 @@ import ErrorBoundary from './components/shared/ErrorBoundary';
 import BottomNav from './components/shared/BottomNav';
 import AddMenu from './components/shared/AddMenu';
 import MobileMenu from './components/shared/MobileMenu';
+import DesktopSidebar from './components/shared/DesktopSidebar';
 import { DataProvider } from './contexts/DataContext';
 import { PreferencesProvider } from './contexts/PreferencesContext';
 import authService from './services/authService';
@@ -519,17 +520,20 @@ function App() {
       >
         <ErrorBoundary>
           <div className="App">
-            {/* Desktop tab bar — hidden on mobile */}
-            <div className="tabs">
-              <button className={activeTab === 'envelopes' ? 'active' : ''} onClick={() => setActiveTab('envelopes')}>Envelopes</button>
-              <button className={activeTab === 'reports' ? 'active' : ''} onClick={() => setActiveTab('reports')}>Reports</button>
-              <button className={activeTab === 'transactions' ? 'active' : ''} onClick={() => setActiveTab('transactions')}>Transactions</button>
-              <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>Settings</button>
-              <div className="tab-spacer" />
-              <button className="export-btn" onClick={handleExportData} title="Export all data as backup">📥 Export</button>
-              <button className="signout-btn" onClick={handleSignOut} title="Sign out">Sign Out</button>
-            </div>
+            {/* Desktop sidebar — hidden on mobile */}
+            <DesktopSidebar
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onAddTransaction={handleAddTransaction}
+              onExport={handleExportData}
+              onSignOut={handleSignOut}
+              user={user}
+              syncing={syncing}
+              isOnline={isOnline}
+            />
 
+            <div className="app-main">
+            {/* Mobile-only: sync/offline indicators */}
             {syncing && (
               <div className="sync-indicator"><span className="sync-icon">🔄</span>Syncing...</div>
             )}
@@ -577,6 +581,7 @@ function App() {
               onMorePress={() => setShowMenu(prev => prev === true ? false : true)}
               showMore={showMenu === true}
             />
+            </div>{/* end app-main */}
 
             {/* Add transaction menu */}
             {showMenu === 'add' && (

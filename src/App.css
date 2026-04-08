@@ -9,6 +9,15 @@
   overflow: hidden;
 }
 
+/* On mobile, app-main is just a flex column passthrough */
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .tabs {
   display: none;
 }
@@ -131,13 +140,72 @@
   }
 }
 
-@media (min-width: 481px) {
+@media (min-width: 768px) {
+  /* Sidebar layout: App becomes a horizontal flex row */
+  .App {
+    max-width: 100%;
+    flex-direction: row;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* app-main takes remaining space, scrolls internally */
+  .app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    height: 100vh;
+    overflow: hidden;
+    background: #f5f6fa;
+  }
+
+  .content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    background: #f5f6fa;
+  }
+
+  /* Content views fill the space nicely */
+  .content > * {
+    height: 100%;
+    max-width: 100%;
+  }
+
+  .bottom-nav {
+    display: none;
+  }
+
+  .tabs {
+    display: none;
+  }
+
+  /* Sync/offline indicators shift right of sidebar */
+  .sync-indicator,
+  .offline-indicator {
+    left: calc(220px + 16px);
+    right: auto;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 767px) {
+  /* Tablet: top tab bar, no sidebar */
   .App {
     background: white;
     max-width: 100%;
     height: 100vh;
+    flex-direction: column;
   }
-  
+
+  .app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   .tabs {
     display: flex;
     background: #fff;
@@ -150,7 +218,7 @@
     max-width: 100%;
     align-items: center;
   }
-  
+
   .tabs button {
     padding: 0 20px;
     height: 52px;
@@ -177,9 +245,7 @@
     background: #f9fafb;
   }
 
-  .tabs .tab-spacer {
-    flex: 1;
-  }
+  .tabs .tab-spacer { flex: 1; }
 
   .tabs button.export-btn {
     color: #6366f1;
@@ -192,9 +258,7 @@
     background: #eef2ff;
   }
 
-  .tabs button.export-btn:hover {
-    background: #e0e7ff;
-  }
+  .tabs button.export-btn:hover { background: #e0e7ff; }
 
   .tabs button.signout-btn {
     color: #ef4444;
@@ -207,38 +271,16 @@
     background: #fef2f2;
   }
 
-  .tabs button.signout-btn:hover {
-    background: #fee2e2;
-  }
-  
-  .bottom-nav {
-    display: none;
-  }
-  
+  .tabs button.signout-btn:hover { background: #fee2e2; }
+
+  .bottom-nav { display: none; }
+
   .content {
     overflow: hidden;
     background: var(--bg-primary);
     max-width: 100%;
-  }
-
-  /* Center content with max-width on large screens */
-  .content > * {
-    max-width: var(--content-max-width);
-    margin-left: auto;
-    margin-right: auto;
-    width: 100%;
-  }
-}
-
-@media (min-width: 900px) {
-  :root {
-    --content-max-width: 800px;
-  }
-}
-
-@media (min-width: 1200px) {
-  :root {
-    --content-max-width: 960px;
+    flex: 1;
+    min-height: 0;
   }
 }
 
