@@ -1,0 +1,141 @@
+/* Month Lock Banner - Prominent status indicator */
+
+.month-lock-banner {
+  width: 100%;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: slideDown 0.3s ease;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.month-lock-banner.warning {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 2px solid #f59e0b;
+}
+
+.month-lock-banner.danger {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-bottom: 2px solid #ef4444;
+}
+
+.month-lock-banner.success {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-bottom: 2px solid #10b981;
+}
+
+.mlb-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 1200px;
+  width: 100%;
+}
+
+.mlb-icon {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mlb-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mlb-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  letter-spacing: -0.2px;
+}
+
+.mlb-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.mlb-action {
+  padding: 8px 16px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(91, 95, 239, 0.3);
+  flex-shrink: 0;
+}
+
+.mlb-action:hover {
+  background: var(--primary-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(91, 95, 239, 0.4);
+}
+
+.mlb-action:active {
+  transform: scale(0.98);
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .month-lock-banner {
+    padding: 10px 12px;
+  }
+
+  .mlb-content {
+    gap: 10px;
+  }
+
+  .mlb-icon {
+    font-size: 20px;
+  }
+
+  .mlb-title {
+    font-size: 13px;
+  }
+
+  .mlb-message {
+    font-size: 12px;
+  }
+
+  .mlb-action {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Desktop - integrate with topbar */
+@media (min-width: 768px) {
+  .month-lock-banner {
+    padding: 14px 24px;
+  }
+
+  .mlb-title {
+    font-size: 15px;
+  }
+
+  .mlb-message {
+    font-size: 14px;
+  }
+}

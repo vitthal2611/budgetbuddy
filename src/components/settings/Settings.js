@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import './Settings.css';
-import EnvelopeManagement from './EnvelopeManagement';
 import PaymentMethodManagement from './PaymentMethodManagement';
 import RecurringTransactions from './RecurringTransactions';
 import BudgetTemplates from './BudgetTemplates';
 import BudgetPreferences from './BudgetPreferences';
 
 const Settings = ({ budgets, setBudgets, transactions }) => {
-  const [activeSection, setActiveSection] = useState('envelopes');
+  const [activeSection, setActiveSection] = useState('payment-methods');
   const [recurring, setRecurring] = useState([]);
   const [templates, setTemplates] = useState([]);
 
@@ -36,7 +35,6 @@ const Settings = ({ budgets, setBudgets, transactions }) => {
   };
 
   const sections = [
-    { id: 'envelopes', label: 'Envelopes', icon: '📦' },
     { id: 'payment-methods', label: 'Payment Methods', icon: '💳' },
     { id: 'recurring', label: 'Recurring', icon: '🔄' },
     { id: 'templates', label: 'Templates', icon: '📋' },
@@ -64,9 +62,6 @@ const Settings = ({ budgets, setBudgets, transactions }) => {
       </div>
 
       <div className="settings-content">
-        {activeSection === 'envelopes' && (
-          <EnvelopeManagement budgets={budgets} setBudgets={setBudgets} transactions={transactions} />
-        )}
         {activeSection === 'payment-methods' && (
           <PaymentMethodManagement />
         )}

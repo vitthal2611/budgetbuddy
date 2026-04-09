@@ -6,6 +6,8 @@ import FillEnvelopesModal from './envelopes/FillEnvelopesModal';
 import TransferModal from './envelopes/TransferModal';
 import { AddEnvelopeModal, EditEnvelopeModal, DeleteEnvelopeModal } from './envelopes/EnvelopeFormModals';
 import DesktopBudgetView from './envelopes/DesktopBudgetView';
+import MonthLockBanner from './shared/MonthLockBanner';
+import { isMonthLocked } from '../utils/budgetRules';
 
 const useIsDesktop = () => {
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
@@ -370,6 +372,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           onEditEnvelope={handleEditOpen}
           onDeleteEnvelope={setDeleteTarget}
           budgets={budgets}
+          transactions={transactions}
           handleSettleBorrow={handleSettleBorrow}
         />
 
@@ -426,8 +429,17 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
     );
   }
 
+  // Check if month is locked
+  const monthLocked = isMonthLocked(unallocated);
+
   return (
     <div className="envelopes-view">
+
+      {/* ── LOCK BANNER ── */}
+      <MonthLockBanner 
+        readyToAssign={unallocated} 
+        onFillEnvelopes={() => setShowFillModal(true)}
+      />
 
       {/* ── HEADER ── */}
       <div className="ev-header">
@@ -603,8 +615,21 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
         )}
       </div>
 
-      {/* FAB */}
-      <button className="ev-fab" onClick={() => onAddTransaction('expense')} aria-label="Add expense">+</button>
+      {/* FAB - Disabled when month locked */}
+      <button 
+        className={`ev-fab ${monthLocked ? 'disabled' : ''}`}
+        onClick={() => {
+          if (monthLocked) {
+            setShowFillModal(true);
+          } else {
+            onAddTransaction('expense');
+          }
+        }}
+        aria-label={monthLocked ? "Assign income first" : "Add expense"}
+        title={monthLocked ? "Assign all income before spending" : "Add expense"}
+      >
+        {monthLocked ? '🔒' : '+'}
+      </button>
 
       {/* ── MODALS ── */}
       {showFillModal && (

@@ -101,6 +101,7 @@ export const DataProvider = ({ children, onLoadFromCloud, onEnvelopesChange, onP
     envelopeSyncRef.current = setTimeout(async () => {
       try {
         const cloudStorage = (await import('../services/cloudStorage')).default;
+        console.log('📤 Syncing envelopes to cloud:', envelopes.length, 'envelopes');
         await cloudStorage.saveEnvelopes(envelopes);
         if (onEnvelopesChange) onEnvelopesChange(envelopes);
       } catch (error) {
@@ -137,20 +138,38 @@ export const DataProvider = ({ children, onLoadFromCloud, onEnvelopesChange, onP
 
   // Called by App.js when cloud data arrives - suppresses re-sync back to cloud
   const loadFromCloud = useCallback((cloudEnvelopes, cloudPaymentMethods) => {
+    console.log('📥 Loading from cloud - Envelopes:', cloudEnvelopes?.length, 'Payment Methods:', cloudPaymentMethods?.length);
+    
     suppressSyncRef.current = true;
 
     if (cloudEnvelopes !== undefined) {
-      setEnvelopesState(cloudEnvelopes);
+      // Only update if data is different to avoid unnecessary re-renders
+      setEnvelopesState(prev => {
+        const prevStr = JSON.stringify(prev);
+        const newStr = JSON.stringify(cloudEnvelopes);
+        if (prevStr === newStr) {
+          console.log('⏭️ Skipping envelope update - data unchanged');
+          return prev;
+        }
+        console.log('✅ Updating envelopes from cloud');
+        return cloudEnvelopes;
+      });
       safeLocalStorage.setItem('envelopes', JSON.stringify(cloudEnvelopes));
     }
     if (cloudPaymentMethods !== undefined) {
-      setPaymentMethodsState(cloudPaymentMethods);
+      setPaymentMethodsState(prev => {
+        const prevStr = JSON.stringify(prev);
+        const newStr = JSON.stringify(cloudPaymentMethods);
+        if (prevStr === newStr) return prev;
+        return cloudPaymentMethods;
+      });
       safeLocalStorage.setItem('paymentMethods', JSON.stringify(cloudPaymentMethods));
     }
 
     // Re-enable sync after writes settle
     setTimeout(() => {
       suppressSyncRef.current = false;
+      console.log('🔓 Cloud sync re-enabled');
     }, 2000);
   }, []);
 
@@ -175,10 +194,12 @@ export const DataProvider = ({ children, onLoadFromCloud, onEnvelopesChange, onP
       if (goalAmount) newEnv.goalAmount = parseFloat(goalAmount);
       if (dueDate) newEnv.dueDate = dueDate;
     }
+    console.log('➕ Adding envelope:', trimmedName);
     setEnvelopesState(prev => [...prev, newEnv]);
   };
 
   const removeEnvelope = (name) => {
+    console.log('🗑️ Removing envelope:', name);
     setEnvelopesState(prev => prev.filter(env => env.name !== name));
     return name;
   };
@@ -189,12 +210,23 @@ export const DataProvider = ({ children, onLoadFromCloud, onEnvelopesChange, onP
     if (trimmedName !== originalName && envelopes.some(env => env.name === trimmedName)) {
       throw new Error('An envelope with that name already exists');
     }
+    console.log('✏️ Updating envelope:', originalName, '→', updates);
     setEnvelopesState(prev => prev.map(env => {
       if (env.name !== originalName) return env;
       const updated = { ...env, ...updates, name: trimmedName };
       if (updated.envelopeType === 'annual' && updated.annualAmount) {
         updated.monthlyFill = Math.ceil(parseFloat(updated.annualAmount) / 12);
       }
+      // Clean up fields that don't belong to this envelope type
+      if (updated.envelopeType !== 'annual') {
+        delete updated.annualAmount;
+        delete updated.monthlyFill;
+      }
+      if (updated.envelopeType !== 'goal') {
+        delete updated.goalAmount;
+        delete updated.dueDate;
+      }
+      console.log('✅ Updated envelope:', updated);
       return updated;
     }));
     return { originalName, newName: trimmedName };

@@ -1,0 +1,333 @@
+/* Spending Block Modal - YNAB-style strict budgeting enforcement */
+
+.spending-block-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 15, 30, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.spending-block-modal {
+  background: #fff;
+  border-radius: 20px;
+  max-width: 480px;
+  width: 100%;
+  padding: 32px 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.spending-block-modal.large {
+  max-width: 560px;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sbm-icon {
+  font-size: 56px;
+  text-align: center;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.sbm-icon.warning { filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.3)); }
+.sbm-icon.danger { filter: drop-shadow(0 2px 8px rgba(239, 68, 68, 0.3)); }
+
+.sbm-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-align: center;
+  margin: 0 0 12px;
+  letter-spacing: -0.5px;
+}
+
+.sbm-message {
+  font-size: 16px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.sbm-explanation {
+  background: var(--bg-tertiary);
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+  border-left: 3px solid var(--primary);
+}
+
+/* Spend Details */
+.sbm-spend-details {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.sbm-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 15px;
+  color: var(--text-secondary);
+}
+
+.sbm-detail-row strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.sbm-detail-row.shortage {
+  border-top: 2px solid var(--border-medium);
+  margin-top: 8px;
+  padding-top: 12px;
+}
+
+.shortage-amount {
+  color: var(--danger) !important;
+  font-size: 18px;
+}
+
+/* Transfer Section */
+.sbm-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-tertiary);
+  margin-bottom: 12px;
+}
+
+.sbm-transfer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.sbm-transfer-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-light);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sbm-transfer-option:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-medium);
+}
+
+.sbm-transfer-option.selected {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+}
+
+.sbm-transfer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.sbm-transfer-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sbm-transfer-balance {
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+.sbm-transfer-check {
+  font-size: 20px;
+  color: var(--primary);
+}
+
+/* Transfer Amount Input */
+.sbm-transfer-amount {
+  background: var(--bg-secondary);
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.sbm-transfer-amount label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.sbm-amount-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sbm-currency {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.sbm-amount-input {
+  flex: 1;
+  padding: 12px 14px;
+  border: 2px solid var(--border-medium);
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+
+.sbm-amount-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
+}
+
+.sbm-quick-btn {
+  padding: 8px 14px;
+  background: var(--bg-tertiary);
+  border: 1.5px solid var(--border-medium);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sbm-quick-btn:hover {
+  background: var(--primary-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Actions */
+.sbm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.sbm-btn {
+  flex: 1;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 52px;
+}
+
+.sbm-btn.primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(91, 95, 239, 0.3);
+}
+
+.sbm-btn.primary:hover {
+  background: var(--primary-light);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(91, 95, 239, 0.4);
+}
+
+.sbm-btn.primary:active {
+  transform: scale(0.98);
+}
+
+.sbm-btn.primary:disabled {
+  background: var(--border-medium);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.sbm-btn.secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 2px solid var(--border-medium);
+}
+
+.sbm-btn.secondary:hover {
+  background: var(--border-light);
+  border-color: var(--border-dark);
+  color: var(--text-primary);
+}
+
+/* Mobile Responsive */
+@media (max-width: 480px) {
+  .spending-block-modal {
+    padding: 24px 20px;
+    border-radius: 20px 20px 0 0;
+    max-height: 95vh;
+  }
+
+  .sbm-icon {
+    font-size: 48px;
+  }
+
+  .sbm-title {
+    font-size: 20px;
+  }
+
+  .sbm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .sbm-btn {
+    width: 100%;
+  }
+}

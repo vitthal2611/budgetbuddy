@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import './TransactionModal.modern.css';
 import { useData } from '../contexts/DataContext';
 import { usePreferences } from '../contexts/PreferencesContext';
+import { canSpend, getTransferableEnvelopes } from '../utils/budgetRules';
+import SpendingBlockModal from './shared/SpendingBlockModal';
 
-const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete, onClose, budgets, transactions, onTransferRequest }) => {
+const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete, onClose, budgets, transactions, monthlyIncome, onFillEnvelopes, onTransferRequest }) => {
   const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
   const { preferences } = usePreferences();
   
@@ -42,6 +44,7 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
   const [spendingWarning, setSpendingWarning] = useState(null);
   const [showTransferSuggestion, setShowTransferSuggestion] = useState(false);
   const [alternativeEnvelopes, setAlternativeEnvelopes] = useState([]);
+  const [showSpendingBlock, setShowSpendingBlock] = useState(null);
   
   // Track if we've initialized defaults to prevent overriding user selections
   const defaultsInitialized = React.useRef(false);
@@ -173,7 +176,78 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Block submission if overspending is not allowed
+    // STRICT BUDGET RULES ENFORCEMENT
+    if (effectiveType === 'expense' && formData.envelope && formData.amount && formData.date) {
+      const [day, month, year] = formData.date.split('-');
+      const monthIndex = parseInt(month) - 1;
+      const budgetKey = `${year}-${monthIndex}`;
+      
+      // Calculate Ready to Assign
+      const income = (transactions || [])
+        .filter(t => {
+          if (t.type !== 'income') return false;
+          const [tDay, tMonth, tYear] = t.date.split('-');
+          return tYear === year && tMonth === month;
+        })
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      
+      const totalFilled = Object.values(budgets[budgetKey] || {}).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
+      const readyToAssign = income - totalFilled;
+      
+      // Calculate envelope balance
+      const filled = budgets?.[budgetKey]?.[formData.envelope] || 0;
+      const currentSpending = (transactions || [])
+        .filter(t => {
+          if (t.type !== 'expense' || t.envelope !== formData.envelope) return false;
+          if (transaction && t.id === transaction.id) return false;
+          const [tDay, tMonth, tYear] = t.date.split('-');
+          return tYear === year && tMonth === month;
+        })
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      
+      const envelopeBalance = filled - currentSpending;
+      const spendAmount = parseFloat(formData.amount);
+      
+      // Check if spending is allowed
+      const spendCheck = canSpend(readyToAssign, envelopeBalance, spendAmount);
+      
+      if (!spendCheck.allowed) {
+        // Get transferable envelopes
+        const allEnvelopes = envelopes.map(env => {
+          const envFilled = budgets?.[budgetKey]?.[env.name] || 0;
+          const envSpent = (transactions || [])
+            .filter(t => {
+              if (t.type !== 'expense' || t.envelope !== env.name) return false;
+              const [tDay, tMonth, tYear] = t.date.split('-');
+              return tYear === year && tMonth === month;
+            })
+            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+          
+          return {
+            name: env.name,
+            category: env.category,
+            filled: envFilled,
+            spent: envSpent,
+            remaining: envFilled - envSpent
+          };
+        });
+        
+        const transferable = getTransferableEnvelopes(allEnvelopes, formData.envelope);
+        
+        // Show spending block modal
+        setShowSpendingBlock({
+          reason: spendCheck.reason,
+          message: spendCheck.message,
+          shortfall: spendCheck.shortfall,
+          targetEnvelope: formData.envelope,
+          spendAmount: spendAmount,
+          transferableEnvelopes: transferable
+        });
+        return;
+      }
+    }
+    
+    // Block submission if overspending is not allowed (legacy check)
     if (spendingWarning?.isBlocked) {
       alert('Cannot save: This transaction exceeds your budget. Transfer money from another envelope first.');
       return;
@@ -208,6 +282,24 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
         date: formData.date,
         paymentMethod: formData.paymentMethod,
         envelope: formData.envelope
+      });
+    }
+  };
+
+  const handleTransferFromBlock = (sourceEnvelope, targetEnvelope, amount) => {
+    // Close spending block modal
+    setShowSpendingBlock(null);
+    
+    // Trigger transfer
+    if (onTransferRequest) {
+      onTransferRequest({
+        from: sourceEnvelope,
+        to: targetEnvelope,
+        amount: amount,
+        returnToExpense: {
+          ...formData,
+          amount: parseFloat(formData.amount)
+        }
       });
     }
   };
@@ -440,6 +532,25 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
             </button>
           </div>
         </form>
+
+        {/* Spending Block Modal */}
+        {showSpendingBlock && (
+          <SpendingBlockModal
+            reason={showSpendingBlock.reason}
+            message={showSpendingBlock.message}
+            shortfall={showSpendingBlock.shortfall}
+            targetEnvelope={showSpendingBlock.targetEnvelope}
+            spendAmount={showSpendingBlock.spendAmount}
+            transferableEnvelopes={showSpendingBlock.transferableEnvelopes}
+            onTransfer={handleTransferFromBlock}
+            onAssignIncome={() => {
+              setShowSpendingBlock(null);
+              onClose();
+              if (onFillEnvelopes) onFillEnvelopes();
+            }}
+            onCancel={() => setShowSpendingBlock(null)}
+          />
+        )}
 
         {showAddPaymentMethod && (
           <div className="inline-add-form">

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './DesktopBudgetView.css';
+import MonthLockBanner from '../shared/MonthLockBanner';
+import { isMonthLocked } from '../../utils/budgetRules';
 
 const fmt  = (n) => Math.abs(n).toLocaleString('en-IN');
 const fmtS = (n) => n < 0 ? `-₹${fmt(n)}` : `₹${fmt(n)}`;
@@ -62,7 +64,7 @@ const AssignedCell = ({ value, onSave, disabled }) => {
     <button
       className={`yn-assigned-btn ${value > 0 ? 'filled' : 'empty'} ${disabled ? 'disabled' : ''}`}
       onClick={startEdit}
-      title={disabled ? 'Select a specific month to assign' : 'Click to assign'}
+      title={disabled ? 'Select a specific month to fill' : 'Click to fill'}
     >
       {value > 0 ? `₹${fmt(value)}` : <span className="yn-assigned-dash">—</span>}
     </button>
@@ -82,13 +84,16 @@ const AvailablePill = ({ value, filled }) => {
 };
 
 /* ─── Inspector panel (right side) ──────────────────────────── */
-const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, onViewTransactions, onEdit, onDelete, onClose }) => {
+const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, onViewTransactions, onEdit, onDelete, onClose, onAddEnvelope, budgets, transactions, monthLocked }) => {
   if (!envelope) return (
     <div className="yn-inspector yn-inspector-empty">
       <div className="yn-inspector-hint">
         <span className="yn-inspector-hint-icon">📊</span>
         <span className="yn-inspector-hint-title">Envelope Details</span>
         <span className="yn-inspector-hint-sub">Click any envelope row to see its balance, spending progress, and quick actions.</span>
+        <button className="yn-insp-btn primary" style={{ marginTop: 24 }} onClick={() => onAddEnvelope()}>
+          ＋ Add New Envelope
+        </button>
       </div>
     </div>
   );
@@ -97,6 +102,56 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
   const isOver  = envelope.remaining < 0;
   const isWarn  = !isOver && pct >= 80;
   const cat     = CAT_META[envelope.category] || CAT_META.need;
+
+  // Calculate month-wise history
+  const monthHistory = [];
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonthIdx = currentDate.getMonth();
+
+  // Get last 6 months including current
+  for (let i = 5; i >= 0; i--) {
+    let year = currentYear;
+    let month = currentMonthIdx - i;
+    
+    if (month < 0) {
+      month += 12;
+      year -= 1;
+    }
+
+    const budgetKey = `${year}-${month}`;
+    const filled = (budgets[budgetKey] && budgets[budgetKey][envelope.name]) || 0;
+    
+    // Calculate spent for this month
+    let spent = 0;
+    transactions.forEach(t => {
+      if (t.type === 'expense' && t.envelope === envelope.name) {
+        const parts = t.date.split('-');
+        if (parts.length === 3) {
+          const txYear = parseInt(parts[2]);
+          const txMonth = parseInt(parts[1]) - 1;
+          if (txYear === year && txMonth === month) {
+            spent += parseFloat(t.amount) || 0;
+          }
+        }
+      }
+    });
+
+    const balance = filled - spent;
+    const monthName = MONTHS_LONG[month];
+    const shortMonth = monthName.substring(0, 3);
+
+    monthHistory.push({
+      year,
+      month,
+      monthName,
+      shortMonth,
+      filled,
+      spent,
+      balance,
+      isCurrent: year === currentYear && month === currentMonthIdx
+    });
+  }
 
   return (
     <div className="yn-inspector">
@@ -111,7 +166,7 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
 
       {/* Big available number */}
       <div className={`yn-inspector-avail ${isOver ? 'over' : 'ok'}`}>
-        <div className="yn-inspector-avail-label">Available</div>
+        <div className="yn-inspector-avail-label">Balance</div>
         <div className="yn-inspector-avail-value">
           {envelope.filled === 0 ? '—' : (isOver ? '-' : '') + '₹' + fmt(envelope.remaining)}
         </div>
@@ -128,7 +183,7 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
           </div>
           <div className="yn-inspector-bar-labels">
             <span>₹{fmt(envelope.spent)} spent</span>
-            <span>₹{fmt(envelope.filled)} assigned</span>
+            <span>₹{fmt(envelope.filled)} filled</span>
           </div>
         </div>
       )}
@@ -136,7 +191,7 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
       {/* Stats grid */}
       <div className="yn-inspector-stats">
         <div className="yn-inspector-stat">
-          <span className="yn-inspector-stat-label">Assigned</span>
+          <span className="yn-inspector-stat-label">Filled</span>
           <span className="yn-inspector-stat-value">₹{fmt(envelope.filled)}</span>
         </div>
         <div className="yn-inspector-stat">
@@ -157,10 +212,44 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
         )}
       </div>
 
+      {/* Month-wise history */}
+      <div className="yn-inspector-history">
+        <div className="yn-history-title">Last 6 Months</div>
+        <div className="yn-history-table">
+          <div className="yn-history-header">
+            <div className="yn-history-col">Month</div>
+            <div className="yn-history-col">Filled</div>
+            <div className="yn-history-col">Spent</div>
+            <div className="yn-history-col">Balance</div>
+          </div>
+          {monthHistory.map((m, idx) => (
+            <div key={idx} className={`yn-history-row ${m.isCurrent ? 'current' : ''}`}>
+              <div className="yn-history-col yn-history-month">
+                {m.shortMonth} '{String(m.year).slice(-2)}
+                {m.isCurrent && <span className="yn-current-badge">Now</span>}
+              </div>
+              <div className="yn-history-col yn-history-filled">
+                {m.filled > 0 ? `₹${fmt(m.filled)}` : '—'}
+              </div>
+              <div className="yn-history-col yn-history-spent">
+                {m.spent > 0 ? `₹${fmt(m.spent)}` : '—'}
+              </div>
+              <div className={`yn-history-col yn-history-balance ${m.balance < 0 ? 'negative' : m.balance > 0 ? 'positive' : ''}`}>
+                {m.filled === 0 && m.spent === 0 ? '—' : (m.balance < 0 ? '-' : '') + '₹' + fmt(m.balance)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Actions */}
       <div className="yn-inspector-actions">
-        <button className="yn-insp-btn primary"
-          onClick={() => onAddTransaction('expense', { envelope: envelope.name })}>
+        <button 
+          className="yn-insp-btn primary"
+          onClick={() => onAddTransaction('expense', { envelope: envelope.name })}
+          disabled={monthLocked}
+          title={monthLocked ? "Assign all income before spending" : "Add expense to this envelope"}
+        >
           ＋ Add Expense
         </button>
         <button className="yn-insp-btn"
@@ -182,110 +271,85 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
 
 /* ─── Category group ─────────────────────────────────────────── */
 const CategoryGroup = ({
-  cat, envelopes, collapsed, onToggle,
+  cat, envelopes,
   onAssign, onAddTransaction, onViewTransactions,
   selectedYear, selectedMonth,
   selectedEnv, onSelectEnv,
-  onAddEnvelope,
 }) => {
-  const meta         = CAT_META[cat];
-  const totalAssigned  = envelopes.reduce((s, e) => s + e.filled, 0);
-  const totalActivity  = envelopes.reduce((s, e) => s + e.spent,  0);
-  const totalAvailable = envelopes.reduce((s, e) => s + e.remaining, 0);
-  const isOver = totalAvailable < 0;
+  const meta = CAT_META[cat];
 
   return (
     <div className="yn-group">
-      {/* Group header */}
-      <div className="yn-group-header" onClick={onToggle} style={{ borderLeftColor: meta.color }}>
-        <button className="yn-group-chevron" tabIndex={-1}>
-          {collapsed ? '▶' : '▼'}
-        </button>
+      {/* Group header - simple divider */}
+      <div className="yn-group-header" style={{ borderLeftColor: meta.color }}>
         <span className="yn-group-label" style={{ color: meta.textColor }}>{meta.label}</span>
-        <span className="yn-group-count">{envelopes.length}</span>
-        <div className="yn-group-totals">
-          <span className="yn-group-total-item">
-            <span className="yn-group-total-label">Assigned</span>
-            <span className="yn-group-total-val">{totalAssigned > 0 ? `₹${fmt(totalAssigned)}` : '—'}</span>
-          </span>
-          <span className="yn-group-total-item">
-            <span className="yn-group-total-label">Activity</span>
-            <span className="yn-group-total-val yn-activity">{totalActivity > 0 ? `-₹${fmt(totalActivity)}` : '—'}</span>
-          </span>
-          <span className="yn-group-total-item">
-            <span className="yn-group-total-label">Available</span>
-            <span className={`yn-group-total-val ${isOver ? 'yn-over' : 'yn-ok'}`}>
-              {totalAssigned === 0 ? '—' : (isOver ? `-₹${fmt(totalAvailable)}` : `₹${fmt(totalAvailable)}`)}
-            </span>
-          </span>
-        </div>
+      </div>
+
+      {/* Column headers for this category */}
+      <div className="yn-col-headers yn-col-headers-category">
+        <div className="yn-col-name">Envelope</div>
+        <div className="yn-col-assigned">Filled</div>
+        <div className="yn-col-activity">Spent</div>
+        <div className="yn-col-available">Balance</div>
       </div>
 
       {/* Envelope rows */}
-      {!collapsed && (
-        <div className="yn-env-list">
-          {envelopes.map(env => {
-            const isOver  = env.remaining < 0;
-            const pct     = env.filled > 0 ? Math.min((env.spent / env.filled) * 100, 100) : 0;
-            const isWarn  = !isOver && pct >= 80;
-            const isSelected = selectedEnv?.name === env.name;
+      <div className="yn-env-list">
+        {envelopes.map(env => {
+          const isOver  = env.remaining < 0;
+          const pct     = env.filled > 0 ? Math.min((env.spent / env.filled) * 100, 100) : 0;
+          const isWarn  = !isOver && pct >= 80;
+          const isSelected = selectedEnv?.name === env.name;
 
-            return (
-              <div
-                key={env.name}
-                className={`yn-env-row ${isOver ? 'yn-row-over' : ''} ${isSelected ? 'yn-row-selected' : ''}`}
-                onClick={() => onSelectEnv(isSelected ? null : env)}
-              >
-                {/* Left accent */}
-                <div className="yn-row-accent" style={{ background: meta.color }} />
+          return (
+            <div
+              key={env.name}
+              className={`yn-env-row ${isOver ? 'yn-row-over' : ''} ${isSelected ? 'yn-row-selected' : ''}`}
+              onClick={() => onSelectEnv(isSelected ? null : env)}
+            >
+              {/* Left accent */}
+              <div className="yn-row-accent" style={{ background: meta.color }} />
 
-                {/* Name */}
-                <div className="yn-row-name">
-                  <span className="yn-row-env-name">{env.name}</span>
-                  {env.envelopeType === 'goal'   && <span className="yn-badge goal">Goal</span>}
-                  {env.envelopeType === 'annual' && <span className="yn-badge annual">Annual</span>}
-                </div>
-
-                {/* Assigned */}
-                <div className="yn-row-assigned" onClick={e => e.stopPropagation()}>
-                  <AssignedCell
-                    value={env.filled}
-                    onSave={val => onAssign(env.name, val)}
-                    disabled={selectedMonth === 'all'}
-                  />
-                </div>
-
-                {/* Activity */}
-                <div className="yn-row-activity">
-                  {env.spent > 0
-                    ? <span className="yn-activity-val">-₹{fmt(env.spent)}</span>
-                    : <span className="yn-dash">—</span>
-                  }
-                </div>
-
-                {/* Available */}
-                <div className="yn-row-available">
-                  <AvailablePill value={env.remaining} filled={env.filled} />
-                  {env.filled > 0 && (
-                    <div className="yn-row-bar">
-                      <div
-                        className={`yn-row-bar-fill ${isOver ? 'over' : isWarn ? 'warn' : cat}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
+              {/* Name */}
+              <div className="yn-row-name">
+                <span className="yn-row-env-name">{env.name}</span>
+                {env.envelopeType === 'goal'   && <span className="yn-badge goal">Goal</span>}
+                {env.envelopeType === 'annual' && <span className="yn-badge annual">Annual</span>}
               </div>
-            );
-          })}
 
-          {/* Add envelope to this category */}
-          <button className="yn-add-env-row" onClick={() => onAddEnvelope(cat)}>
-            <span className="yn-add-env-plus">+</span>
-            <span>Add Envelope</span>
-          </button>
-        </div>
-      )}
+              {/* Assigned */}
+              <div className="yn-row-assigned" onClick={e => e.stopPropagation()}>
+                <AssignedCell
+                  value={env.filled}
+                  onSave={val => onAssign(env.name, val)}
+                  disabled={selectedMonth === 'all'}
+                />
+              </div>
+
+              {/* Activity */}
+              <div className="yn-row-activity">
+                {env.spent > 0
+                  ? <span className="yn-activity-val">-₹{fmt(env.spent)}</span>
+                  : <span className="yn-dash">—</span>
+                }
+              </div>
+
+              {/* Available */}
+              <div className="yn-row-available">
+                <AvailablePill value={env.remaining} filled={env.filled} />
+                {env.filled > 0 && (
+                  <div className="yn-row-bar">
+                    <div
+                      className={`yn-row-bar-fill ${isOver ? 'over' : isWarn ? 'warn' : cat}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -316,12 +380,10 @@ const DesktopBudgetView = ({
   onEditEnvelope,
   onDeleteEnvelope,
   budgets,
+  transactions,
   handleSettleBorrow,
 }) => {
-  const [collapsed,       setCollapsed]       = useState({});
-  const [selectedEnv,     setSelectedEnv]     = useState(null);
-
-  const toggleCat = (cat) => setCollapsed(p => ({ ...p, [cat]: !p[cat] }));
+  const [selectedEnv, setSelectedEnv] = useState(null);
 
   const pendingBorrows = (budgets._borrows || []).filter(b => !b.settled);
 
@@ -332,9 +394,18 @@ const DesktopBudgetView = ({
   const rtaCls = unallocated === 0 ? 'rta-zero' : unallocated < 0 ? 'rta-over' : 'rta-pos';
 
   const hasEnvelopes = Object.values(envelopesByCategory).some(arr => arr.length > 0);
+  
+  // Check if month is locked
+  const monthLocked = isMonthLocked(unallocated);
 
   return (
     <div className="yn-root">
+
+      {/* ══ LOCK BANNER ══════════════════════════════════════════ */}
+      <MonthLockBanner 
+        readyToAssign={unallocated} 
+        onFillEnvelopes={onFillEnvelopes}
+      />
 
       {/* ══ TOP BAR ══════════════════════════════════════════════ */}
       <div className="yn-topbar">
@@ -366,10 +437,18 @@ const DesktopBudgetView = ({
 
         {/* Actions */}
         <div className="yn-topbar-actions">
-          <button className="yn-topbar-btn primary" onClick={onFillEnvelopes}>
+          <button 
+            className="yn-topbar-btn primary" 
+            onClick={onFillEnvelopes}
+          >
             💰 Fill Envelopes
           </button>
-          <button className="yn-topbar-btn" onClick={onTransfer}>
+          <button 
+            className="yn-topbar-btn" 
+            onClick={onTransfer}
+            disabled={monthLocked}
+            title={monthLocked ? "Assign all income first" : "Transfer between envelopes"}
+          >
             ⇄ Transfer
           </button>
         </div>
@@ -395,14 +474,6 @@ const DesktopBudgetView = ({
         {/* ── Budget table ── */}
         <div className="yn-table-area">
 
-          {/* Column headers */}
-          <div className="yn-col-headers">
-            <div className="yn-col-name">Envelope</div>
-            <div className="yn-col-assigned">Assigned</div>
-            <div className="yn-col-activity">Activity</div>
-            <div className="yn-col-available">Available</div>
-          </div>
-
           {/* Scrollable envelope list */}
           <div className="yn-table-scroll">
 
@@ -410,14 +481,12 @@ const DesktopBudgetView = ({
             {hasEnvelopes ? (
               CATEGORIES.map(cat => {
                 const envs = envelopesByCategory[cat] || [];
-                if (envs.length === 0 && collapsed[cat]) return null;
+                if (envs.length === 0) return null;
                 return (
                   <CategoryGroup
                     key={cat}
                     cat={cat}
                     envelopes={envs}
-                    collapsed={!!collapsed[cat]}
-                    onToggle={() => toggleCat(cat)}
                     onAssign={onAssign}
                     onAddTransaction={onAddTransaction}
                     onViewTransactions={onViewTransactions}
@@ -425,7 +494,6 @@ const DesktopBudgetView = ({
                     selectedMonth={selectedMonth}
                     selectedEnv={selectedEnv}
                     onSelectEnv={setSelectedEnv}
-                    onAddEnvelope={onAddEnvelope}
                   />
                 );
               })
@@ -440,7 +508,7 @@ const DesktopBudgetView = ({
               </div>
             )}
 
-            {/* Add category-less envelope */}
+            {/* Global add envelope button at bottom */}
             {hasEnvelopes && (
               <button className="yn-add-envelope-global" onClick={() => onAddEnvelope()}>
                 + Add Envelope
@@ -459,6 +527,10 @@ const DesktopBudgetView = ({
           onEdit={(env) => { onEditEnvelope(env); setSelectedEnv(null); }}
           onDelete={(name) => { onDeleteEnvelope(name); setSelectedEnv(null); }}
           onClose={() => setSelectedEnv(null)}
+          onAddEnvelope={onAddEnvelope}
+          budgets={budgets}
+          transactions={transactions}
+          monthLocked={monthLocked}
         />
       </div>
     </div>

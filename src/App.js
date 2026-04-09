@@ -115,12 +115,14 @@ function App() {
 
     // Use loadFromCloud directly instead of window events
     const unsubEnvelopes = cloudStorage.subscribeToEnvelopes((data) => {
+      console.log('🔔 Firebase envelope update received:', data?.length, 'envelopes');
       if (loadFromCloudRef.current) {
         loadFromCloudRef.current(data || [], undefined);
       }
     });
 
     const unsubPaymentMethods = cloudStorage.subscribeToPaymentMethods((data) => {
+      console.log('🔔 Firebase payment methods update received:', data?.length, 'methods');
       if (loadFromCloudRef.current) {
         loadFromCloudRef.current(undefined, data || []);
       }
@@ -635,6 +637,15 @@ function App() {
                 onClose={() => setShowModal(false)}
                 budgets={budgets}
                 transactions={transactions}
+                onFillEnvelopes={() => {
+                  setShowModal(false);
+                  setActiveTab('envelopes');
+                }}
+                onTransferRequest={(transferData) => {
+                  setShowModal(false);
+                  // Handle transfer request - you can implement this
+                  console.log('Transfer requested:', transferData);
+                }}
               />
             )}
 
