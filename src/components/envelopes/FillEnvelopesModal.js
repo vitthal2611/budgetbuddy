@@ -79,6 +79,14 @@ const FillEnvelopesModal = ({
     setCopySource('');
   };
 
+  // One-click copy from last month
+  const handleCopyLastMonth = () => {
+    if (availableMonths.length === 0) return;
+    // Get the most recent month (first in sorted list)
+    const lastMonth = availableMonths[0];
+    handleCopy(lastMonth.key);
+  };
+
   // Compute income for the selected fill month
   const fillMonthIncome = React.useMemo(() => {
     return transactions
@@ -140,23 +148,6 @@ const FillEnvelopesModal = ({
             )}
           </div>
           <button className="fill-month-arrow" onClick={nextMonth}>›</button>
-
-          {/* Copy from month */}
-          <div className="fill-copy-wrap">
-            <select
-              className="fill-copy-select"
-              value={copySource}
-              onChange={e => { setCopySource(e.target.value); handleCopy(e.target.value); }}
-            >
-              <option value="">📋 Copy from…</option>
-              {availableMonths
-                .filter(m => m.key !== budgetKey)
-                .map(m => (
-                  <option key={m.key} value={m.key}>{m.label}</option>
-                ))
-              }
-            </select>
-          </div>
         </div>
 
         {/* ── Summary bar ── */}
@@ -176,6 +167,18 @@ const FillEnvelopesModal = ({
             <span>{unallocated < 0 ? '-' : ''}₹{fmt(unallocated)}</span>
           </div>
         </div>
+
+        {/* ── Quick Actions ── */}
+        {availableMonths.length > 0 && (
+          <div className="fill-quick-actions">
+            <button 
+              className="btn-copy-last-month"
+              onClick={handleCopyLastMonth}
+            >
+              📋 Copy Last Month
+            </button>
+          </div>
+        )}
 
         {/* ── Envelope list — 3 columns ── */}
         <div className="fill-list">

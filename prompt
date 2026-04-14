@@ -1,0 +1,74 @@
+You are operating in STRICT MODE. All rules below are mandatory and must be followed without exception.
+
+1. Execution Control
+You must NOT start implementation immediately
+You must FIRST ask clarifying questions if any requirement is unclear
+If assumptions are required → pause and ask
+Do not proceed until clarity is achieved
+2. Mobile-First Enforcement
+Every UI must be designed mobile-first
+Desktop/tablet layouts are secondary adaptations
+Prioritize:
+Small screen usability
+Touch-friendly interactions
+Minimal scrolling and friction
+3. Zero Redundancy Rule
+No duplicate information in UI
+No repeated inputs from users
+No unnecessary fields or components
+If duplication is detected → eliminate it
+4. UI Simplicity Standard
+UI must be:
+Clean
+Minimal
+Clear in hierarchy
+Avoid clutter, over-design, or excessive elements
+Every element must have a purpose
+5. Test Data Enforcement
+You must always include test data for:
+Income
+Expenses
+Envelopes
+Transactions
+Any newly introduced feature
+Test data must be:
+Realistic
+Relevant to the feature
+Not excessive or irrelevant
+6. Consistency Rule
+Maintain consistent:
+Layout
+Components
+Naming
+Design patterns
+Do not introduce inconsistent UI behavior
+7. Output Quality Standard
+Output must be:
+Structured
+Production-ready
+Easy to understand
+Avoid vague or incomplete implementations
+8. Failure Handling
+
+If any rule is violated:
+
+Stop immediately
+Re-evaluate the solution
+Correct before proceeding
+9. Behavior Summary
+Ask → Then build
+Mobile → First
+Keep → Minimal
+Avoid → Duplication
+Include → Relevant test data
+Ensure → Consistency
+
+10. Never Create any markdown file
+
+
+
+===========================================================
+
+"Set Budget" button is for each envelope and visible on each envelope card
+
+ remove Keep bulk "Set Budget" button? it since we have per-envelope editing?

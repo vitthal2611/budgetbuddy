@@ -19,7 +19,8 @@ export const calculateReadyToAssign = (monthlyIncome, totalFilled) => {
  * @returns {boolean} True if month is locked
  */
 export const isMonthLocked = (readyToAssign) => {
-  return readyToAssign > 0;
+  // Month locking removed - always unlocked
+  return false;
 };
 
 /**
@@ -30,34 +31,7 @@ export const isMonthLocked = (readyToAssign) => {
  * @returns {object} { allowed: boolean, reason: string }
  */
 export const canSpend = (readyToAssign, envelopeBalance, spendAmount) => {
-  // Rule 1: Must assign all income first
-  if (readyToAssign > 0) {
-    return {
-      allowed: false,
-      reason: 'UNASSIGNED_INCOME',
-      message: `Assign ₹${Math.abs(readyToAssign).toLocaleString('en-IN')} before spending`
-    };
-  }
-
-  // Rule 2: Envelope must have positive balance
-  if (envelopeBalance <= 0) {
-    return {
-      allowed: false,
-      reason: 'NO_BALANCE',
-      message: 'This envelope has no funds'
-    };
-  }
-
-  // Rule 3: Cannot spend more than available
-  if (spendAmount > envelopeBalance) {
-    return {
-      allowed: false,
-      reason: 'INSUFFICIENT_FUNDS',
-      message: `Only ₹${Math.abs(envelopeBalance).toLocaleString('en-IN')} available`,
-      shortfall: spendAmount - envelopeBalance
-    };
-  }
-
+  // All spending restrictions removed - always allow
   return { allowed: true };
 };
 

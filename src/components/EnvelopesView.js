@@ -2,12 +2,70 @@ import React, { useState, useCallback, useEffect } from 'react';
 import './EnvelopesView.css';
 import { useData } from '../contexts/DataContext';
 import { useEnvelopesData, computeMonthlyFill } from '../hooks/useEnvelopesData';
-import FillEnvelopesModal from './envelopes/FillEnvelopesModal';
-import TransferModal from './envelopes/TransferModal';
 import { AddEnvelopeModal, EditEnvelopeModal, DeleteEnvelopeModal } from './envelopes/EnvelopeFormModals';
 import DesktopBudgetView from './envelopes/DesktopBudgetView';
-import MonthLockBanner from './shared/MonthLockBanner';
-import { isMonthLocked } from '../utils/budgetRules';
+
+// Single Envelope Budget Modal
+const SingleBudgetModal = ({ envelope, currentBudget, monthlyIncome, totalAllocated, onSave, onClose }) => {
+  const [budgetValue, setBudgetValue] = useState(currentBudget);
+  const fmt = (n) => Math.abs(n).toLocaleString('en-IN');
+  
+  const catIcon = envelope.category === 'need' ? '🛒' : envelope.category === 'want' ? '🎉' : '💰';
+  
+  // Calculate what the new total would be
+  const otherEnvelopesTotal = totalAllocated - currentBudget;
+  const newTotal = otherEnvelopesTotal + parseFloat(budgetValue || 0);
+  const remaining = monthlyIncome - newTotal;
+  const isOverBudget = remaining < 0;
+
+  const handleSave = () => {
+    if (isOverBudget) {
+      alert(`Cannot allocate more than income!\n\nIncome: ₹${fmt(monthlyIncome)}\nTrying to allocate: ₹${fmt(newTotal)}\n\nPlease reduce the budget amount.`);
+      return;
+    }
+    onSave(budgetValue);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="single-budget-modal minimal" onClick={e => e.stopPropagation()}>
+        <div className="single-budget-header">
+          <div className="single-budget-title">
+            <span className="single-budget-icon">{catIcon}</span>
+            <span>{envelope.name}</span>
+          </div>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        <div className="single-budget-input-section">
+          <div className="single-budget-input-wrap">
+            <span className="single-budget-currency">₹</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              className="single-budget-input"
+              value={budgetValue}
+              onChange={e => setBudgetValue(e.target.value)}
+              placeholder="0"
+              min="0"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="single-budget-footer">
+          <button className="btn-single-cancel" onClick={onClose}>Cancel</button>
+          <button 
+            className="btn-single-save" 
+            onClick={handleSave}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const useIsDesktop = () => {
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
@@ -24,12 +82,10 @@ const fmt = (n) => Math.abs(n).toLocaleString('en-IN');
 const getCatIcon = (cat) => cat === 'need' ? '🛒' : cat === 'want' ? '🎉' : '💰';
 
 const renderEnvelopeCard = (envelope, {
-  expandedEnv, setExpandedEnv,
   goalProgress, annualYTD,
   selectedYear, selectedMonth,
   onAddTransaction, onViewTransactions,
-  setTransferData, setShowTransferModal,
-  handleEditOpen, setDeleteTarget,
+  onEditBudget,
 }) => {
   const pct = envelope.filled > 0 ? Math.min((envelope.spent / envelope.filled) * 100, 100) : 0;
   const isOver    = envelope.remaining < 0;
@@ -39,12 +95,12 @@ const renderEnvelopeCard = (envelope, {
   const isAnnual  = envelope.envelopeType === 'annual';
   const goalPct   = isGoal && envelope.goalAmount > 0
     ? Math.min((goalProgress[envelope.name] / envelope.goalAmount) * 100, 100) : 0;
-  const isExpanded = expandedEnv === envelope.name;
 
-  // Status color for left bar
+  // Status color
   const statusCls = isOver ? 'status-over' : isWarning ? 'status-warn' : isLow ? 'status-low' : 'status-ok';
 
-  let goalPaceLabel = null;
+  // Simplified pace indicators
+  let paceIcon = null;
   if (isGoal && envelope.goalAmount > 0 && envelope.dueDate) {
     const due = new Date(envelope.dueDate);
     const now = new Date(selectedYear, selectedMonth, 1);
@@ -54,73 +110,92 @@ const renderEnvelopeCard = (envelope, {
     const neededPerMonth = Math.ceil((envelope.goalAmount - saved) / monthsLeft);
     const expectedByNow  = envelope.goalAmount - neededPerMonth * monthsLeft;
     if (saved >= envelope.goalAmount)
-      goalPaceLabel = { text: 'Goal reached 🎉', cls: 'pace-done' };
+      paceIcon = '✅';
     else if (saved >= expectedByNow)
-      goalPaceLabel = { text: `On track · ₹${fmt(neededPerMonth)}/mo needed`, cls: 'pace-ok' };
+      paceIcon = '🎯';
     else
-      goalPaceLabel = { text: `Behind · need ₹${fmt(neededPerMonth)}/mo`, cls: 'pace-behind' };
+      paceIcon = '⚠️';
   }
 
-  let annualPaceLabel = null;
   if (isAnnual && envelope.annualAmount > 0) {
     const ytd = annualYTD[envelope.name] || 0;
     const expectedYTD = Math.ceil((envelope.annualAmount / 12) * (selectedMonth + 1));
     if (ytd >= envelope.annualAmount)
-      annualPaceLabel = { text: 'Fully funded for year', cls: 'pace-done' };
+      paceIcon = '✅';
     else if (ytd >= expectedYTD)
-      annualPaceLabel = { text: `On track · ₹${fmt(ytd)} of ₹${fmt(expectedYTD)} expected`, cls: 'pace-ok' };
+      paceIcon = '🎯';
     else
-      annualPaceLabel = { text: `Behind · ₹${fmt(ytd)} of ₹${fmt(expectedYTD)} expected YTD`, cls: 'pace-behind' };
+      paceIcon = '⚠️';
   }
+
+  const catIcon = getCatIcon(envelope.category);
 
   return (
     <div key={envelope.name}
-      className={`env-row ${isOver ? 'env-over' : ''} ${isGoal ? 'env-goal' : ''} ${isAnnual ? 'env-annual' : ''} ${envelope.filled === 0 ? 'env-unfilled' : ''} ${isExpanded ? 'env-expanded' : ''}`}
-      onDoubleClick={() => onAddTransaction('expense', { envelope: envelope.name })}
-      title="Double-click to add expense"
+      className={`env-card ${isOver ? 'env-over' : ''} ${isGoal ? 'env-goal' : ''} ${isAnnual ? 'env-annual' : ''} ${envelope.filled === 0 ? 'env-unfilled' : ''}`}
     >
-      {/* Left status bar */}
-      <div className={`env-status-bar ${envelope.filled === 0 ? 'status-empty' : statusCls}`} />
+      {/* Left accent bar */}
+      <div className={`env-card-accent ${envelope.filled === 0 ? 'status-empty' : statusCls}`} />
 
-      <div className="env-row-body">
-        {/* Row 1: name + remaining */}
-        <div className="env-row-top" onClick={() => setExpandedEnv(isExpanded ? null : envelope.name)}>
-          <span className="env-row-name">{envelope.name}</span>
-          <span className={`env-row-remaining ${isOver ? 'negative' : envelope.filled === 0 ? 'unfilled' : 'positive'}`}>
-            {envelope.filled === 0 ? 'Not filled' : `${isOver ? '-' : ''}₹${fmt(envelope.remaining)}`}
-          </span>
+      <div className="env-card-body">
+        {/* Header: Category icon + Name + Pace */}
+        <div className="env-card-header">
+          <div className="env-card-title-row">
+            <span className="env-card-icon">{catIcon}</span>
+            <span className="env-card-name">{envelope.name}</span>
+            {paceIcon && <span className="env-pace-badge">{paceIcon}</span>}
+          </div>
         </div>
 
-        {/* Row 2: progress bar */}
-        {envelope.filled > 0 && (
-          <div className="env-row-bar">
-            <div className={`env-row-fill ${isOver ? 'over' : isWarning ? 'warning' : envelope.category}`}
-              style={{ width: `${isGoal ? goalPct : pct}%` }} />
+        {/* Amounts Grid - 3 columns */}
+        <div className="env-card-amounts">
+          <div 
+            className="env-amount-item clickable" 
+            onClick={(e) => { e.stopPropagation(); onEditBudget(envelope); }}
+          >
+            <span className="env-amount-label">Budget</span>
+            <span className="env-amount-value budget">₹{fmt(envelope.filled)}</span>
+            <span className="env-amount-edit-hint">✏️</span>
           </div>
-        )}
-
-        {/* Row 3: spent/filled + pace */}
-        {envelope.filled > 0 && (
-          <div className="env-row-sub">
-            <span>₹{fmt(envelope.spent)} / ₹{fmt(envelope.filled)}</span>
-            {(goalPaceLabel || annualPaceLabel) && (
-              <>
-                <span className="env-row-dot">·</span>
-                <span className={`env-pace-label ${(goalPaceLabel || annualPaceLabel).cls}`}>
-                  {(goalPaceLabel || annualPaceLabel).text}
-                </span>
-              </>
-            )}
+          <div className="env-amount-item">
+            <span className="env-amount-label">Spent</span>
+            <span className="env-amount-value spent">₹{fmt(envelope.spent)}</span>
           </div>
-        )}
+          <div className="env-amount-item">
+            <span className="env-amount-label">Left</span>
+            <span className={`env-amount-value ${isOver ? 'negative' : envelope.filled === 0 ? 'unfilled' : 'positive'}`}>
+              {envelope.filled === 0 ? '—' : `${isOver ? '-' : ''}₹${fmt(envelope.remaining)}`}
+            </span>
+          </div>
+        </div>
 
-        {/* Expanded: view transactions */}
-        {isExpanded && (
-          <button className="env-view-txn-btn"
-            onClick={e => { e.stopPropagation(); onViewTransactions({ envelope: envelope.name, year: selectedYear, month: selectedMonth }); }}>
-            📋 View Transactions
+        {/* Progress bar */}
+        <div className="env-card-progress">
+          <div className={`env-card-progress-fill ${isOver ? 'over' : isWarning ? 'warning' : envelope.category}`}
+            style={{ width: envelope.filled === 0 ? '0%' : `${isGoal ? goalPct : pct}%` }} />
+        </div>
+
+        {/* Action buttons - always visible */}
+        <div className="env-card-actions">
+          <button 
+            className="env-card-btn primary"
+            onClick={(e) => { e.stopPropagation(); onAddTransaction('expense', { envelope: envelope.name }); }}
+          >
+            ➕ Expense
           </button>
-        )}
+          <button 
+            className="env-card-btn secondary"
+            onClick={(e) => { e.stopPropagation(); onViewTransactions({ envelope: envelope.name, year: selectedYear, month: selectedMonth }); }}
+          >
+            📋 History
+          </button>
+          <button 
+            className="env-card-btn secondary"
+            onClick={(e) => { e.stopPropagation(); onEditBudget(envelope); }}
+          >
+            💰 Budget
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -145,20 +220,18 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   // ── Month selection ──────────────────────────────────────────
   const today = new Date();
   const [selectedYear,  setSelectedYear]  = useState(today.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
 
   const prevMonth = () => {
-    if (selectedMonth === 'all') { setSelectedMonth(today.getMonth()); return; }
     if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
     else setSelectedMonth(m => m - 1);
   };
   const nextMonth = () => {
-    if (selectedMonth === 'all') { setSelectedMonth(today.getMonth()); return; }
     if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); }
     else setSelectedMonth(m => m + 1);
   };
   const goToday = () => { setSelectedMonth(today.getMonth()); setSelectedYear(today.getFullYear()); };
-  const isCurrentMonth = selectedMonth !== 'all' && selectedYear === today.getFullYear() && selectedMonth === today.getMonth();
+  const isCurrentMonth = selectedYear === today.getFullYear() && selectedMonth === today.getMonth();
 
   // Build year list from transactions + current year
   const availableYears = React.useMemo(() => {
@@ -172,25 +245,17 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
 
   const handleMonthDropdownChange = (e) => {
     const val = e.target.value;
-    if (val === 'all') {
-      setSelectedMonth('all');
-    } else {
-      const [y, m] = val.split('-');
-      setSelectedYear(parseInt(y));
-      setSelectedMonth(parseInt(m));
-    }
+    const [y, m] = val.split('-');
+    setSelectedYear(parseInt(y));
+    setSelectedMonth(parseInt(m));
   };
   // ── UI state ─────────────────────────────────────────────────
-  const [showFillModal,     setShowFillModal]     = useState(false);
   const [showAddModal,      setShowAddModal]      = useState(false);
-  const [showTransferModal, setShowTransferModal] = useState(false);
-  const [expandedEnv,       setExpandedEnv]       = useState(null);
+  const [editingEnvelope,   setEditingEnvelope]   = useState(null);
   const [deleteTarget,      setDeleteTarget]      = useState(null);
   const [editTarget,        setEditTarget]        = useState(null);
   const [editForm,          setEditForm]          = useState({});
   const [newEnv,            setNewEnv]            = useState(EMPTY_ENV);
-  const [transferData,      setTransferData]      = useState({ from: '', to: '', amount: '' });
-  const [transferError,     setTransferError]     = useState('');
   const [showAccounts,      setShowAccounts]      = useState(false);
 
   // ── Derived data ─────────────────────────────────────────────
@@ -201,14 +266,21 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
     goalProgress, annualYTD, envelopesByCategory, lastUsed,
   } = useEnvelopesData({ transactions, budgets, customEnvelopes, selectedYear, selectedMonth });
 
-  // ── Fill handler ─────────────────────────────────────────────
+  // ── Fill handler with validation ─────────────────────────────
   const handleFillChange = useCallback((name, value) => {
     const num = value === '' ? 0 : parseFloat(value) || 0;
     const newFills = { ...envelopeFills, [name]: num };
     const newTotal = Object.values(newFills).reduce((s, v) => s + parseFloat(v || 0), 0);
-    if (newTotal > totalAccountBalance && totalAccountBalance > 0) return;
+    
+    // Hard block: prevent allocation > income
+    if (newTotal > monthlyIncome) {
+      alert(`Cannot allocate more than income!\n\nIncome: ₹${fmt(monthlyIncome)}\nTrying to allocate: ₹${fmt(newTotal)}\n\nPlease reduce the budget amount.`);
+      return false;
+    }
+    
     setBudgets({ ...budgets, [budgetKey]: newFills });
-  }, [budgets, budgetKey, envelopeFills, setBudgets, totalAccountBalance]);
+    return true;
+  }, [budgets, budgetKey, envelopeFills, setBudgets, monthlyIncome]);
 
   // ── Add envelope ─────────────────────────────────────────────
   const handleAddEnvelope = (e) => {
@@ -224,71 +296,6 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
       setNewEnv(EMPTY_ENV);
       setShowAddModal(false);
     } catch (err) { alert(err.message); }
-  };
-
-  // ── Transfer ─────────────────────────────────────────────────
-  const handleEnvelopeTransfer = (e) => {
-    e.preventDefault();
-    const { from, to, amount, isBorrow } = transferData;
-    if (!from || !to || !amount || from === to) return;
-    const amt = parseFloat(amount);
-    if (isNaN(amt) || amt <= 0) return;
-
-    // Use current month key if "all months" selected
-    const activeKey = budgetKey || `${today.getFullYear()}-${today.getMonth()}`;
-
-    const activeFills = budgets[activeKey] || {};
-
-    // Always use current month spending for the availability check
-    const currentMonthSpending = {};
-    transactions.forEach(t => {
-      if (t.type !== 'expense' || !t.envelope) return;
-      const d = new Date(t.date.split('-').reverse().join('-'));
-      if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth())
-        currentMonthSpending[t.envelope] = (currentMonthSpending[t.envelope] || 0) + parseFloat(t.amount);
-    });
-
-    const spendingToCheck = selectedMonth === 'all' ? currentMonthSpending : monthlySpending;
-    const sourceRemaining = (activeFills[from] || 0) - (spendingToCheck[from] || 0);
-    if (amt > sourceRemaining) {
-      setTransferError(`Only ₹${fmt(Math.max(0, sourceRemaining))} available in ${from}`);
-      return;
-    }
-    const newFills = { ...activeFills };
-    newFills[from] = Math.max(0, (newFills[from] || 0) - amt);
-    newFills[to]   = (newFills[to] || 0) + amt;
-
-    let updatedBudgets = { ...budgets, [activeKey]: newFills };
-    if (isBorrow) {
-      const borrowId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      const existing = budgets._borrows || [];
-      updatedBudgets._borrows = [...existing, {
-        id: borrowId,
-        from, to, amount: amt,
-        date: new Date().toLocaleDateString('en-IN'),
-        settled: false,
-      }];
-    }
-
-    setBudgets(updatedBudgets);
-    setTransferData({ from: '', to: '', amount: '', isBorrow: false });
-    setTransferError('');
-    setShowTransferModal(false);
-  };
-
-  // ── Settle borrow ─────────────────────────────────────────────
-  const handleSettleBorrow = (borrow) => {
-    if (!window.confirm(`Settle ₹${fmt(borrow.amount)} back to ${borrow.from}?`)) return;
-    const key = selectedMonth === 'all'
-      ? `${today.getFullYear()}-${today.getMonth()}`
-      : budgetKey;
-    const fills = { ...(budgets[key] || {}) };
-    fills[borrow.from] = (fills[borrow.from] || 0) + borrow.amount;
-    fills[borrow.to]   = Math.max(0, (fills[borrow.to] || 0) - borrow.amount);
-    const updatedBorrows = (budgets._borrows || []).map(b =>
-      b.id === borrow.id ? { ...b, settled: true } : b
-    );
-    setBudgets({ ...budgets, [key]: fills, _borrows: updatedBorrows });
   };
 
   // ── Edit envelope ─────────────────────────────────────────────
@@ -363,8 +370,6 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           onAssign={handleFillChange}
           onAddTransaction={onAddTransaction}
           onViewTransactions={onViewTransactions}
-          onFillEnvelopes={() => setShowFillModal(true)}
-          onTransfer={() => setShowTransferModal(true)}
           onAddEnvelope={(cat) => {
             setNewEnv({ ...EMPTY_ENV, category: cat || 'need' });
             setShowAddModal(true);
@@ -373,41 +378,16 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           onDeleteEnvelope={setDeleteTarget}
           budgets={budgets}
           transactions={transactions}
-          handleSettleBorrow={handleSettleBorrow}
+          monthlyIncome={monthlyIncome}
         />
 
         {/* Shared modals */}
-        {showFillModal && (
-          <FillEnvelopesModal
-            isOpen={showFillModal}
-            onClose={() => setShowFillModal(false)}
-            budgets={budgets}
-            setBudgets={setBudgets}
-            transactions={transactions}
-            monthlyIncome={monthlyIncome}
-            year={selectedYear}
-            month={selectedMonth}
-          />
-        )}
         {showAddModal && (
           <AddEnvelopeModal
             newEnv={newEnv}
             setNewEnv={setNewEnv}
             onSubmit={handleAddEnvelope}
             onClose={() => { setShowAddModal(false); setNewEnv(EMPTY_ENV); }}
-          />
-        )}
-        {showTransferModal && (
-          <TransferModal
-            transferData={transferData}
-            setTransferData={setTransferData}
-            transferError={transferError}
-            setTransferError={setTransferError}
-            envelopeFills={budgets[`${today.getFullYear()}-${today.getMonth()}`] || envelopeFills}
-            monthlySpending={monthlySpending}
-            customEnvelopes={customEnvelopes}
-            onSubmit={handleEnvelopeTransfer}
-            onClose={() => setShowTransferModal(false)}
           />
         )}
         {editTarget && (
@@ -429,17 +409,8 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
     );
   }
 
-  // Check if month is locked
-  const monthLocked = isMonthLocked(unallocated);
-
   return (
     <div className="envelopes-view">
-
-      {/* ── LOCK BANNER ── */}
-      <MonthLockBanner 
-        readyToAssign={unallocated} 
-        onFillEnvelopes={() => setShowFillModal(true)}
-      />
 
       {/* ── HEADER ── */}
       <div className="ev-header">
@@ -450,11 +421,10 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           <div className="ev-month-dropdown-wrap">
             <select
               className="ev-month-dropdown"
-              value={selectedMonth === 'all' ? 'all' : `${selectedYear}-${selectedMonth}`}
+              value={`${selectedYear}-${selectedMonth}`}
               onChange={handleMonthDropdownChange}
               aria-label="Select month"
             >
-              <option value="all">All Months</option>
               {availableYears.map(year =>
                 MONTHS_SHORT.map((label, idx) => (
                   <option key={`${year}-${idx}`} value={`${year}-${idx}`}>
@@ -463,7 +433,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
                 ))
               )}
             </select>
-            {!isCurrentMonth && selectedMonth !== 'all' && (
+            {!isCurrentMonth && (
               <button type="button" className="ev-today-pill" onClick={goToday} aria-label="Go to current month">
                 Today
               </button>
@@ -472,37 +442,14 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
         </div>
 
         <div className="ev-header-card">
-          <div className="ev-summary">
-            <div className="ev-summary-item">
-              <span className="ev-summary-label">Income</span>
-              <span className="ev-summary-value">₹{fmt(monthlyIncome)}</span>
+          {/* Compact single-line Ready to Assign */}
+          <div className="ev-header-row">
+            <div className="ev-ready-assign-compact">
+              <span className="ev-ready-label">Ready to Assign:</span>
+              <span className={`ev-ready-amount ${unallocated === 0 ? 'zero' : unallocated < 0 ? 'neg' : 'pos'}`}>
+                {unallocated < 0 ? '-' : ''}₹{fmt(unallocated)}
+              </span>
             </div>
-            <div className="ev-summary-divider" />
-            <div className="ev-summary-item">
-              <span className="ev-summary-label">Filled</span>
-              <span className="ev-summary-value">₹{fmt(totalFilled)}</span>
-            </div>
-            <div className="ev-summary-divider" />
-            <div className="ev-summary-item">
-              <span className="ev-summary-label">Spent</span>
-              <span className="ev-summary-value">₹{fmt(totalSpent)}</span>
-            </div>
-            <div className="ev-summary-divider" />
-            <div className={`ev-summary-item ${unallocated === 0 ? 'zero' : unallocated < 0 ? 'neg' : 'pos'}`}>
-              <span className="ev-summary-label">To Fill</span>
-              <span className="ev-summary-value">{unallocated < 0 ? '-' : ''}₹{fmt(unallocated)}</span>
-            </div>
-          </div>
-
-          <div className="ev-header-actions">
-            <button type="button" className="ev-action-pill fill" onClick={() => setShowFillModal(true)}>
-              <span className="ev-action-pill-icon">💰</span>
-              <span>Fill Envelopes</span>
-            </button>
-            <button type="button" className="ev-action-pill transfer" onClick={() => setShowTransferModal(true)}>
-              <span className="ev-action-pill-icon">⇄</span>
-              <span>Transfer</span>
-            </button>
           </div>
 
           {unallocated !== 0 && (
@@ -548,26 +495,6 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           </div>
         )}
 
-        {/* Active borrows */}
-        {(budgets._borrows || []).filter(b => !b.settled).length > 0 && (
-          <div className="ev-borrows-section">
-            <div className="ev-borrows-title">💸 Pending Settlements</div>
-            {(budgets._borrows || []).filter(b => !b.settled).map(b => (
-              <div key={b.id} className="ev-borrow-row">
-                <div className="ev-borrow-info">
-                  <span className="ev-borrow-text">
-                    <strong>{b.to}</strong> borrowed <strong>₹{fmt(b.amount)}</strong> from <strong>{b.from}</strong>
-                  </span>
-                  <span className="ev-borrow-date">{b.date}</span>
-                </div>
-                <button className="ev-settle-btn" onClick={() => handleSettleBorrow(b)}>
-                  Settle ↩
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Envelopes */}
         <div className="ev-section-divider">
           <span>Envelopes</span>
@@ -584,11 +511,10 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           </div>
         ) : (
           <>
-            {/* Single list sorted by recently used */}
+            {/* Single list sorted by recently used - show ALL envelopes */}
             {(() => {
               const allEnvelopes = Object.values(envelopesByCategory).flat();
               const sorted = [...allEnvelopes]
-                .filter(e => selectedMonth === 'all' ? e.spent > 0 : e.filled > 0)
                 .sort((a, b) => {
                   const da = lastUsed[a.name] || new Date(0);
                   const db = lastUsed[b.name] || new Date(0);
@@ -597,12 +523,10 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
               return (
                 <div className="ev-envelope-list">
                   {sorted.map(envelope => renderEnvelopeCard(envelope, {
-                    expandedEnv, setExpandedEnv,
                     goalProgress, annualYTD,
                     selectedYear, selectedMonth,
                     onAddTransaction, onViewTransactions,
-                    setTransferData, setShowTransferModal,
-                    handleEditOpen, setDeleteTarget,
+                    onEditBudget: (env) => setEditingEnvelope(env),
                   }))}
                 </div>
               );
@@ -615,33 +539,29 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
         )}
       </div>
 
-      {/* FAB - Disabled when month locked */}
+      {/* FAB */}
       <button 
-        className={`ev-fab ${monthLocked ? 'disabled' : ''}`}
-        onClick={() => {
-          if (monthLocked) {
-            setShowFillModal(true);
-          } else {
-            onAddTransaction('expense');
-          }
-        }}
-        aria-label={monthLocked ? "Assign income first" : "Add expense"}
-        title={monthLocked ? "Assign all income before spending" : "Add expense"}
+        className="ev-fab"
+        onClick={() => onAddTransaction('expense')}
+        aria-label="Add expense"
+        title="Add expense"
       >
-        {monthLocked ? '🔒' : '+'}
+        +
       </button>
 
       {/* ── MODALS ── */}
-      {showFillModal && (
-        <FillEnvelopesModal
-          isOpen={showFillModal}
-          onClose={() => setShowFillModal(false)}
-          budgets={budgets}
-          setBudgets={setBudgets}
-          transactions={transactions}
+      {editingEnvelope && (
+        <SingleBudgetModal
+          envelope={editingEnvelope}
+          currentBudget={envelopeFills[editingEnvelope.name] || 0}
           monthlyIncome={monthlyIncome}
-          year={selectedYear}
-          month={selectedMonth}
+          totalAllocated={totalFilled}
+          onSave={(value) => {
+            if (handleFillChange(editingEnvelope.name, value)) {
+              setEditingEnvelope(null);
+            }
+          }}
+          onClose={() => setEditingEnvelope(null)}
         />
       )}
 
@@ -651,20 +571,6 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           setNewEnv={setNewEnv}
           onSubmit={handleAddEnvelope}
           onClose={() => { setShowAddModal(false); setNewEnv(EMPTY_ENV); }}
-        />
-      )}
-
-      {showTransferModal && (
-        <TransferModal
-          transferData={transferData}
-          setTransferData={setTransferData}
-          transferError={transferError}
-          setTransferError={setTransferError}
-          envelopeFills={budgets[`${today.getFullYear()}-${today.getMonth()}`] || envelopeFills}
-          monthlySpending={monthlySpending}
-          customEnvelopes={customEnvelopes}
-          onSubmit={handleEnvelopeTransfer}
-          onClose={() => setShowTransferModal(false)}
         />
       )}
 

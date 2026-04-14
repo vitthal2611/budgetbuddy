@@ -35,23 +35,6 @@ const BudgetPreferences = () => {
 
         <div className="preference-item">
           <div className="preference-info">
-            <div className="preference-label">Block Overspending</div>
-            <div className="preference-description">
-              Prevent adding expenses when envelope is empty (strict mode)
-            </div>
-          </div>
-          <label className="preference-toggle">
-            <input
-              type="checkbox"
-              checked={preferences.blockOverspending}
-              onChange={(e) => updatePreference('blockOverspending', e.target.checked)}
-            />
-            <span className="toggle-slider"></span>
-          </label>
-        </div>
-
-        <div className="preference-item">
-          <div className="preference-info">
             <div className="preference-label">Budget Start Day</div>
             <div className="preference-description">
               Day of month when your budget cycle starts

@@ -19,14 +19,13 @@ export const computeMonthlyFill = (env, year, month) => {
 
 const matchesPeriod = (dateStr, selectedYear, selectedMonth) => {
   const d = new Date(dateStr.split('-').reverse().join('-'));
-  if (selectedMonth === 'all') return d.getFullYear() === selectedYear;
   return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
 };
 
 export const useEnvelopesData = ({
   transactions, budgets, customEnvelopes, selectedYear, selectedMonth,
 }) => {
-  const budgetKey = selectedMonth === 'all' ? null : `${selectedYear}-${selectedMonth}`;
+  const budgetKey = `${selectedYear}-${selectedMonth}`;
 
   const envelopeFills = useMemo(
     () => budgetKey ? (budgets[budgetKey] || {}) : {},
@@ -61,17 +60,8 @@ export const useEnvelopesData = ({
   );
 
   const totalFilled = useMemo(() => {
-    if (selectedMonth === 'all') {
-      let total = 0;
-      Object.entries(budgets).forEach(([key, mb]) => {
-        const [y] = key.split('-');
-        if (parseInt(y) === selectedYear)
-          Object.values(mb).forEach(v => { total += parseFloat(v || 0); });
-      });
-      return total;
-    }
     return Object.values(envelopeFills).reduce((s, v) => s + parseFloat(v || 0), 0);
-  }, [envelopeFills, budgets, selectedYear, selectedMonth]);
+  }, [envelopeFills]);
 
   const totalSpent = useMemo(
     () => Object.values(monthlySpending).reduce((s, v) => s + v, 0),
@@ -131,30 +121,15 @@ export const useEnvelopesData = ({
   const envelopesByCategory = useMemo(() => {
     const grouped = { need: [], want: [], saving: [] };
 
-    // For "all months" — sum fills across all months of selected year
-    const allYearFills = {};
-    if (selectedMonth === 'all') {
-      Object.entries(budgets).forEach(([key, mb]) => {
-        const [y] = key.split('-');
-        if (parseInt(y) === selectedYear) {
-          Object.entries(mb).forEach(([name, val]) => {
-            allYearFills[name] = (allYearFills[name] || 0) + parseFloat(val || 0);
-          });
-        }
-      });
-    }
-
     customEnvelopes.forEach(env => {
-      const filled = selectedMonth === 'all'
-        ? (allYearFills[env.name] || 0)
-        : (envelopeFills[env.name] || 0);
+      const filled = envelopeFills[env.name] || 0;
       const spent  = monthlySpending[env.name] || 0;
       const remaining = filled - spent;
       const suggestedFill = computeMonthlyFill(env, selectedYear, selectedMonth);
       grouped[env.category].push({ ...env, filled, spent, remaining, suggestedFill });
     });
     return grouped;
-  }, [customEnvelopes, envelopeFills, monthlySpending, budgets, selectedYear, selectedMonth]);
+  }, [customEnvelopes, envelopeFills, monthlySpending, selectedYear, selectedMonth]);
 
   return {
     budgetKey,

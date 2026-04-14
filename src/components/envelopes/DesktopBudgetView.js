@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './DesktopBudgetView.css';
-import MonthLockBanner from '../shared/MonthLockBanner';
-import { isMonthLocked } from '../../utils/budgetRules';
 
 const fmt  = (n) => Math.abs(n).toLocaleString('en-IN');
 const fmtS = (n) => n < 0 ? `-₹${fmt(n)}` : `₹${fmt(n)}`;
@@ -15,8 +13,8 @@ const CAT_META = {
   saving: { label: 'Savings & Goals', color: '#6366f1', bg: '#eef2ff', textColor: '#3730a3' },
 };
 
-/* ─── Inline editable Assigned cell ─────────────────────────── */
-const AssignedCell = ({ value, onSave, disabled }) => {
+/* ─── Inline editable Assigned cell with validation ─────────── */
+const AssignedCell = ({ value, onSave, disabled, envelopeName, currentFills, monthlyIncome }) => {
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState('');
   const inputRef = useRef(null);
@@ -32,9 +30,22 @@ const AssignedCell = ({ value, onSave, disabled }) => {
   }, [editing]);
 
   const commit = useCallback(() => {
-    onSave(parseFloat(draft) || 0);
+    const newValue = parseFloat(draft) || 0;
+    
+    // Calculate new total
+    const newFills = { ...currentFills, [envelopeName]: newValue };
+    const newTotal = Object.values(newFills).reduce((s, v) => s + parseFloat(v || 0), 0);
+    
+    // Hard block: prevent allocation > income
+    if (newTotal > monthlyIncome) {
+      alert(`Cannot allocate more than income!\n\nIncome: ₹${Math.abs(monthlyIncome).toLocaleString('en-IN')}\nTrying to allocate: ₹${Math.abs(newTotal).toLocaleString('en-IN')}\n\nPlease reduce the budget amount.`);
+      setEditing(false);
+      return;
+    }
+    
+    onSave(newValue);
     setEditing(false);
-  }, [draft, onSave]);
+  }, [draft, onSave, envelopeName, currentFills, monthlyIncome]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter')  commit();
@@ -84,7 +95,7 @@ const AvailablePill = ({ value, filled }) => {
 };
 
 /* ─── Inspector panel (right side) ──────────────────────────── */
-const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, onViewTransactions, onEdit, onDelete, onClose, onAddEnvelope, budgets, transactions, monthLocked }) => {
+const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, onViewTransactions, onEdit, onDelete, onClose, onAddEnvelope, budgets, transactions }) => {
   if (!envelope) return (
     <div className="yn-inspector yn-inspector-empty">
       <div className="yn-inspector-hint">
@@ -247,8 +258,7 @@ const Inspector = ({ envelope, selectedYear, selectedMonth, onAddTransaction, on
         <button 
           className="yn-insp-btn primary"
           onClick={() => onAddTransaction('expense', { envelope: envelope.name })}
-          disabled={monthLocked}
-          title={monthLocked ? "Assign all income before spending" : "Add expense to this envelope"}
+          title="Add expense to this envelope"
         >
           ＋ Add Expense
         </button>
@@ -275,6 +285,7 @@ const CategoryGroup = ({
   onAssign, onAddTransaction, onViewTransactions,
   selectedYear, selectedMonth,
   selectedEnv, onSelectEnv,
+  envelopeFills, monthlyIncome,
 }) => {
   const meta = CAT_META[cat];
 
@@ -322,7 +333,10 @@ const CategoryGroup = ({
                 <AssignedCell
                   value={env.filled}
                   onSave={val => onAssign(env.name, val)}
-                  disabled={selectedMonth === 'all'}
+                  disabled={false}
+                  envelopeName={env.name}
+                  currentFills={envelopeFills}
+                  monthlyIncome={monthlyIncome}
                 />
               </div>
 
@@ -374,38 +388,22 @@ const DesktopBudgetView = ({
   onAssign,
   onAddTransaction,
   onViewTransactions,
-  onFillEnvelopes,
-  onTransfer,
   onAddEnvelope,
   onEditEnvelope,
   onDeleteEnvelope,
   budgets,
   transactions,
-  handleSettleBorrow,
 }) => {
   const [selectedEnv, setSelectedEnv] = useState(null);
 
-  const pendingBorrows = (budgets._borrows || []).filter(b => !b.settled);
-
-  const monthLabel = selectedMonth === 'all'
-    ? 'All Months'
-    : (MONTHS_LONG[selectedMonth] ?? 'Unknown') + ' ' + selectedYear;
+  const monthLabel = (MONTHS_LONG[selectedMonth] ?? 'Unknown') + ' ' + selectedYear;
 
   const rtaCls = unallocated === 0 ? 'rta-zero' : unallocated < 0 ? 'rta-over' : 'rta-pos';
 
   const hasEnvelopes = Object.values(envelopesByCategory).some(arr => arr.length > 0);
   
-  // Check if month is locked
-  const monthLocked = isMonthLocked(unallocated);
-
   return (
     <div className="yn-root">
-
-      {/* ══ LOCK BANNER ══════════════════════════════════════════ */}
-      <MonthLockBanner 
-        readyToAssign={unallocated} 
-        onFillEnvelopes={onFillEnvelopes}
-      />
 
       {/* ══ TOP BAR ══════════════════════════════════════════════ */}
       <div className="yn-topbar">
@@ -437,36 +435,9 @@ const DesktopBudgetView = ({
 
         {/* Actions */}
         <div className="yn-topbar-actions">
-          <button 
-            className="yn-topbar-btn primary" 
-            onClick={onFillEnvelopes}
-          >
-            💰 Fill Envelopes
-          </button>
-          <button 
-            className="yn-topbar-btn" 
-            onClick={onTransfer}
-            disabled={monthLocked}
-            title={monthLocked ? "Assign all income first" : "Transfer between envelopes"}
-          >
-            ⇄ Transfer
-          </button>
+          {/* Removed Fill Envelopes button - use inline editing */}
         </div>
       </div>
-
-      {/* ══ PENDING BORROWS ══════════════════════════════════════ */}
-      {pendingBorrows.length > 0 && (
-        <div className="yn-borrows-bar">
-          <span className="yn-borrows-icon">💸</span>
-          <span className="yn-borrows-title">Pending Settlements</span>
-          {pendingBorrows.map(b => (
-            <div key={b.id} className="yn-borrow-item">
-              <span><strong>{b.to}</strong> borrowed <strong>₹{fmt(b.amount)}</strong> from <strong>{b.from}</strong></span>
-              <button className="yn-settle-btn" onClick={() => handleSettleBorrow(b)}>Settle ↩</button>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ══ BODY: table + inspector ══════════════════════════════ */}
       <div className="yn-body">
@@ -494,6 +465,11 @@ const DesktopBudgetView = ({
                     selectedMonth={selectedMonth}
                     selectedEnv={selectedEnv}
                     onSelectEnv={setSelectedEnv}
+                    envelopeFills={envelopesByCategory[cat].reduce((acc, env) => {
+                      acc[env.name] = env.filled;
+                      return acc;
+                    }, {})}
+                    monthlyIncome={monthlyIncome}
                   />
                 );
               })
@@ -530,7 +506,6 @@ const DesktopBudgetView = ({
           onAddEnvelope={onAddEnvelope}
           budgets={budgets}
           transactions={transactions}
-          monthLocked={monthLocked}
         />
       </div>
     </div>

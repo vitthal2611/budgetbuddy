@@ -26,7 +26,6 @@ export const PreferencesProvider = ({ children }) => {
     return {
       budgetStartDay: 1,
       rolloverMode: 'automatic', // automatic, manual, none
-      blockOverspending: false, // Strict mode
       defaultView: 'envelopes',
       currency: 'INR',
       theme: 'modern',

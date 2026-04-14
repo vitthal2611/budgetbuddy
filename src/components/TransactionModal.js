@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './TransactionModal.modern.css';
 import { useData } from '../contexts/DataContext';
-import { usePreferences } from '../contexts/PreferencesContext';
-import { canSpend, getTransferableEnvelopes } from '../utils/budgetRules';
-import SpendingBlockModal from './shared/SpendingBlockModal';
 
 const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete, onClose, budgets, transactions, monthlyIncome, onFillEnvelopes, onTransferRequest }) => {
   const { envelopes, paymentMethods, addEnvelope, addPaymentMethod, generateTransactionId } = useData();
-  const { preferences } = usePreferences();
   
   const effectiveType = type === 'credit' ? 'expense' : type;
   
@@ -41,109 +37,12 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
   const [showAddEnvelope, setShowAddEnvelope] = useState(false);
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
   const [newEnvelope, setNewEnvelope] = useState('');
-  const [spendingWarning, setSpendingWarning] = useState(null);
-  const [showTransferSuggestion, setShowTransferSuggestion] = useState(false);
-  const [alternativeEnvelopes, setAlternativeEnvelopes] = useState([]);
-  const [showSpendingBlock, setShowSpendingBlock] = useState(null);
   
   // Track if we've initialized defaults to prevent overriding user selections
   const defaultsInitialized = React.useRef(false);
 
   // Calculate remaining budget for selected envelope
-  useEffect(() => {
-    if (type === 'expense' && formData.envelope && formData.amount && formData.date) {
-      const [day, month, year] = formData.date.split('-');
-      const monthIndex = parseInt(month) - 1;
-      const budgetKey = `${year}-${monthIndex}`;
-      
-      const budget = budgets?.[budgetKey]?.[formData.envelope] || 0;
-      
-      // Calculate current spending for this envelope in this month
-      const currentSpending = (transactions || [])
-        .filter(t => {
-          if (t.type !== 'expense' || t.envelope !== formData.envelope) return false;
-          if (transaction && t.id === transaction.id) return false; // Exclude current transaction if editing
-          const [tDay, tMonth, tYear] = t.date.split('-');
-          return tYear === year && tMonth === month;
-        })
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      
-      const newAmount = parseFloat(formData.amount) || 0;
-      const remaining = budget - currentSpending - newAmount;
-      
-      // Find alternative envelopes with enough money
-      const alternatives = envelopes
-        .filter(env => env.name !== formData.envelope)
-        .map(env => {
-          const envBudget = budgets?.[budgetKey]?.[env.name] || 0;
-          const envSpending = (transactions || [])
-            .filter(t => {
-              if (t.type !== 'expense' || t.envelope !== env.name) return false;
-              const [tDay, tMonth, tYear] = t.date.split('-');
-              return tYear === year && tMonth === month;
-            })
-            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-          const envRemaining = envBudget - envSpending;
-          
-          return {
-            name: env.name,
-            category: env.category,
-            remaining: envRemaining,
-            canCover: envRemaining >= newAmount
-          };
-        })
-        .filter(env => env.canCover)
-        .sort((a, b) => b.remaining - a.remaining)
-        .slice(0, 3);
-      
-      setAlternativeEnvelopes(alternatives);
-      
-      if (budget === 0) {
-        const isBlocked = preferences.blockOverspending;
-        setSpendingWarning({
-          type: 'no-budget',
-          message: isBlocked
-            ? `🚫 No budget allocated for ${formData.envelope} this month.`
-            : `⚠️ No budget allocated for ${formData.envelope} this month.`,
-          isBlocked,
-          suggestion: 'Fill this envelope first, or choose a different one.'
-        });
-        setShowTransferSuggestion(false);
-      } else if (remaining < 0) {
-        const isBlocked = preferences.blockOverspending;
-        setSpendingWarning({
-          type: 'over-budget',
-          message: isBlocked 
-            ? `🚫 Cannot spend! This exceeds your budget by ₹${Math.abs(remaining).toLocaleString('en-IN')}.`
-            : `⚠️ This will exceed your budget by ₹${Math.abs(remaining).toLocaleString('en-IN')}!`,
-          remaining: remaining,
-          isBlocked: isBlocked,
-          suggestion: alternatives.length > 0 
-            ? 'Transfer money from another envelope or choose a different envelope.'
-            : 'Set a higher budget or choose a different envelope.'
-        });
-        setShowTransferSuggestion(alternatives.length > 0);
-      } else if (remaining < budget * 0.2) {
-        setSpendingWarning({
-          type: 'low-budget',
-          message: `⚠️ Only ₹${remaining.toLocaleString('en-IN')} will be left in ${formData.envelope}`,
-          remaining: remaining,
-          suggestion: 'Consider if this expense is necessary.'
-        });
-        setShowTransferSuggestion(false);
-      } else {
-        setSpendingWarning({
-          type: 'ok',
-          message: `✓ ₹${remaining.toLocaleString('en-IN')} will remain in ${formData.envelope}`,
-          remaining: remaining
-        });
-        setShowTransferSuggestion(false);
-      }
-    } else {
-      setSpendingWarning(null);
-      setShowTransferSuggestion(false);
-    }
-  }, [type, formData.envelope, formData.amount, formData.date, budgets, transactions, transaction, envelopes, preferences.blockOverspending]);
+  // Removed - no longer showing warnings
 
   useEffect(() => {
     if (transaction) {
@@ -176,82 +75,7 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // STRICT BUDGET RULES ENFORCEMENT
-    if (effectiveType === 'expense' && formData.envelope && formData.amount && formData.date) {
-      const [day, month, year] = formData.date.split('-');
-      const monthIndex = parseInt(month) - 1;
-      const budgetKey = `${year}-${monthIndex}`;
-      
-      // Calculate Ready to Assign
-      const income = (transactions || [])
-        .filter(t => {
-          if (t.type !== 'income') return false;
-          const [tDay, tMonth, tYear] = t.date.split('-');
-          return tYear === year && tMonth === month;
-        })
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      
-      const totalFilled = Object.values(budgets[budgetKey] || {}).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-      const readyToAssign = income - totalFilled;
-      
-      // Calculate envelope balance
-      const filled = budgets?.[budgetKey]?.[formData.envelope] || 0;
-      const currentSpending = (transactions || [])
-        .filter(t => {
-          if (t.type !== 'expense' || t.envelope !== formData.envelope) return false;
-          if (transaction && t.id === transaction.id) return false;
-          const [tDay, tMonth, tYear] = t.date.split('-');
-          return tYear === year && tMonth === month;
-        })
-        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-      
-      const envelopeBalance = filled - currentSpending;
-      const spendAmount = parseFloat(formData.amount);
-      
-      // Check if spending is allowed
-      const spendCheck = canSpend(readyToAssign, envelopeBalance, spendAmount);
-      
-      if (!spendCheck.allowed) {
-        // Get transferable envelopes
-        const allEnvelopes = envelopes.map(env => {
-          const envFilled = budgets?.[budgetKey]?.[env.name] || 0;
-          const envSpent = (transactions || [])
-            .filter(t => {
-              if (t.type !== 'expense' || t.envelope !== env.name) return false;
-              const [tDay, tMonth, tYear] = t.date.split('-');
-              return tYear === year && tMonth === month;
-            })
-            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-          
-          return {
-            name: env.name,
-            category: env.category,
-            filled: envFilled,
-            spent: envSpent,
-            remaining: envFilled - envSpent
-          };
-        });
-        
-        const transferable = getTransferableEnvelopes(allEnvelopes, formData.envelope);
-        
-        // Show spending block modal
-        setShowSpendingBlock({
-          reason: spendCheck.reason,
-          message: spendCheck.message,
-          shortfall: spendCheck.shortfall,
-          targetEnvelope: formData.envelope,
-          spendAmount: spendAmount,
-          transferableEnvelopes: transferable
-        });
-        return;
-      }
-    }
-    
-    // Block submission if overspending is not allowed (legacy check)
-    if (spendingWarning?.isBlocked) {
-      alert('Cannot save: This transaction exceeds your budget. Transfer money from another envelope first.');
-      return;
-    }
+    // All budget validation removed - allow any transaction
     
     if (effectiveType === 'transfer') {
       onSave({
@@ -286,37 +110,8 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
     }
   };
 
-  const handleTransferFromBlock = (sourceEnvelope, targetEnvelope, amount) => {
-    // Close spending block modal
-    setShowSpendingBlock(null);
-    
-    // Trigger transfer
-    if (onTransferRequest) {
-      onTransferRequest({
-        from: sourceEnvelope,
-        to: targetEnvelope,
-        amount: amount,
-        returnToExpense: {
-          ...formData,
-          amount: parseFloat(formData.amount)
-        }
-      });
-    }
-  };
-
   const handleTransferAndContinue = (sourceEnvelope) => {
-    // Close this modal and open transfer modal
-    if (onTransferRequest) {
-      onTransferRequest({
-        from: sourceEnvelope,
-        to: formData.envelope,
-        amount: parseFloat(formData.amount),
-        returnToExpense: {
-          ...formData,
-          amount: parseFloat(formData.amount)
-        }
-      });
-    }
+    // Transfer functionality removed - no longer needed
   };
 
   const getCategoryIcon = (category) => {
@@ -339,17 +134,23 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Amount (₹)</label>
-            <input
-              type="number"
-              className="form-input"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              required
-              min="0"
-              step="0.01"
-            />
+          {/* Amount - Large and prominent */}
+          <div className="form-group form-group-amount">
+            <label>Amount</label>
+            <div className="amount-input-wrapper">
+              <span className="currency-symbol">₹</span>
+              <input
+                type="number"
+                className="form-input amount-input"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                required
+                min="0"
+                step="0.01"
+                placeholder="0"
+                autoFocus={!transaction}
+              />
+            </div>
           </div>
 
           <div className="form-group">
@@ -360,17 +161,7 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
               value={formData.note}
               onChange={(e) => setFormData({ ...formData, note: e.target.value })}
               required
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Date</label>
-            <input
-              type="date"
-              className="form-input date-input"
-              value={toInputFormat(formData.date)}
-              onChange={(e) => setFormData({ ...formData, date: toStorageFormat(e.target.value) })}
-              required
+              placeholder="What's this for?"
             />
           </div>
 
@@ -426,36 +217,44 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
             </>
           ) : (
             <>
+              {/* Payment Method - Chips */}
               <div className="form-group">
                 <label>Payment Method</label>
-                <div className="select-with-add">
-                  <select
-                    className="form-select"
-                    value={formData.paymentMethod}
-                    onChange={(e) => {
-                      if (e.target.value === '__add_new__') {
-                        setShowAddPaymentMethod(true);
-                      } else {
-                        setFormData({ ...formData, paymentMethod: e.target.value });
-                      }
-                    }}
-                    required
-                  >
-                    <option value="">
-                      {paymentMethods.length === 0 ? 'No payment methods - Add one below' : 'Select payment method'}
-                    </option>
+                {paymentMethods.length > 0 ? (
+                  <div className="payment-chips">
                     {paymentMethods.map(method => (
-                      <option key={method} value={method}>{method}</option>
+                      <button
+                        key={method}
+                        type="button"
+                        className={`payment-chip ${formData.paymentMethod === method ? 'active' : ''}`}
+                        onClick={() => setFormData({ ...formData, paymentMethod: method })}
+                      >
+                        💳 {method}
+                      </button>
                     ))}
-                    <option value="__add_new__">+ Add New</option>
-                  </select>
-                </div>
+                    <button
+                      type="button"
+                      className="payment-chip add-new"
+                      onClick={() => setShowAddPaymentMethod(true)}
+                    >
+                      + Add
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-add-first"
+                    onClick={() => setShowAddPaymentMethod(true)}
+                  >
+                    + Add Payment Method
+                  </button>
+                )}
               </div>
 
               {effectiveType === 'expense' && (
                 <div className="form-group">
                   <label>Envelope</label>
-                  <div className="select-with-add">
+                  {envelopes.length > 0 ? (
                     <select
                       className="form-select"
                       value={formData.envelope}
@@ -468,9 +267,7 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
                       }}
                       required
                     >
-                      <option value="">
-                        {envelopes.length === 0 ? 'No envelopes - Add one below' : 'Select envelope'}
-                      </option>
+                      <option value="">Select envelope</option>
                       {envelopes.map(env => {
                         const icon = getCategoryIcon(env.category);
                         return (
@@ -479,36 +276,31 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
                       })}
                       <option value="__add_new__">+ Add New</option>
                     </select>
-                  </div>
-                  
-                  {spendingWarning && (
-                    <div className={`spending-warning ${spendingWarning.type}`}>
-                      <div className="warning-message">{spendingWarning.message}</div>
-                      {spendingWarning.suggestion && (
-                        <div className="warning-suggestion">{spendingWarning.suggestion}</div>
-                      )}
-                      
-                      {showTransferSuggestion && alternativeEnvelopes.length > 0 && (
-                        <div className="transfer-suggestions">
-                          <div className="suggestions-title">Transfer from:</div>
-                          {alternativeEnvelopes.map(env => (
-                            <button
-                              key={env.name}
-                              type="button"
-                              className="btn-transfer-suggestion"
-                              onClick={() => handleTransferAndContinue(env.name)}
-                            >
-                              {getCategoryIcon(env.category)} {env.name} (₹{env.remaining.toLocaleString('en-IN')})
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-add-first"
+                      onClick={() => setShowAddEnvelope(true)}
+                    >
+                      + Create First Envelope
+                    </button>
                   )}
                 </div>
               )}
             </>
           )}
+
+          {/* Date - Keep native picker */}
+          <div className="form-group">
+            <label>Date</label>
+            <input
+              type="date"
+              className="form-input date-input"
+              value={toInputFormat(formData.date)}
+              onChange={(e) => setFormData({ ...formData, date: toStorageFormat(e.target.value) })}
+              required
+            />
+          </div>
 
           <div className="modal-actions">
             {transaction && (
@@ -526,31 +318,11 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
             <button
               type="submit"
               className="btn-modal btn-save"
-              disabled={spendingWarning?.isBlocked}
             >
-              {spendingWarning?.isBlocked ? 'Cannot Save' : 'Save'}
+              Save
             </button>
           </div>
         </form>
-
-        {/* Spending Block Modal */}
-        {showSpendingBlock && (
-          <SpendingBlockModal
-            reason={showSpendingBlock.reason}
-            message={showSpendingBlock.message}
-            shortfall={showSpendingBlock.shortfall}
-            targetEnvelope={showSpendingBlock.targetEnvelope}
-            spendAmount={showSpendingBlock.spendAmount}
-            transferableEnvelopes={showSpendingBlock.transferableEnvelopes}
-            onTransfer={handleTransferFromBlock}
-            onAssignIncome={() => {
-              setShowSpendingBlock(null);
-              onClose();
-              if (onFillEnvelopes) onFillEnvelopes();
-            }}
-            onCancel={() => setShowSpendingBlock(null)}
-          />
-        )}
 
         {showAddPaymentMethod && (
           <div className="inline-add-form">

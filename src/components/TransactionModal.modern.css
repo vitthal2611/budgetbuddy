@@ -470,3 +470,135 @@ form {
   font-style: italic;
   padding: 4px 2px 0;
 }
+
+/* Amount Input - Large and Prominent */
+.form-group-amount {
+  margin-bottom: var(--space-2);
+}
+
+.amount-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 20px;
+  font-size: 28px;
+  font-weight: var(--weight-bold);
+  color: var(--text-tertiary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.amount-input {
+  font-size: 32px !important;
+  font-weight: var(--weight-bold) !important;
+  padding: 20px 20px 20px 52px !important;
+  letter-spacing: -0.5px;
+  text-align: left;
+  min-height: 80px;
+}
+
+.amount-input:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 4px var(--primary-bg) !important;
+}
+
+/* Payment Method Chips */
+.payment-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payment-chip {
+  padding: 12px 16px;
+  border: 2px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--ease-standard);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.payment-chip:hover {
+  border-color: var(--border-dark);
+  background: var(--bg-tertiary);
+}
+
+.payment-chip:active {
+  transform: scale(0.97);
+}
+
+.payment-chip.active {
+  border-color: var(--primary);
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-weight: var(--weight-semibold);
+  box-shadow: 0 0 0 3px var(--primary-bg);
+}
+
+.payment-chip.add-new {
+  border-style: dashed;
+  color: var(--primary);
+  border-color: var(--primary);
+  background: var(--primary-bg);
+}
+
+.payment-chip.add-new:hover {
+  background: var(--primary);
+  color: white;
+  border-style: solid;
+}
+
+/* Add First Button */
+.btn-add-first {
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  color: var(--primary);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--ease-standard);
+  min-height: 52px;
+}
+
+.btn-add-first:hover {
+  border-color: var(--primary);
+  background: var(--primary-bg);
+}
+
+.btn-add-first:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 640px) {
+  .amount-input {
+    font-size: 28px !important;
+    padding: 18px 18px 18px 48px !important;
+    min-height: 72px;
+  }
+  
+  .currency-symbol {
+    font-size: 24px;
+    left: 18px;
+  }
+  
+  .payment-chip {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}

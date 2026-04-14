@@ -1,21 +1,23 @@
 import React from 'react';
 
-const BottomNav = ({ activeTab, onTabChange, onAddPress, onMorePress, showMore }) => (
+const BottomNav = ({ activeTab, onTabChange, onAddPress }) => (
   <div className="bottom-nav">
     <button
-      className={activeTab === 'envelopes' ? 'active' : ''}
-      onClick={() => onTabChange('envelopes')}
+      className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+      onClick={() => onTabChange('dashboard')}
+      aria-label="Dashboard"
     >
-      <span className="nav-icon">📦</span>
-      <span>Envelopes</span>
+      <span className="nav-icon">🏠</span>
+      <span className="nav-label">Home</span>
     </button>
 
     <button
-      className={activeTab === 'transactions' ? 'active' : ''}
-      onClick={() => onTabChange('transactions')}
+      className={`nav-tab ${activeTab === 'envelopes' ? 'active' : ''}`}
+      onClick={() => onTabChange('envelopes')}
+      aria-label="Envelopes"
     >
-      <span className="nav-icon">💳</span>
-      <span>History</span>
+      <span className="nav-icon">📦</span>
+      <span className="nav-label">Budget</span>
     </button>
 
     <button
@@ -27,19 +29,21 @@ const BottomNav = ({ activeTab, onTabChange, onAddPress, onMorePress, showMore }
     </button>
 
     <button
-      className={activeTab === 'reports' ? 'active' : ''}
-      onClick={() => onTabChange('reports')}
+      className={`nav-tab ${activeTab === 'transactions' ? 'active' : ''}`}
+      onClick={() => onTabChange('transactions')}
+      aria-label="Transactions"
     >
-      <span className="nav-icon">📊</span>
-      <span>Reports</span>
+      <span className="nav-icon">💳</span>
+      <span className="nav-label">History</span>
     </button>
 
     <button
-      className={showMore ? 'active' : ''}
-      onClick={onMorePress}
+      className={`nav-tab ${activeTab === 'reports' ? 'active' : ''}`}
+      onClick={() => onTabChange('reports')}
+      aria-label="Reports"
     >
-      <span className="nav-icon">☰</span>
-      <span>More</span>
+      <span className="nav-icon">📊</span>
+      <span className="nav-label">Reports</span>
     </button>
   </div>
 );
