@@ -213,7 +213,7 @@ const CATEGORIES = [
 
 const EMPTY_ENV = { name: '', category: 'need', envelopeType: 'regular', annualAmount: '', goalAmount: '', dueDate: '' };
 
-const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, onViewTransactions }) => {
+const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, onViewTransactions, onNavigate }) => {
   const { envelopes: customEnvelopes, addEnvelope, removeEnvelope, updateEnvelope } = useData();
   const isDesktop = useIsDesktop();
 
@@ -439,6 +439,14 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
               </button>
             )}
           </div>
+          <button 
+            type="button" 
+            className="ev-settings-btn" 
+            onClick={() => onNavigate('settings')}
+            aria-label="Settings"
+          >
+            ⚙️
+          </button>
         </div>
 
         <div className="ev-header-card">
@@ -464,6 +472,33 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
 
       {/* ── CONTENT ── */}
       <div className="ev-content">
+
+        {/* Metric Cards: Income | Spend | Balance */}
+        <div className="ev-metrics">
+          <div className="ev-metric-card income">
+            <span className="ev-metric-icon">💰</span>
+            <div className="ev-metric-content">
+              <span className="ev-metric-label">Income</span>
+              <span className="ev-metric-value">₹{fmt(monthlyIncome)}</span>
+            </div>
+          </div>
+          <div className="ev-metric-card spend">
+            <span className="ev-metric-icon">💸</span>
+            <div className="ev-metric-content">
+              <span className="ev-metric-label">Spend</span>
+              <span className="ev-metric-value">₹{fmt(totalSpent)}</span>
+            </div>
+          </div>
+          <div className="ev-metric-card balance">
+            <span className="ev-metric-icon">💵</span>
+            <div className="ev-metric-content">
+              <span className="ev-metric-label">Balance</span>
+              <span className={`ev-metric-value ${(monthlyIncome - totalSpent) >= 0 ? 'positive' : 'negative'}`}>
+                {(monthlyIncome - totalSpent) < 0 ? '-' : ''}₹{fmt(Math.abs(monthlyIncome - totalSpent))}
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* Accounts */}
         {Object.keys(accountBalances).length > 0 && (

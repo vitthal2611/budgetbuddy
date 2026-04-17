@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import './Settings.css';
-import PaymentMethodManagement from './PaymentMethodManagement';
 import RecurringTransactions from './RecurringTransactions';
 import BudgetTemplates from './BudgetTemplates';
 import BudgetPreferences from './BudgetPreferences';
 
 const Settings = ({ budgets, setBudgets, transactions }) => {
-  const [activeSection, setActiveSection] = useState('payment-methods');
+  const [activeSection, setActiveSection] = useState('recurring');
   const [recurring, setRecurring] = useState([]);
   const [templates, setTemplates] = useState([]);
 
@@ -35,7 +34,6 @@ const Settings = ({ budgets, setBudgets, transactions }) => {
   };
 
   const sections = [
-    { id: 'payment-methods', label: 'Payment Methods', icon: '💳' },
     { id: 'recurring', label: 'Recurring', icon: '🔄' },
     { id: 'templates', label: 'Templates', icon: '📋' },
     { id: 'preferences', label: 'Preferences', icon: '⚙️' }
@@ -62,9 +60,6 @@ const Settings = ({ budgets, setBudgets, transactions }) => {
       </div>
 
       <div className="settings-content">
-        {activeSection === 'payment-methods' && (
-          <PaymentMethodManagement />
-        )}
         {activeSection === 'recurring' && (
           <RecurringTransactions recurring={recurring} setRecurring={setRecurring} />
         )}

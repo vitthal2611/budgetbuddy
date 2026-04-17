@@ -3,6 +3,9 @@ import './DesktopSidebar.css';
 
 const NAV_ITEMS = [
   { id: 'envelopes',    icon: '📦', label: 'Budget'       },
+  { id: 'habits',       icon: '🎯', label: 'Habits'       },
+  { id: 'add',          icon: '➕', label: 'Add'          },
+  { id: 'todos',        icon: '✅', label: 'To-Do'        },
   { id: 'transactions', icon: '💳', label: 'Transactions' },
   { id: 'reports',      icon: '📊', label: 'Reports'      },
   { id: 'settings',     icon: '⚙️', label: 'Settings'     },

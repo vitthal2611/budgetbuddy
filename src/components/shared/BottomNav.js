@@ -1,16 +1,7 @@
 import React from 'react';
 
-const BottomNav = ({ activeTab, onTabChange, onAddPress }) => (
+const BottomNav = ({ activeTab, onTabChange }) => (
   <div className="bottom-nav">
-    <button
-      className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
-      onClick={() => onTabChange('dashboard')}
-      aria-label="Dashboard"
-    >
-      <span className="nav-icon">🏠</span>
-      <span className="nav-label">Home</span>
-    </button>
-
     <button
       className={`nav-tab ${activeTab === 'envelopes' ? 'active' : ''}`}
       onClick={() => onTabChange('envelopes')}
@@ -21,11 +12,30 @@ const BottomNav = ({ activeTab, onTabChange, onAddPress }) => (
     </button>
 
     <button
-      className="nav-add-btn"
-      onClick={onAddPress}
-      aria-label="Add transaction"
+      className={`nav-tab ${activeTab === 'habits' ? 'active' : ''}`}
+      onClick={() => onTabChange('habits')}
+      aria-label="Habits"
     >
-      <span className="nav-add-icon">+</span>
+      <span className="nav-icon">🎯</span>
+      <span className="nav-label">Habits</span>
+    </button>
+
+    <button
+      className={`nav-tab ${activeTab === 'add' ? 'active' : ''}`}
+      onClick={() => onTabChange('add')}
+      aria-label="Add"
+    >
+      <span className="nav-icon">➕</span>
+      <span className="nav-label">Add</span>
+    </button>
+
+    <button
+      className={`nav-tab ${activeTab === 'todos' ? 'active' : ''}`}
+      onClick={() => onTabChange('todos')}
+      aria-label="To-Do"
+    >
+      <span className="nav-icon">✅</span>
+      <span className="nav-label">To-Do</span>
     </button>
 
     <button
@@ -35,15 +45,6 @@ const BottomNav = ({ activeTab, onTabChange, onAddPress }) => (
     >
       <span className="nav-icon">💳</span>
       <span className="nav-label">History</span>
-    </button>
-
-    <button
-      className={`nav-tab ${activeTab === 'reports' ? 'active' : ''}`}
-      onClick={() => onTabChange('reports')}
-      aria-label="Reports"
-    >
-      <span className="nav-icon">📊</span>
-      <span className="nav-label">Reports</span>
     </button>
   </div>
 );

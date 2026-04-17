@@ -324,45 +324,72 @@ const TransactionModal = ({ type, transaction, initialEnvelope, onSave, onDelete
           </div>
         </form>
 
+        {/* Add Payment Method Modal */}
         {showAddPaymentMethod && (
-          <div className="inline-add-form">
-            <input
-              type="text"
-              className="inline-input"
-              value={newPaymentMethod}
-              onChange={(e) => setNewPaymentMethod(e.target.value)}
-              placeholder="Enter payment method name..."
-              autoFocus
-            />
-            <div className="inline-buttons">
-              <button 
-                type="button" 
-                className="btn-inline-cancel" 
-                onClick={() => {
-                  setShowAddPaymentMethod(false);
-                  setNewPaymentMethod('');
-                }}
-              >
-                Cancel
-              </button>
-              <button 
-                type="button" 
-                className="btn-inline-save"
-                onClick={() => {
-                  if (newPaymentMethod.trim()) {
+          <div className="modal-overlay" onClick={() => { setShowAddPaymentMethod(false); setNewPaymentMethod(''); }}>
+            <div className="add-payment-modal" onClick={e => e.stopPropagation()}>
+              <div className="add-payment-header">
+                <h3>Add Payment Method</h3>
+                <button className="modal-close" onClick={() => { setShowAddPaymentMethod(false); setNewPaymentMethod(''); }}>×</button>
+              </div>
+              <div className="add-payment-body">
+                <label className="add-payment-label">Payment Method Name</label>
+                <input
+                  type="text"
+                  className="add-payment-input"
+                  value={newPaymentMethod}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 20) {
+                      setNewPaymentMethod(value);
+                    }
+                  }}
+                  placeholder="e.g., HDFC Credit Card"
+                  maxLength={20}
+                  autoFocus
+                />
+                <div className="add-payment-hint">
+                  {newPaymentMethod.length}/20 characters
+                </div>
+              </div>
+              <div className="add-payment-footer">
+                <button 
+                  type="button" 
+                  className="btn-payment-cancel" 
+                  onClick={() => {
+                    setShowAddPaymentMethod(false);
+                    setNewPaymentMethod('');
+                  }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn-payment-save"
+                  onClick={() => {
+                    const trimmed = newPaymentMethod.trim();
+                    if (!trimmed) {
+                      alert('Payment method name cannot be empty');
+                      return;
+                    }
+                    if (trimmed.length > 20) {
+                      alert('Payment method name must be 20 characters or less');
+                      return;
+                    }
                     try {
-                      addPaymentMethod(newPaymentMethod.trim());
-                      setFormData({ ...formData, paymentMethod: newPaymentMethod.trim() });
+                      addPaymentMethod(trimmed);
+                      setFormData({ ...formData, paymentMethod: trimmed });
                       setNewPaymentMethod('');
                       setShowAddPaymentMethod(false);
                     } catch (error) {
                       alert(error.message);
                     }
-                  }
-                }}
-              >
-                Add
-              </button>
+                  }}
+                  disabled={!newPaymentMethod.trim()}
+                >
+                  Add Method
+                </button>
+              </div>
             </div>
           </div>
         )}

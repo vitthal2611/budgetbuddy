@@ -6,6 +6,9 @@ import EnvelopesView from './components/EnvelopesView';
 import Transactions from './components/Transactions';
 import Settings from './components/settings/Settings';
 import Reports from './components/reports/Reports';
+import HabitTracker from './components/HabitTracker';
+import TodoMatrix from './components/TodoMatrix';
+import AddTransaction from './components/AddTransaction';
 import TransactionModal from './components/TransactionModal';
 import Auth from './components/Auth';
 import LoadingSpinner from './components/shared/LoadingSpinner';
@@ -574,7 +577,17 @@ function App() {
                   setBudgets={saveBudgets}
                   onAddTransaction={handleAddTransaction}
                   onViewTransactions={handleViewTransactions}
+                  onNavigate={setActiveTab}
                 />
+              )}
+              {activeTab === 'habits' && (
+                <HabitTracker />
+              )}
+              {activeTab === 'add' && (
+                <AddTransaction onAddTransaction={handleAddTransaction} />
+              )}
+              {activeTab === 'todos' && (
+                <TodoMatrix />
               )}
               {activeTab === 'reports' && (
                 <Reports transactions={transactions} budgets={budgets} />
@@ -601,9 +614,6 @@ function App() {
             <BottomNav
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              onAddPress={() => setShowMenu('add')}
-              onMorePress={() => setShowMenu(prev => prev === true ? false : true)}
-              showMore={showMenu === true}
             />
             </div>{/* end app-main */}
 

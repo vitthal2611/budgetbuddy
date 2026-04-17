@@ -25,7 +25,7 @@ Clear in hierarchy
 Avoid clutter, over-design, or excessive elements
 Every element must have a purpose
 5. Test Data Enforcement
-You must always include test data for:
+You must always include test data for all fetures:
 Income
 Expenses
 Envelopes
@@ -63,12 +63,9 @@ Avoid → Duplication
 Include → Relevant test data
 Ensure → Consistency
 
-10. Never Create any markdown file
+10. Never Create any markdown file or md file
 
+11. Always keep in mind user have better experince from this application
 
-
-===========================================================
-
-"Set Budget" button is for each envelope and visible on each envelope card
-
- remove Keep bulk "Set Budget" button? it since we have per-envelope editing?
+==================================================
+rewite whole UI component of elesewhere matrix screen 
