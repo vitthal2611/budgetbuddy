@@ -24,6 +24,7 @@ const Reports = ({ transactions, budgets }) => {
   const [selYear,  setSelYear]  = useState(today.getFullYear());
   const [selMonth, setSelMonth] = useState(today.getMonth());
   const [tab, setTab] = useState('overview');
+  const [viewMode, setViewMode] = useState('month'); // 'month' | 'year'
 
   // ── Month navigation ──────────────────────────────────────────
   const prevMonth = () => {
@@ -113,6 +114,63 @@ const Reports = ({ transactions, budgets }) => {
     });
   }, [transactions, selYear, selMonth]);
 
+  // ── Year data ─────────────────────────────────────────────────
+  const yearMonthlyData = useMemo(() => {
+    return MONTHS_SHORT.map((label, month) => {
+      const tx = transactions.filter(t => {
+        const d = parseDate(t.date);
+        return d.getFullYear() === selYear && d.getMonth() === month;
+      });
+      const income   = tx.filter(t => t.type === 'income').reduce((s,t) => s + parseFloat(t.amount), 0);
+      const expenses = tx.filter(t => t.type === 'expense').reduce((s,t) => s + parseFloat(t.amount), 0);
+      const budgetKey = `${selYear}-${month}`;
+      const budgeted  = Object.values(budgets[budgetKey] || {}).reduce((s,v) => s + parseFloat(v||0), 0);
+      return { label, month, income, expenses, net: income - expenses, budgeted };
+    });
+  }, [transactions, budgets, selYear]);
+
+  const yearTotals = useMemo(() => {
+    const income   = yearMonthlyData.reduce((s,m) => s + m.income, 0);
+    const expenses = yearMonthlyData.reduce((s,m) => s + m.expenses, 0);
+    const budgeted = yearMonthlyData.reduce((s,m) => s + m.budgeted, 0);
+    const savingsRate = income > 0 ? ((income - expenses) / income * 100) : 0;
+    return { income, expenses, net: income - expenses, budgeted, savingsRate };
+  }, [yearMonthlyData]);
+
+  const yearEnvelopeTotals = useMemo(() => {
+    return envelopes.map(env => {
+      let totalBudgeted = 0;
+      let totalSpent = 0;
+      for (let m = 0; m < 12; m++) {
+        const key = `${selYear}-${m}`;
+        totalBudgeted += parseFloat((budgets[key] || {})[env.name] || 0);
+      }
+      transactions.forEach(t => {
+        if (t.type !== 'expense' || t.envelope !== env.name) return;
+        const d = parseDate(t.date);
+        if (d.getFullYear() === selYear) totalSpent += parseFloat(t.amount);
+      });
+      return { ...env, totalBudgeted, totalSpent, balance: totalBudgeted - totalSpent };
+    }).filter(e => e.totalBudgeted > 0 || e.totalSpent > 0)
+      .sort((a,b) => b.totalSpent - a.totalSpent);
+  }, [envelopes, budgets, transactions, selYear]);
+
+  const yearCategoryData = useMemo(() => {
+    const totals = { need: 0, want: 0, saving: 0 };
+    transactions.forEach(t => {
+      if (t.type !== 'expense') return;
+      const d = parseDate(t.date);
+      if (d.getFullYear() !== selYear) return;
+      const env = envelopes.find(e => e.name === t.envelope);
+      if (env) totals[env.category] += parseFloat(t.amount);
+    });
+    return [
+      { name: 'Needs',   value: totals.need,   color: CAT_COLORS.need   },
+      { name: 'Wants',   value: totals.want,   color: CAT_COLORS.want   },
+      { name: 'Savings', value: totals.saving, color: CAT_COLORS.saving },
+    ].filter(d => d.value > 0);
+  }, [transactions, envelopes, selYear]);
+
   // ── Insights ──────────────────────────────────────────────────
   const insights = useMemo(() => {
     const list = [];
@@ -153,44 +211,234 @@ const Reports = ({ transactions, budgets }) => {
       <div className="rp-header">
         <div className="rp-header-top">
           <h1 className="rp-title">Reports</h1>
-        </div>
-
-        {/* Month nav */}
-        <div className="rp-month-nav">
-          <button className="rp-arrow" onClick={prevMonth}>‹</button>
-          <span className="rp-month-label">{MONTHS[selMonth]} {selYear}</span>
-          <button className="rp-arrow" onClick={nextMonth}>›</button>
-        </div>
-
-        {/* Tab bar */}
-        <div className="rp-tabs">
-          {[
-            { id: 'overview',  label: 'Overview'  },
-            { id: 'budget',    label: 'Budget'    },
-            { id: 'trends',    label: 'Trends'    },
-            { id: 'breakdown', label: 'Breakdown' },
-          ].map(t => (
+          {/* Month / Year toggle */}
+          <div className="rp-view-toggle">
             <button
-              key={t.id}
-              className={`rp-tab ${tab === t.id ? 'active' : ''}`}
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+              className={`rp-toggle-btn ${viewMode === 'month' ? 'active' : ''}`}
+              onClick={() => setViewMode('month')}
+            >Month</button>
+            <button
+              className={`rp-toggle-btn ${viewMode === 'year' ? 'active' : ''}`}
+              onClick={() => setViewMode('year')}
+            >Year</button>
+          </div>
         </div>
+
+        {/* Month nav — only in month mode */}
+        {viewMode === 'month' && (
+          <div className="rp-month-nav">
+            <button className="rp-arrow" onClick={prevMonth}>‹</button>
+            <span className="rp-month-label">{MONTHS[selMonth]} {selYear}</span>
+            <button className="rp-arrow" onClick={nextMonth}>›</button>
+          </div>
+        )}
+
+        {/* Year nav — only in year mode */}
+        {viewMode === 'year' && (
+          <div className="rp-month-nav">
+            <button className="rp-arrow" onClick={() => setSelYear(y => y - 1)}>‹</button>
+            <span className="rp-month-label">{selYear}</span>
+            <button
+              className="rp-arrow"
+              onClick={() => setSelYear(y => y + 1)}
+              disabled={selYear >= today.getFullYear()}
+            >›</button>
+          </div>
+        )}
+
+        {/* Tab bar — only in month mode */}
+        {viewMode === 'month' && (
+          <div className="rp-tabs">
+            {[
+              { id: 'overview',  label: 'Overview'  },
+              { id: 'budget',    label: 'Budget'    },
+              { id: 'trends',    label: 'Trends'    },
+              { id: 'breakdown', label: 'Breakdown' },
+            ].map(t => (
+              <button
+                key={t.id}
+                className={`rp-tab ${tab === t.id ? 'active' : ''}`}
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Scrollable content ── */}
       <div className="rp-scroll">
 
-        {!hasData ? (
-          <div className="rp-empty">
-            <div className="rp-empty-icon">📊</div>
-            <div className="rp-empty-title">No data for {MONTHS[selMonth]}</div>
-            <div className="rp-empty-sub">Add transactions to see reports</div>
-          </div>
-        ) : (
+        {/* ══ YEAR VIEW ══ */}
+        {viewMode === 'year' && (() => {
+          const hasYearData = yearMonthlyData.some(m => m.income > 0 || m.expenses > 0);
+          if (!hasYearData) return (
+            <div className="rp-empty">
+              <div className="rp-empty-icon">📊</div>
+              <div className="rp-empty-title">No data for {selYear}</div>
+              <div className="rp-empty-sub">Add transactions to see annual reports</div>
+            </div>
+          );
+          return (
+            <div className="rp-content">
+              {/* Annual KPI strip */}
+              <div className="rp-kpi-strip">
+                <div className="rp-kpi">
+                  <span className="rp-kpi-label">Income</span>
+                  <span className="rp-kpi-value income">+₹{fmt(yearTotals.income)}</span>
+                </div>
+                <div className="rp-kpi-div" />
+                <div className="rp-kpi">
+                  <span className="rp-kpi-label">Expense</span>
+                  <span className="rp-kpi-value expense">-₹{fmt(yearTotals.expenses)}</span>
+                </div>
+                <div className="rp-kpi-div" />
+                <div className="rp-kpi">
+                  <span className="rp-kpi-label">Net</span>
+                  <span className={`rp-kpi-value ${yearTotals.net >= 0 ? 'income' : 'expense'}`}>
+                    {yearTotals.net >= 0 ? '+' : '-'}₹{fmt(yearTotals.net)}
+                  </span>
+                </div>
+                <div className="rp-kpi-div" />
+                <div className="rp-kpi">
+                  <span className="rp-kpi-label">Rate</span>
+                  <span className={`rp-kpi-value ${yearTotals.savingsRate >= 20 ? 'income' : yearTotals.savingsRate < 0 ? 'expense' : 'neutral'}`}>
+                    {yearTotals.savingsRate.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Month-by-month bar chart */}
+              <div className="rp-section">
+                <div className="rp-section-title">Monthly Income vs Expenses — {selYear}</div>
+                <div className="rp-card rp-chart-wrap">
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={yearMonthlyData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                      <Tooltip formatter={(v) => `₹${fmt(v)}`} />
+                      <Legend iconType="circle" iconSize={8} />
+                      <Bar dataKey="income"   fill="#10b981" name="Income"   radius={[3,3,0,0]} />
+                      <Bar dataKey="expenses" fill="#ef4444" name="Expenses" radius={[3,3,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Category pie */}
+              {yearCategoryData.length > 0 && (
+                <div className="rp-section">
+                  <div className="rp-section-title">Annual Spending by Category</div>
+                  <div className="rp-card">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={yearCategoryData}
+                          cx="50%" cy="50%"
+                          outerRadius={80}
+                          dataKey="value"
+                          labelLine={false}
+                          label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                            if (percent < 0.08) return null;
+                            const RADIAN = Math.PI / 180;
+                            const r = innerRadius + (outerRadius - innerRadius) * 0.5;
+                            const x = cx + r * Math.cos(-midAngle * RADIAN);
+                            const y = cy + r * Math.sin(-midAngle * RADIAN);
+                            return <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600}>{`${(percent*100).toFixed(0)}%`}</text>;
+                          }}
+                        >
+                          {yearCategoryData.map((entry, i) => (
+                            <Cell key={i} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v) => `₹${fmt(v)}`} />
+                        <Legend iconType="circle" iconSize={10} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Month-by-month table */}
+              <div className="rp-section">
+                <div className="rp-section-title">Month-by-Month Summary</div>
+                <div className="rp-card">
+                  <div className="rp-trend-table-head">
+                    <span>Month</span><span>Income</span><span>Expense</span><span>Net</span>
+                  </div>
+                  {yearMonthlyData.map((row, i) => {
+                    const isFuture = selYear === today.getFullYear() && row.month > today.getMonth();
+                    return (
+                      <div key={row.label} className={`rp-trend-row ${i < 11 ? 'bordered' : ''} ${isFuture ? 'rp-future-row' : ''}`}>
+                        <span className="rp-trend-month">
+                          {row.label}
+                          {selYear === today.getFullYear() && row.month === today.getMonth() && (
+                            <span className="rp-now-badge">Now</span>
+                          )}
+                        </span>
+                        <span className="rp-trend-income">{row.income > 0 ? `+₹${fmt(row.income)}` : '—'}</span>
+                        <span className="rp-trend-expense">{row.expenses > 0 ? `-₹${fmt(row.expenses)}` : '—'}</span>
+                        <span className={`rp-trend-net ${row.net > 0 ? 'pos' : row.net < 0 ? 'neg' : ''}`}>
+                          {row.income === 0 && row.expenses === 0 ? '—' : (row.net >= 0 ? '+' : '-') + '₹' + fmt(row.net)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {/* Totals */}
+                  <div className="rp-year-total-row">
+                    <span>Total</span>
+                    <span className="rp-trend-income">+₹{fmt(yearTotals.income)}</span>
+                    <span className="rp-trend-expense">-₹{fmt(yearTotals.expenses)}</span>
+                    <span className={`rp-trend-net ${yearTotals.net >= 0 ? 'pos' : 'neg'}`}>
+                      {yearTotals.net >= 0 ? '+' : '-'}₹{fmt(yearTotals.net)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Envelope annual totals */}
+              {yearEnvelopeTotals.length > 0 && (
+                <div className="rp-section">
+                  <div className="rp-section-title">Envelope Annual Totals</div>
+                  <div className="rp-card">
+                    {yearEnvelopeTotals.map((env, i) => (
+                      <div key={env.name} className={`rp-bva-row ${i < yearEnvelopeTotals.length - 1 ? 'bordered' : ''}`}>
+                        <div className="rp-bva-top">
+                          <span className={`rp-bva-name ${env.balance < 0 ? 'over' : ''}`}>{env.name}</span>
+                          <span className={`rp-bva-rem ${env.balance >= 0 ? 'pos' : 'neg'}`}>
+                            {env.balance < 0 ? '-' : ''}₹{fmt(env.balance)} {env.balance < 0 ? 'over' : 'left'}
+                          </span>
+                        </div>
+                        <div className="rp-bva-bar">
+                          <div
+                            className={`rp-bva-fill ${env.balance < 0 ? 'over' : env.category}`}
+                            style={{ width: env.totalBudgeted > 0 ? `${Math.min((env.totalSpent / env.totalBudgeted) * 100, 100)}%` : '0%' }}
+                          />
+                        </div>
+                        <div className="rp-bva-meta">
+                          <span>Spent ₹{fmt(env.totalSpent)}</span>
+                          <span>Budget ₹{fmt(env.totalBudgeted)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ══ MONTH VIEW ══ */}
+        {viewMode === 'month' && (
+          !hasData ? (
+            <div className="rp-empty">
+              <div className="rp-empty-icon">📊</div>
+              <div className="rp-empty-title">No data for {MONTHS[selMonth]}</div>
+              <div className="rp-empty-sub">Add transactions to see reports</div>
+            </div>
+          ) : (
           <>
             {/* ── OVERVIEW ── */}
             {tab === 'overview' && (
@@ -415,7 +663,8 @@ const Reports = ({ transactions, budgets }) => {
               </div>
             )}
           </>
-        )}
+          ) /* end hasData */
+        )} {/* end month view */}
       </div>
     </div>
   );

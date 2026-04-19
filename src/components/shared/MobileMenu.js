@@ -4,7 +4,7 @@ const MobileMenu = ({ user, onNavigate, onExport, onDeleteAll, onSignOut, onClos
   <div className="mobile-menu-overlay" onClick={onClose}>
     <div className="mobile-menu" onClick={e => e.stopPropagation()}>
       <div className="mobile-menu-header">
-        <h3>Menu</h3>
+        <h3>More</h3>
         <button className="close-menu" onClick={onClose}>×</button>
       </div>
 
@@ -17,6 +17,22 @@ const MobileMenu = ({ user, onNavigate, onExport, onDeleteAll, onSignOut, onClos
       </div>
 
       <div className="mobile-menu-items">
+        <button className="menu-item" onClick={() => { onNavigate('todos'); onClose(); }}>
+          <span className="menu-icon">✅</span>
+          <div className="menu-text">
+            <div className="menu-title">To-Do</div>
+            <div className="menu-subtitle">Tasks & priorities</div>
+          </div>
+        </button>
+
+        <button className="menu-item" onClick={() => { onNavigate('reports'); onClose(); }}>
+          <span className="menu-icon">📊</span>
+          <div className="menu-text">
+            <div className="menu-title">Reports</div>
+            <div className="menu-subtitle">Spending insights</div>
+          </div>
+        </button>
+
         <button className="menu-item" onClick={() => { onNavigate('settings'); onClose(); }}>
           <span className="menu-icon">⚙️</span>
           <div className="menu-text">

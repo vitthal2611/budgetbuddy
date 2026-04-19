@@ -189,12 +189,6 @@ const renderEnvelopeCard = (envelope, {
           >
             📋 History
           </button>
-          <button 
-            className="env-card-btn secondary"
-            onClick={(e) => { e.stopPropagation(); onEditBudget(envelope); }}
-          >
-            💰 Budget
-          </button>
         </div>
       </div>
     </div>
@@ -204,6 +198,143 @@ const renderEnvelopeCard = (envelope, {
 const MONTHS = ['January','February','March','April','May','June',
                 'July','August','September','October','November','December'];
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ── Year View Component ───────────────────────────────────────
+const YearView = ({ transactions, budgets, customEnvelopes, selectedYear }) => {
+  const fmt = (n) => Math.abs(n).toLocaleString('en-IN');
+
+  // Build per-month totals for the year
+  const yearData = React.useMemo(() => {
+    return MONTHS_SHORT.map((label, month) => {
+      const budgetKey = `${selectedYear}-${month}`;
+      const fills = budgets[budgetKey] || {};
+      const budgeted = Object.values(fills).reduce((s, v) => s + parseFloat(v || 0), 0);
+
+      let income = 0;
+      let spent = 0;
+      transactions.forEach(t => {
+        const parts = t.date.split('-');
+        if (parseInt(parts[2]) !== selectedYear || parseInt(parts[1]) - 1 !== month) return;
+        if (t.type === 'income') income += parseFloat(t.amount);
+        if (t.type === 'expense') spent += parseFloat(t.amount);
+      });
+
+      return { label, month, income, spent, budgeted, net: income - spent };
+    });
+  }, [transactions, budgets, selectedYear]);
+
+  // Per-envelope annual totals
+  const envelopeAnnual = React.useMemo(() => {
+    return customEnvelopes.map(env => {
+      let totalBudgeted = 0;
+      let totalSpent = 0;
+      for (let m = 0; m < 12; m++) {
+        const key = `${selectedYear}-${m}`;
+        totalBudgeted += parseFloat((budgets[key] || {})[env.name] || 0);
+      }
+      transactions.forEach(t => {
+        if (t.type !== 'expense' || t.envelope !== env.name) return;
+        const parts = t.date.split('-');
+        if (parseInt(parts[2]) === selectedYear) totalSpent += parseFloat(t.amount);
+      });
+      return { ...env, totalBudgeted, totalSpent, balance: totalBudgeted - totalSpent };
+    }).filter(e => e.totalBudgeted > 0 || e.totalSpent > 0)
+      .sort((a, b) => b.totalSpent - a.totalSpent);
+  }, [customEnvelopes, budgets, transactions, selectedYear]);
+
+  const totalIncome   = yearData.reduce((s, m) => s + m.income, 0);
+  const totalSpent    = yearData.reduce((s, m) => s + m.spent, 0);
+  const totalBudgeted = yearData.reduce((s, m) => s + m.budgeted, 0);
+  const totalNet      = totalIncome - totalSpent;
+
+  const today = new Date();
+  const isCurrentYear = selectedYear === today.getFullYear();
+
+  return (
+    <div className="ev-year-view">
+      {/* Annual KPI strip */}
+      <div className="ev-year-kpis">
+        <div className="ev-year-kpi income">
+          <span className="ev-year-kpi-label">Income</span>
+          <span className="ev-year-kpi-value">₹{fmt(totalIncome)}</span>
+        </div>
+        <div className="ev-year-kpi spend">
+          <span className="ev-year-kpi-label">Spent</span>
+          <span className="ev-year-kpi-value">₹{fmt(totalSpent)}</span>
+        </div>
+        <div className="ev-year-kpi net">
+          <span className="ev-year-kpi-label">Net</span>
+          <span className={`ev-year-kpi-value ${totalNet >= 0 ? 'pos' : 'neg'}`}>
+            {totalNet < 0 ? '-' : ''}₹{fmt(totalNet)}
+          </span>
+        </div>
+      </div>
+
+      {/* Month-by-month table */}
+      <div className="ev-year-section-title">Monthly Breakdown</div>
+      <div className="ev-year-table-card">
+        <div className="ev-year-table-head">
+          <span>Month</span>
+          <span>Income</span>
+          <span>Spent</span>
+          <span>Net</span>
+        </div>
+        {yearData.map((row, i) => {
+          const isFuture = isCurrentYear && row.month > today.getMonth();
+          return (
+            <div key={row.label} className={`ev-year-table-row ${isFuture ? 'future' : ''} ${i < 11 ? 'bordered' : ''}`}>
+              <span className="ev-year-row-month">
+                {row.label}
+                {isCurrentYear && row.month === today.getMonth() && (
+                  <span className="ev-year-now-badge">Now</span>
+                )}
+              </span>
+              <span className="ev-year-row-income">{row.income > 0 ? `₹${fmt(row.income)}` : '—'}</span>
+              <span className="ev-year-row-spent">{row.spent > 0 ? `₹${fmt(row.spent)}` : '—'}</span>
+              <span className={`ev-year-row-net ${row.net > 0 ? 'pos' : row.net < 0 ? 'neg' : ''}`}>
+                {row.income === 0 && row.spent === 0 ? '—' : (row.net < 0 ? '-' : '') + '₹' + fmt(row.net)}
+              </span>
+            </div>
+          );
+        })}
+        {/* Totals row */}
+        <div className="ev-year-table-total">
+          <span>Total</span>
+          <span className="ev-year-row-income">₹{fmt(totalIncome)}</span>
+          <span className="ev-year-row-spent">₹{fmt(totalSpent)}</span>
+          <span className={`ev-year-row-net ${totalNet >= 0 ? 'pos' : 'neg'}`}>
+            {totalNet < 0 ? '-' : ''}₹{fmt(totalNet)}
+          </span>
+        </div>
+      </div>
+
+      {/* Per-envelope annual totals */}
+      {envelopeAnnual.length > 0 && (
+        <>
+          <div className="ev-year-section-title" style={{ marginTop: 20 }}>Envelope Totals</div>
+          <div className="ev-year-table-card">
+            <div className="ev-year-env-head">
+              <span>Envelope</span>
+              <span>Budgeted</span>
+              <span>Spent</span>
+              <span>Balance</span>
+            </div>
+            {envelopeAnnual.map((env, i) => (
+              <div key={env.name} className={`ev-year-env-row ${i < envelopeAnnual.length - 1 ? 'bordered' : ''}`}>
+                <span className="ev-year-env-name">{env.name}</span>
+                <span className="ev-year-env-budgeted">₹{fmt(env.totalBudgeted)}</span>
+                <span className="ev-year-env-spent">₹{fmt(env.totalSpent)}</span>
+                <span className={`ev-year-env-bal ${env.balance >= 0 ? 'pos' : 'neg'}`}>
+                  {env.balance < 0 ? '-' : ''}₹{fmt(env.balance)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 const CATEGORIES = [
   { key: 'need',   label: 'Needs',           icon: '🛒' },
@@ -257,6 +388,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   const [editForm,          setEditForm]          = useState({});
   const [newEnv,            setNewEnv]            = useState(EMPTY_ENV);
   const [showAccounts,      setShowAccounts]      = useState(false);
+  const [viewMode,          setViewMode]          = useState('month'); // 'month' | 'year'
 
   // ── Derived data ─────────────────────────────────────────────
   const {
@@ -414,91 +546,128 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
 
       {/* ── HEADER ── */}
       <div className="ev-header">
+
+        {/* Row 1: Brand left · Toggle center · Nav right */}
         <div className="ev-header-top">
-          <span className="ev-brand-name">
-            <span className="ev-brand-good">Good</span><span className="ev-brand-budget">Budget</span>
-          </span>
-          <div className="ev-month-dropdown-wrap">
-            <select
-              className="ev-month-dropdown"
-              value={`${selectedYear}-${selectedMonth}`}
-              onChange={handleMonthDropdownChange}
-              aria-label="Select month"
-            >
-              {availableYears.map(year =>
-                MONTHS_SHORT.map((label, idx) => (
-                  <option key={`${year}-${idx}`} value={`${year}-${idx}`}>
-                    {label} {year}
-                  </option>
-                ))
-              )}
-            </select>
-            {!isCurrentMonth && (
-              <button type="button" className="ev-today-pill" onClick={goToday} aria-label="Go to current month">
-                Today
-              </button>
-            )}
+          <div className="ev-view-toggle">
+            <button
+              className={`ev-toggle-btn ${viewMode === 'month' ? 'active' : ''}`}
+              onClick={() => setViewMode('month')}
+            >Month</button>
+            <button
+              className={`ev-toggle-btn ${viewMode === 'year' ? 'active' : ''}`}
+              onClick={() => setViewMode('year')}
+            >Year</button>
           </div>
-          <button 
-            type="button" 
-            className="ev-settings-btn" 
-            onClick={() => onNavigate('settings')}
-            aria-label="Settings"
-          >
-            ⚙️
-          </button>
-        </div>
 
-        <div className="ev-header-card">
-          {/* Compact single-line Ready to Assign */}
-          <div className="ev-header-row">
-            <div className="ev-ready-assign-compact">
-              <span className="ev-ready-label">Ready to Assign:</span>
-              <span className={`ev-ready-amount ${unallocated === 0 ? 'zero' : unallocated < 0 ? 'neg' : 'pos'}`}>
-                {unallocated < 0 ? '-' : ''}₹{fmt(unallocated)}
-              </span>
+          {/* Month mode: prev · month label · next */}
+          {viewMode === 'month' && (
+            <div className="ev-header-nav">
+              <button className="ev-nav-arrow" onClick={prevMonth} aria-label="Previous month">‹</button>
+              <span className="ev-nav-period">{MONTHS_SHORT[selectedMonth]} {selectedYear}</span>
+              <button className="ev-nav-arrow" onClick={nextMonth} aria-label="Next month">›</button>
             </div>
-          </div>
+          )}
 
-          {unallocated !== 0 && (
-            <div className={`ev-alert ${unallocated < 0 ? 'danger' : 'warning'}`}>
-              {unallocated > 0
-                ? `₹${fmt(unallocated)} left to allocate`
-                : `Over-allocated by ₹${fmt(Math.abs(unallocated))}`}
+          {/* Year mode: prev · year label · next */}
+          {viewMode === 'year' && (
+            <div className="ev-header-nav">
+              <button className="ev-nav-arrow" onClick={() => setSelectedYear(y => y - 1)} aria-label="Previous year">‹</button>
+              <span className="ev-nav-period">{selectedYear}</span>
+              <button
+                className="ev-nav-arrow"
+                onClick={() => setSelectedYear(y => y + 1)}
+                disabled={selectedYear >= today.getFullYear()}
+                aria-label="Next year"
+              >›</button>
             </div>
           )}
         </div>
+
+
+        {/* Summary card — month mode */}
+        {viewMode === 'month' && (
+          <div className="ev-header-card">
+            <div className="ev-summary-row">
+              <div className="ev-summary-item">
+                <span className="ev-summary-label">Income</span>
+                <span className="ev-summary-value income">₹{fmt(monthlyIncome)}</span>
+              </div>
+              <div className="ev-summary-divider" />
+              <div className="ev-summary-item">
+                <span className="ev-summary-label">Spent</span>
+                <span className="ev-summary-value spent">₹{fmt(totalSpent)}</span>
+              </div>
+              <div className="ev-summary-divider" />
+              <div className="ev-summary-item">
+                <span className="ev-summary-label">To Assign</span>
+                <span className={`ev-summary-value assign ${unallocated === 0 ? 'zero' : unallocated < 0 ? 'neg' : 'pos'}`}>
+                  {unallocated < 0 ? '-' : ''}₹{fmt(unallocated)}
+                </span>
+              </div>
+            </div>
+            {unallocated !== 0 && (
+              <div className={`ev-alert ${unallocated < 0 ? 'danger' : 'warning'}`}>
+                {unallocated > 0
+                  ? `₹${fmt(unallocated)} unallocated — tap a budget to assign`
+                  : `Over-allocated by ₹${fmt(Math.abs(unallocated))}`}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Summary card — year mode */}
+        {viewMode === 'year' && (
+          <div className="ev-header-card">
+            <div className="ev-summary-row">
+              {(() => {
+                let yi = 0, ys = 0;
+                transactions.forEach(t => {
+                  const parts = t.date.split('-');
+                  if (parseInt(parts[2]) !== selectedYear) return;
+                  if (t.type === 'income')  yi += parseFloat(t.amount);
+                  if (t.type === 'expense') ys += parseFloat(t.amount);
+                });
+                const yn = yi - ys;
+                return (<>
+                  <div className="ev-summary-item">
+                    <span className="ev-summary-label">Income</span>
+                    <span className="ev-summary-value income">₹{fmt(yi)}</span>
+                  </div>
+                  <div className="ev-summary-divider" />
+                  <div className="ev-summary-item">
+                    <span className="ev-summary-label">Spent</span>
+                    <span className="ev-summary-value spent">₹{fmt(ys)}</span>
+                  </div>
+                  <div className="ev-summary-divider" />
+                  <div className="ev-summary-item">
+                    <span className="ev-summary-label">Net</span>
+                    <span className={`ev-summary-value ${yn >= 0 ? 'pos' : 'neg'}`}>
+                      {yn < 0 ? '-' : ''}₹{fmt(yn)}
+                    </span>
+                  </div>
+                </>);
+              })()}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── CONTENT ── */}
       <div className="ev-content">
 
-        {/* Metric Cards: Income | Spend | Balance */}
-        <div className="ev-metrics">
-          <div className="ev-metric-card income">
-            <span className="ev-metric-icon">💰</span>
-            <div className="ev-metric-content">
-              <span className="ev-metric-label">Income</span>
-              <span className="ev-metric-value">₹{fmt(monthlyIncome)}</span>
-            </div>
-          </div>
-          <div className="ev-metric-card spend">
-            <span className="ev-metric-icon">💸</span>
-            <div className="ev-metric-content">
-              <span className="ev-metric-label">Spend</span>
-              <span className="ev-metric-value">₹{fmt(totalSpent)}</span>
-            </div>
-          </div>
-          <div className="ev-metric-card balance">
-            <span className="ev-metric-icon">💵</span>
-            <div className="ev-metric-content">
-              <span className="ev-metric-label">Balance</span>
-              <span className={`ev-metric-value ${(monthlyIncome - totalSpent) >= 0 ? 'positive' : 'negative'}`}>
-                {(monthlyIncome - totalSpent) < 0 ? '-' : ''}₹{fmt(Math.abs(monthlyIncome - totalSpent))}
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* ── YEAR VIEW ── */}
+        {viewMode === 'year' && (
+          <YearView
+            transactions={transactions}
+            budgets={budgets}
+            customEnvelopes={customEnvelopes}
+            selectedYear={selectedYear}
+          />
+        )}
+
+        {/* ── MONTH VIEW ── */}
+        {viewMode === 'month' && (<>
 
         {/* Accounts */}
         {Object.keys(accountBalances).length > 0 && (
@@ -546,7 +715,6 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           </div>
         ) : (
           <>
-            {/* Single list sorted by recently used - show ALL envelopes */}
             {(() => {
               const allEnvelopes = Object.values(envelopesByCategory).flat();
               const sorted = [...allEnvelopes]
@@ -572,6 +740,8 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
             </button>
           </>
         )}
+
+        </>)} {/* end month view */}
       </div>
 
       {/* FAB */}

@@ -34,8 +34,7 @@ const HabitTracker = () => {
   const [formFrequency, setFormFrequency] = useState('daily');
   const [formDifficulty, setFormDifficulty] = useState('easy');
   const [formStackAfter, setFormStackAfter] = useState('');
-  
-  // Modal state
+  const [formCustomTrigger, setFormCustomTrigger] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
@@ -51,8 +50,7 @@ const HabitTracker = () => {
   const [editType, setEditType] = useState('positive');
   const [editDifficulty, setEditDifficulty] = useState('easy');
   const [editStackAfter, setEditStackAfter] = useState('');
-  
-  // Validation
+  const [editCustomTrigger, setEditCustomTrigger] = useState('');
   const [nameError, setNameError] = useState(false);
   const [identityError, setIdentityError] = useState(false);
   const [twoMinuteWarning, setTwoMinuteWarning] = useState(false);
@@ -457,6 +455,7 @@ const HabitTracker = () => {
       location: finalLocation,
       reward: formReward.trim(),
       stackAfter: formStackAfter,
+      customTrigger: formStackAfter ? '' : formCustomTrigger.trim(),
       frequency: formFrequency,
       habitType: 'positive',
       difficulty: formDifficulty,
@@ -481,6 +480,7 @@ const HabitTracker = () => {
     setFormFrequency('daily');
     setFormDifficulty('easy');
     setFormStackAfter('');
+    setFormCustomTrigger('');
   };
 
   const overrideTwoMinuteRule = async () => {
@@ -496,6 +496,7 @@ const HabitTracker = () => {
       location: finalLocation,
       reward: formReward.trim(),
       stackAfter: formStackAfter,
+      customTrigger: formStackAfter ? '' : formCustomTrigger.trim(),
       frequency: formFrequency,
       habitType: 'positive',
       difficulty: formDifficulty,
@@ -520,6 +521,7 @@ const HabitTracker = () => {
     setFormFrequency('daily');
     setFormDifficulty('easy');
     setFormStackAfter('');
+    setFormCustomTrigger('');
   };
 
   const openEditModal = (habit) => {
@@ -533,6 +535,7 @@ const HabitTracker = () => {
     setEditType(habit.habitType);
     setEditDifficulty(habit.difficulty);
     setEditStackAfter(habit.stackAfter || '');
+    setEditCustomTrigger(habit.customTrigger || '');
     setShowEditModal(true);
   };
 
@@ -555,7 +558,8 @@ const HabitTracker = () => {
             frequency: editFrequency,
             habitType: editType,
             difficulty: editDifficulty,
-            stackAfter: editStackAfter
+            stackAfter: editStackAfter,
+            customTrigger: editStackAfter ? '' : editCustomTrigger.trim()
           }
         : h
     );
@@ -701,6 +705,10 @@ const HabitTracker = () => {
                       {stackedHabit && (
                         <div className="habit-stack">🔗 After: {stackedHabit.name}</div>
                       )}
+                      {/* Custom trigger */}
+                      {!stackedHabit && habit.customTrigger && (
+                        <div className="habit-custom-trigger">⚡ {habit.customTrigger}</div>
+                      )}
                       
                       {/* Implementation Intention */}
                       {habit.time && habit.location && (
@@ -820,20 +828,38 @@ const HabitTracker = () => {
               </div>
               
               <div className="form-section">
-                <label className="form-label">Stack after another habit?</label>
+                <label className="form-label">Trigger (Make it obvious)</label>
                 <select
                   value={formStackAfter}
-                  onChange={(e) => setFormStackAfter(e.target.value)}
+                  onChange={(e) => { setFormStackAfter(e.target.value); setFormCustomTrigger(''); }}
                   className="stack-select"
                 >
-                  <option value="">No stacking</option>
+                  <option value="">— No stacking / use custom trigger</option>
                   {data.habits.map(h => (
-                    <option key={h.id} value={h.id}>{h.name}</option>
+                    <option key={h.id} value={h.id}>🔗 After: {h.name}</option>
                   ))}
                 </select>
+
+                {/* Stack hint */}
                 {formStackAfter && (
                   <div className="stack-hint">
                     🔗 This habit will appear right after "{data.habits.find(h => h.id === formStackAfter)?.name}"
+                  </div>
+                )}
+
+                {/* Custom trigger — shown when no habit is selected */}
+                {!formStackAfter && (
+                  <input
+                    type="text"
+                    className="custom-trigger-input"
+                    placeholder="e.g. After I wake up, When I feel stressed…"
+                    value={formCustomTrigger}
+                    onChange={(e) => setFormCustomTrigger(e.target.value)}
+                  />
+                )}
+                {!formStackAfter && formCustomTrigger && (
+                  <div className="stack-hint">
+                    ⚡ Trigger: "{formCustomTrigger}"
                   </div>
                 )}
               </div>
@@ -1290,13 +1316,26 @@ const HabitTracker = () => {
               <option value="hard">Hard (30m+)</option>
             </select>
             
-            <label>Stack After</label>
-            <select value={editStackAfter} onChange={(e) => setEditStackAfter(e.target.value)}>
-              <option value="">None</option>
+            <label>Trigger</label>
+            <select
+              value={editStackAfter}
+              onChange={(e) => { setEditStackAfter(e.target.value); setEditCustomTrigger(''); }}
+            >
+              <option value="">— No stacking / use custom trigger</option>
               {data.habits.filter(h => h.id !== editingHabit?.id).map(h => (
-                <option key={h.id} value={h.id}>{h.name}</option>
+                <option key={h.id} value={h.id}>🔗 After: {h.name}</option>
               ))}
             </select>
+            {!editStackAfter && (
+              <input
+                type="text"
+                className="custom-trigger-input"
+                placeholder="e.g. After I wake up, When I feel stressed…"
+                value={editCustomTrigger}
+                onChange={(e) => setEditCustomTrigger(e.target.value)}
+                style={{ marginTop: 8 }}
+              />
+            )}
             
             <div className="modal-actions">
               <button className="cancel-btn" onClick={() => setShowEditModal(false)}>Cancel</button>

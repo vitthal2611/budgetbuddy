@@ -551,9 +551,9 @@
   font-weight: 500;
 }
 
-/* Desktop: Hide mobile menu button, center menus instead */
+/* Desktop: Hide More button — sidebar handles those options */
 @media (min-width: 481px) {
-  .bottom-nav button:last-child {
+  .bottom-nav .nav-more-btn {
     display: none;
   }
 
@@ -583,18 +583,22 @@
   }
 }
 
-/* Mobile: Adjust bottom nav for 4 items */
+/* Mobile: 5-item bottom nav */
 @media (max-width: 480px) {
   .bottom-nav {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    display: flex !important;
+    justify-content: space-around;
+    align-items: center;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
   }
-  
+
   .bottom-nav button {
-    padding: 10px 4px;
-    font-size: 11px;
+    flex: 1;
+    padding: 8px 2px;
+    font-size: 10px;
+    min-width: 0;
   }
-  
+
   .bottom-nav button .nav-icon {
     font-size: 20px;
   }
@@ -731,7 +735,7 @@
   transform: scale(0.9);
 }
 
-/* Override grid for 5-item nav with center add button */
+/* Mobile: 5-item bottom nav layout */
 @media (max-width: 480px) {
   .bottom-nav {
     display: flex !important;
@@ -742,8 +746,9 @@
 
   .bottom-nav button {
     flex: 1;
-    padding: 8px 4px;
+    padding: 8px 2px;
     font-size: 10px;
+    min-width: 0;
   }
 
   .bottom-nav .nav-add-btn {

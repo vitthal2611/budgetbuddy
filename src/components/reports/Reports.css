@@ -521,3 +521,79 @@
     margin-bottom: 10px;
   }
 }
+
+/* ── Month / Year toggle ── */
+.rp-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+
+.rp-view-toggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--border-light);
+}
+
+.rp-toggle-btn {
+  padding: 5px 14px;
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  background: transparent;
+  transition: all 0.15s ease;
+  min-height: 30px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rp-toggle-btn.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+}
+
+/* Year total row in trend table */
+.rp-year-total-row {
+  display: grid;
+  grid-template-columns: 48px 1fr 1fr 1fr;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  background: var(--bg-tertiary);
+  border-top: 2px solid var(--border-medium);
+  color: var(--text-primary);
+}
+
+.rp-year-total-row span:first-child { text-align: left; }
+
+/* Future month row */
+.rp-future-row { opacity: 0.4; }
+
+/* Now badge */
+.rp-now-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-left: 4px;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+/* Disabled arrow */
+.rp-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
