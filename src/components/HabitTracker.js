@@ -23,6 +23,23 @@ const HabitTracker = () => {
   const [data, setData] = useState({ habits: [], completions: {} });
   const [activeTab, setActiveTab] = useState('today');
   const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [viewDate, setViewDate] = useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  const isViewingToday = (() => {
+    const t = new Date(); t.setHours(0,0,0,0);
+    return viewDate.getTime() === t.getTime();
+  })();
+
+  const viewDateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(viewDate.getDate()).padStart(2,'0')}`;
+
+  const goBack = () => setViewDate(d => { const n = new Date(d); n.setDate(n.getDate()-1); return n; });
+  const goForward = () => { if (!isViewingToday) setViewDate(d => { const n = new Date(d); n.setDate(n.getDate()+1); return n; }); };
+  const goToday = () => { const t = new Date(); t.setHours(0,0,0,0); setViewDate(t); };
   
   // Form state
   const [formName, setFormName] = useState('');
@@ -169,44 +186,36 @@ const HabitTracker = () => {
   const isCompletedToday = (habitId) => {
     const habit = data.habits.find(h => h.id === habitId);
     if (!habit) return false;
-    
-    const today = getTodayString();
-    const todayDate = new Date();
-    
-    // For daily habits, check today only
+
+    // For daily habits, check viewDate
     if (habit.frequency === 'daily') {
-      return data.completions[today]?.includes(habitId) || false;
+      return data.completions[viewDateStr]?.includes(habitId) || false;
     }
-    
-    // For weekly habits, check if completed anywhere this week
+
+    // For weekly habits, check if completed anywhere in viewDate's week
     if (habit.frequency === 'weekly') {
-      const monday = new Date(todayDate);
+      const monday = new Date(viewDate);
       const day = monday.getDay();
       const diff = day === 0 ? -6 : 1 - day;
       monday.setDate(monday.getDate() + diff);
       monday.setHours(0, 0, 0, 0);
-      
-      for (let d = new Date(monday); d <= todayDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (data.completions[dateStr]?.includes(habitId)) {
-          return true;
-        }
+      for (let d = new Date(monday); d <= viewDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        if (data.completions[dateStr]?.includes(habitId)) return true;
       }
       return false;
     }
-    
-    // For monthly habits, check if completed anywhere this month
+
+    // For monthly habits, check if completed anywhere in viewDate's month
     if (habit.frequency === 'monthly') {
-      const firstDay = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
-      for (let d = new Date(firstDay); d <= todayDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (data.completions[dateStr]?.includes(habitId)) {
-          return true;
-        }
+      const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+      for (let d = new Date(firstDay); d <= viewDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        if (data.completions[dateStr]?.includes(habitId)) return true;
       }
       return false;
     }
-    
+
     return false;
   };
 
@@ -372,53 +381,37 @@ const HabitTracker = () => {
   const toggleHabit = async (habitId) => {
     const habit = data.habits.find(h => h.id === habitId);
     if (!habit) return;
-    
-    const today = getTodayString();
-    const todayDate = new Date();
+
     const newCompletions = { ...data.completions };
-    
-    // Check if habit is currently completed (in this period)
     const isCurrentlyCompleted = isCompletedToday(habitId);
-    
+
     if (isCurrentlyCompleted) {
-      // Unchecking - remove completion from the period
       if (habit.frequency === 'daily') {
-        // Remove from today only
-        if (newCompletions[today]) {
-          newCompletions[today] = newCompletions[today].filter(id => id !== habitId);
+        if (newCompletions[viewDateStr]) {
+          newCompletions[viewDateStr] = newCompletions[viewDateStr].filter(id => id !== habitId);
         }
       } else if (habit.frequency === 'weekly') {
-        // Remove from all days this week
-        const monday = new Date(todayDate);
+        const monday = new Date(viewDate);
         const day = monday.getDay();
         const diff = day === 0 ? -6 : 1 - day;
         monday.setDate(monday.getDate() + diff);
         monday.setHours(0, 0, 0, 0);
-        
-        for (let d = new Date(monday); d <= todayDate; d.setDate(d.getDate() + 1)) {
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          if (newCompletions[dateStr]) {
-            newCompletions[dateStr] = newCompletions[dateStr].filter(id => id !== habitId);
-          }
+        for (let d = new Date(monday); d <= viewDate; d.setDate(d.getDate() + 1)) {
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          if (newCompletions[dateStr]) newCompletions[dateStr] = newCompletions[dateStr].filter(id => id !== habitId);
         }
       } else if (habit.frequency === 'monthly') {
-        // Remove from all days this month
-        const firstDay = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
-        for (let d = new Date(firstDay); d <= todayDate; d.setDate(d.getDate() + 1)) {
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          if (newCompletions[dateStr]) {
-            newCompletions[dateStr] = newCompletions[dateStr].filter(id => id !== habitId);
-          }
+        const firstDay = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        for (let d = new Date(firstDay); d <= viewDate; d.setDate(d.getDate() + 1)) {
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          if (newCompletions[dateStr]) newCompletions[dateStr] = newCompletions[dateStr].filter(id => id !== habitId);
         }
       }
     } else {
-      // Checking - add completion for today
-      if (!newCompletions[today]) {
-        newCompletions[today] = [];
-      }
-      newCompletions[today].push(habitId);
+      if (!newCompletions[viewDateStr]) newCompletions[viewDateStr] = [];
+      newCompletions[viewDateStr].push(habitId);
     }
-    
+
     const newData = { ...data, completions: newCompletions };
     setData(newData);
     await habitService.saveHabits(newData);
@@ -481,6 +474,7 @@ const HabitTracker = () => {
     setFormDifficulty('easy');
     setFormStackAfter('');
     setFormCustomTrigger('');
+    setShowAddModal(false);
   };
 
   const overrideTwoMinuteRule = async () => {
@@ -522,6 +516,7 @@ const HabitTracker = () => {
     setFormDifficulty('easy');
     setFormStackAfter('');
     setFormCustomTrigger('');
+    setShowAddModal(false);
   };
 
   const openEditModal = (habit) => {
@@ -605,58 +600,86 @@ const HabitTracker = () => {
 
   return (
     <div className="habit-tracker">
+
+      {/* ── HEADER ── */}
       <div className="habit-header">
-        <h1>Atomic Streaks</h1>
-        <div className="habit-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
+        <div className="habit-brand">Atomic Streaks</div>
+
+        {/* Date navigation with divider */}
+        <div className="habit-date-nav">
+          <button className="habit-date-arrow" onClick={goBack} aria-label="Previous day">‹</button>
+          <div className="habit-date-center">
+            <span className="habit-date-label">
+              {isViewingToday
+                ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+                : viewDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+              }
+            </span>
+            {!isViewingToday && (
+              <button className="habit-today-chip" onClick={goToday}>Today</button>
+            )}
+          </div>
+          <button
+            className="habit-date-arrow"
+            onClick={goForward}
+            disabled={isViewingToday}
+            aria-label="Next day"
+          >›</button>
+        </div>
+
+        {/* Metrics — inline below divider */}
+        <div className="habit-metrics">
+          <div className="habit-metric">
+            <span className="habit-metric-value">{completedToday}/{totalToday}</span>
+            <span className="habit-metric-label">Done</span>
+          </div>
+          <div className="habit-metric-div" />
+          <div className="habit-metric">
+            <span className="habit-metric-value">{progressPercent}%</span>
+            <span className="habit-metric-label">Rate</span>
+          </div>
+          <div className="habit-metric-div" />
+          <div className="habit-metric">
+            <span className="habit-metric-value">
+              {data.habits.length > 0 ? Math.max(...data.habits.map(h => getStreak(h.id)), 0) : 0}🔥
+            </span>
+            <span className="habit-metric-label">Best</span>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="habit-progress-bar-wrap">
+          <div className="habit-progress-bar-fill" style={{ width: `${progressPercent}%` }} />
+        </div>
       </div>
 
       <div className="habit-tabs">
         <button
           className={`habit-tab ${activeTab === 'today' ? 'active' : ''}`}
           onClick={() => setActiveTab('today')}
-        >
-          Today
-        </button>
+        >Today</button>
         <button
           className={`habit-tab ${activeTab === 'habits' ? 'active' : ''}`}
           onClick={() => setActiveTab('habits')}
-        >
-          Habits
-        </button>
+        >Habits</button>
         <button
           className={`habit-tab ${activeTab === 'stats' ? 'active' : ''}`}
           onClick={() => setActiveTab('stats')}
-        >
-          Stats
-        </button>
+        >Stats</button>
       </div>
 
       {activeTab === 'today' && (
         <div className="habit-content">
-          <div className="daily-quote">
-            <div className="quote-text">{quote.text}</div>
-            <div className="quote-source">— Atomic Habits: {quote.law}</div>
-          </div>
 
-          {allDone && (
+          {allDone && totalToday > 0 && (
             <div className="celebration-banner">
               <span className="celebration-emoji">🎉</span>
               <div className="celebration-text">
                 <div className="celebration-title">Perfect day!</div>
-                <div className="celebration-subtitle">All {totalToday} habits done. You showed up today.</div>
+                <div className="celebration-subtitle">All {totalToday} habits done.</div>
               </div>
             </div>
           )}
-
-          <div className="progress-section">
-            <div className="progress-text">
-              <span>{completedToday} of {totalToday} done</span>
-              <span>{progressPercent}%</span>
-            </div>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${progressPercent}%` }}></div>
-            </div>
-          </div>
 
           <div className="habit-list">
             {todayHabits.map(habit => {
@@ -667,75 +690,73 @@ const HabitTracker = () => {
               const isStacked = !!habit.stackAfter;
               
               return (
-                <div 
-                  key={habit.id} 
+                <div
+                  key={habit.id}
                   className={`habit-card ${completed ? 'completed' : ''} ${isStacked ? 'stacked' : ''}`}
                   onClick={() => toggleHabit(habit.id)}
                   role="button"
                   tabIndex={0}
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      toggleHabit(habit.id);
-                    }
+                    if (e.key === 'Enter' || e.key === ' ') toggleHabit(habit.id);
                   }}
                 >
-                  <div className="habit-card-header">
-                    {isStacked && <div className="stack-connector"></div>}
-                    <div
-                      className={`habit-check ${completed ? 'checked' : ''}`}
-                      aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}
-                    >
-                      {completed && <span className="check-mark">✓</span>}
+                  {isStacked && <div className="stack-connector" />}
+
+                  {/* Left: check circle */}
+                  <div className={`habit-check ${completed ? 'checked' : ''}`}
+                    aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}>
+                    {completed && <span className="check-mark">✓</span>}
+                  </div>
+
+                  {/* Right: content */}
+                  <div className="habit-main">
+
+                    {/* Row 1: name + streak + time */}
+                    <div className="habit-row1">
+                      <span className={`habit-type-dot ${habit.habitType}`} />
+                      <span className="habit-name">{habit.name}</span>
+                      <div className="habit-row1-right">
+                        {streak > 0 && (
+                          <span className={`habit-streak-pill ${completed ? 'active' : ''}`}>
+                            🔥 {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
+                          </span>
+                        )}
+                        {habit.time && (
+                          <span className="habit-time">{habit.time}</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="habit-main">
-                      <div className="habit-title-row">
-                        <span className={`habit-type-dot ${habit.habitType}`}></span>
-                        <span className="habit-name">{habit.name}</span>
-                        {habit.time && <span className="habit-time">🕐 {habit.time}</span>}
-                        <span className="habit-badge">{habit.frequency === 'daily' ? 'Daily' : habit.frequency === 'weekly' ? 'Weekly' : 'Monthly'}</span>
-                        <span className="habit-difficulty">{habit.difficulty === 'easy' ? '~2m' : habit.difficulty === 'medium' ? '~10m' : '30m+'}</span>
-                      </div>
-                      
-                      {/* Identity Statement */}
-                      {habit.identity && (
-                        <div className="habit-identity">💭 {habit.identity}</div>
-                      )}
-                      
-                      {/* Habit Stacking */}
-                      {stackedHabit && (
-                        <div className="habit-stack">🔗 After: {stackedHabit.name}</div>
-                      )}
-                      {/* Custom trigger */}
-                      {!stackedHabit && habit.customTrigger && (
-                        <div className="habit-custom-trigger">⚡ {habit.customTrigger}</div>
-                      )}
-                      
-                      {/* Implementation Intention */}
-                      {habit.time && habit.location && (
-                        <div className="habit-intention">
-                          📍 I will {habit.name} at {habit.time} in {habit.location}
-                        </div>
-                      )}
-                      
-                      {/* Reward - Show after completion */}
-                      {completed && habit.reward && (
-                        <div className="habit-reward">🎉 Reward: {habit.reward}</div>
-                      )}
-                      
-                      {/* 2-Minute Rule Enforcement */}
-                      {!completed && habit.difficulty === 'hard' && (
-                        <div className="habit-friction">💡 Can you make this easier? Start with 2 min.</div>
-                      )}
-                      
-                      {/* Never Miss Twice Warning */}
-                      {!completed && missed && (
-                        <div className="habit-missed">⚠️ Missed yesterday — don't miss twice!</div>
-                      )}
-                      
-                      {/* Streak Counter */}
-                      <div className={`habit-streak ${completed ? 'streak-active' : ''}`}>
-                        🔥 {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'} streak
-                      </div>
+
+                    {/* Cue — always visible */}
+                    {(() => {
+                      const cue = stackedHabit
+                        ? `🔗 After: ${stackedHabit.name}`
+                        : (habit.customTrigger && habit.customTrigger.trim())
+                        ? `⚡ ${habit.customTrigger.trim()}`
+                        : (habit.time && habit.location)
+                        ? `📍 ${habit.time} · ${habit.location}`
+                        : (habit.identity && habit.identity.trim())
+                        ? `💭 ${habit.identity.trim()}`
+                        : null;
+                      return cue ? <div className="habit-cue">{cue}</div> : null;
+                    })()}
+
+                    {/* Alerts */}
+                    {!completed && missed && (
+                      <div className="habit-alert missed">⚠️ Don't miss twice!</div>
+                    )}
+                    {completed && habit.reward && (
+                      <div className="habit-alert reward">🎉 {habit.reward}</div>
+                    )}
+
+                    {/* Row 3: badges */}
+                    <div className="habit-badges">
+                      <span className="habit-badge">
+                        {habit.frequency === 'daily' ? 'Daily' : habit.frequency === 'weekly' ? 'Weekly' : 'Monthly'}
+                      </span>
+                      <span className="habit-difficulty">
+                        {habit.difficulty === 'easy' ? '~2m' : habit.difficulty === 'medium' ? '~10m' : '30m+'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -745,223 +766,180 @@ const HabitTracker = () => {
         </div>
       )}
 
+      {/* ── Habits tab ── */}
       {activeTab === 'habits' && (
         <div className="habit-content">
-          <div className="add-section">
-            <h2>Add New Habit</h2>
-            <div className="tip-box">
-              Scale your habit down to something you can do in 2 minutes.
+          {data.habits.length === 0 ? (
+            <div className="empty-habits" style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-tertiary)' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🎯</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>No habits yet</div>
+              <div style={{ fontSize: 14 }}>Tap ＋ to add your first habit</div>
             </div>
-            
-            <div className="habit-form">
-              <div className="form-section">
-                <label className="form-label">What habit? (Keep it tiny!)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Read one page, Do 1 pushup"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  className={nameError ? 'error' : ''}
-                />
-              </div>
-              
-              <div className="form-section identity-section">
-                <label className="form-label required">Who are you becoming?</label>
-                <input
-                  type="text"
-                  placeholder="I am a person who..."
-                  value={formIdentity}
-                  onChange={(e) => setFormIdentity(e.target.value)}
-                  className={identityError ? 'error' : ''}
-                />
-                <div className="identity-hint">
-                  💡 Focus on identity, not outcomes. "I am a reader" not "I want to read more"
-                </div>
-              </div>
-              
-              <div className="form-section">
-                <label className="form-label">When & where? (Make it obvious)</label>
-                <div className="intention-inputs">
-                  <input
-                    type="time"
-                    value={formTime}
-                    onChange={(e) => setFormTime(e.target.value)}
-                    className="time-input"
-                  />
-                  <select
-                    value={formLocation}
-                    onChange={(e) => setFormLocation(e.target.value)}
-                    className="location-select"
-                  >
-                    <option value="">Select location</option>
-                    <option value="Home">Home</option>
-                    <option value="Kitchen">Kitchen</option>
-                    <option value="Bedroom">Bedroom</option>
-                    <option value="Living Room">Living Room</option>
-                    <option value="Bathroom">Bathroom</option>
-                    <option value="Office">Office</option>
-                    <option value="Gym">Gym</option>
-                    <option value="Car">Car</option>
-                    <option value="Outdoors">Outdoors</option>
-                    <option value="custom">+ Custom location</option>
-                  </select>
-                </div>
-                {formLocation === 'custom' && (
-                  <input
-                    type="text"
-                    placeholder="Enter custom location"
-                    value={formCustomLocation}
-                    onChange={(e) => setFormCustomLocation(e.target.value)}
-                    className="custom-location-input"
-                  />
-                )}
-                {(formName || formTime || formLocation) && formLocation !== 'custom' && (
-                  <div className="intention-preview">
-                    📍 I will {formName || '[habit]'} at {formTime || '[time]'} in {formLocation || '[location]'}
-                  </div>
-                )}
-                {formLocation === 'custom' && formCustomLocation && (
-                  <div className="intention-preview">
-                    📍 I will {formName || '[habit]'} at {formTime || '[time]'} in {formCustomLocation}
-                  </div>
-                )}
-              </div>
-              
-              <div className="form-section">
-                <label className="form-label">Trigger (Make it obvious)</label>
-                <select
-                  value={formStackAfter}
-                  onChange={(e) => { setFormStackAfter(e.target.value); setFormCustomTrigger(''); }}
-                  className="stack-select"
-                >
-                  <option value="">— No stacking / use custom trigger</option>
-                  {data.habits.map(h => (
-                    <option key={h.id} value={h.id}>🔗 After: {h.name}</option>
-                  ))}
-                </select>
-
-                {/* Stack hint */}
-                {formStackAfter && (
-                  <div className="stack-hint">
-                    🔗 This habit will appear right after "{data.habits.find(h => h.id === formStackAfter)?.name}"
-                  </div>
-                )}
-
-                {/* Custom trigger — shown when no habit is selected */}
-                {!formStackAfter && (
-                  <input
-                    type="text"
-                    className="custom-trigger-input"
-                    placeholder="e.g. After I wake up, When I feel stressed…"
-                    value={formCustomTrigger}
-                    onChange={(e) => setFormCustomTrigger(e.target.value)}
-                  />
-                )}
-                {!formStackAfter && formCustomTrigger && (
-                  <div className="stack-hint">
-                    ⚡ Trigger: "{formCustomTrigger}"
-                  </div>
-                )}
-              </div>
-              
-              <div className="form-section">
-                <label className="form-label">Reward yourself (Make it satisfying)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Check phone, Enjoy coffee"
-                  value={formReward}
-                  onChange={(e) => setFormReward(e.target.value)}
-                />
-              </div>
-              
-              <div className="form-section">
-                <label className="form-label">How long does it take?</label>
-                <div className="difficulty-selector">
-                  <button
-                    className={`difficulty-btn ${formDifficulty === 'easy' ? 'active' : ''}`}
-                    onClick={() => setFormDifficulty('easy')}
-                  >
-                    <span className="difficulty-icon">⚡</span>
-                    <span className="difficulty-label">~2 min</span>
-                  </button>
-                  <button
-                    className={`difficulty-btn ${formDifficulty === 'medium' ? 'active' : ''}`}
-                    onClick={() => setFormDifficulty('medium')}
-                  >
-                    <span className="difficulty-icon">⏱️</span>
-                    <span className="difficulty-label">~10 min</span>
-                  </button>
-                  <button
-                    className={`difficulty-btn ${formDifficulty === 'hard' ? 'active' : ''}`}
-                    onClick={() => setFormDifficulty('hard')}
-                  >
-                    <span className="difficulty-icon">🏋️</span>
-                    <span className="difficulty-label">30+ min</span>
-                  </button>
-                </div>
-              </div>
-              
-              <div className="frequency-toggle">
-                <button
-                  className={formFrequency === 'daily' ? 'active' : ''}
-                  onClick={() => setFormFrequency('daily')}
-                >
-                  Daily
-                </button>
-                <button
-                  className={formFrequency === 'weekly' ? 'active' : ''}
-                  onClick={() => setFormFrequency('weekly')}
-                >
-                  Weekly
-                </button>
-                <button
-                  className={formFrequency === 'monthly' ? 'active' : ''}
-                  onClick={() => setFormFrequency('monthly')}
-                >
-                  Monthly
-                </button>
-              </div>
-              
-              <button className="add-button" onClick={addHabit}>
-                Add Habit
-              </button>
-            </div>
-          </div>
-
-          <div className="manage-section">
-            <h2>Your Habits</h2>
-            {data.habits.length === 0 ? (
-              <div className="empty-habits">No habits yet. Add your first one above!</div>
-            ) : (
+          ) : (
+            <div className="manage-section">
               <div className="habit-manage-list">
                 {data.habits.map(habit => (
                   <div key={habit.id} className="habit-manage-card">
                     <div className="habit-manage-header">
-                      <span className={`habit-type-dot ${habit.habitType}`}></span>
+                      <span className={`habit-type-dot ${habit.habitType}`} />
                       <span className="habit-manage-name">{habit.name}</span>
                       <span className="habit-badge">{habit.frequency === 'daily' ? 'Daily' : habit.frequency === 'weekly' ? 'Weekly' : 'Monthly'}</span>
                       <span className="habit-difficulty">{habit.difficulty === 'easy' ? '~2m' : habit.difficulty === 'medium' ? '~10m' : '30m+'}</span>
                     </div>
                     <div className="habit-manage-meta">
-                      {habit.time && habit.location && (
-                        <>📍 {habit.time} in {habit.location} | </>
-                      )}
-                      🔥 {getStreak(habit.id)}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
+                      {habit.customTrigger?.trim()
+                        ? `⚡ ${habit.customTrigger.trim()}`
+                        : habit.stackAfter
+                        ? `🔗 After: ${data.habits.find(h => h.id === habit.stackAfter)?.name || '—'}`
+                        : (habit.time && habit.location)
+                        ? `📍 ${habit.time} · ${habit.location}`
+                        : ''
+                      }
+                      {' '}· 🔥 {getStreak(habit.id)}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
                     </div>
                     <div className="habit-manage-actions">
-                      <button className="edit-btn" onClick={() => openEditModal(habit)}>
-                        ✏️ Edit Details
-                      </button>
-                      <button className="delete-btn" onClick={() => openDeleteModal(habit)}>
-                        🗑️ Delete
-                      </button>
+                      <button className="edit-btn" onClick={() => openEditModal(habit)}>✏️ Edit</button>
+                      <button className="delete-btn" onClick={() => openDeleteModal(habit)}>🗑️ Delete</button>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* ── FAB: Add Habit ── */}
+      <button
+        className="habit-fab"
+        onClick={() => setShowAddModal(true)}
+        aria-label="Add habit"
+      >＋</button>
+
+      {/* ── Add Habit Modal ── */}
+      {showAddModal && (
+        <>
+          <div className="modal-overlay" onClick={() => setShowAddModal(false)} />
+          <div className="habit-modal">
+            <div className="modal-handle" />
+            <h3>New Habit</h3>
+            <div className="tip-box" style={{ margin: '0 20px 16px' }}>
+              Scale your habit down to something you can do in 2 minutes.
+            </div>
+
+            <label>What habit? (Keep it tiny!)</label>
+            <input
+              type="text"
+              placeholder="e.g. Read one page, Do 1 pushup"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              className={nameError ? 'error' : ''}
+            />
+
+            <label>Who are you becoming? *</label>
+            <input
+              type="text"
+              placeholder="I am a person who..."
+              value={formIdentity}
+              onChange={(e) => setFormIdentity(e.target.value)}
+              className={identityError ? 'error' : ''}
+            />
+
+            <label>When & where?</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '0 20px 12px' }}>
+              <input
+                type="time"
+                value={formTime}
+                onChange={(e) => setFormTime(e.target.value)}
+                style={{ margin: 0 }}
+              />
+              <select
+                value={formLocation}
+                onChange={(e) => setFormLocation(e.target.value)}
+                style={{ margin: 0 }}
+              >
+                <option value="">Location</option>
+                <option value="Home">Home</option>
+                <option value="Kitchen">Kitchen</option>
+                <option value="Bedroom">Bedroom</option>
+                <option value="Living Room">Living Room</option>
+                <option value="Bathroom">Bathroom</option>
+                <option value="Office">Office</option>
+                <option value="Gym">Gym</option>
+                <option value="Car">Car</option>
+                <option value="Outdoors">Outdoors</option>
+                <option value="custom">+ Custom</option>
+              </select>
+            </div>
+            {formLocation === 'custom' && (
+              <input
+                type="text"
+                placeholder="Enter custom location"
+                value={formCustomLocation}
+                onChange={(e) => setFormCustomLocation(e.target.value)}
+              />
+            )}
+
+            <label>Trigger</label>
+            <select
+              value={formStackAfter}
+              onChange={(e) => { setFormStackAfter(e.target.value); setFormCustomTrigger(''); }}
+            >
+              <option value="">— No stacking / use custom trigger</option>
+              {data.habits.map(h => (
+                <option key={h.id} value={h.id}>🔗 After: {h.name}</option>
+              ))}
+            </select>
+            {!formStackAfter && (
+              <input
+                type="text"
+                placeholder="e.g. After I wake up, When I feel stressed…"
+                value={formCustomTrigger}
+                onChange={(e) => setFormCustomTrigger(e.target.value)}
+              />
+            )}
+
+            <label>Reward</label>
+            <input
+              type="text"
+              placeholder="e.g. Check phone, Enjoy coffee"
+              value={formReward}
+              onChange={(e) => setFormReward(e.target.value)}
+            />
+
+            <label>Duration</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, margin: '0 20px 12px' }}>
+              {[['easy','⚡','~2 min'],['medium','⏱️','~10 min'],['hard','🏋️','30+ min']].map(([val, icon, lbl]) => (
+                <button
+                  key={val}
+                  className={`difficulty-btn ${formDifficulty === val ? 'active' : ''}`}
+                  onClick={() => setFormDifficulty(val)}
+                >
+                  <span className="difficulty-icon">{icon}</span>
+                  <span className="difficulty-label">{lbl}</span>
+                </button>
+              ))}
+            </div>
+
+            <label>Frequency</label>
+            <div className="frequency-toggle" style={{ margin: '0 20px 16px' }}>
+              {['daily','weekly','monthly'].map(f => (
+                <button
+                  key={f}
+                  className={formFrequency === f ? 'active' : ''}
+                  onClick={() => setFormFrequency(f)}
+                >
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div className="modal-actions">
+              <button className="cancel-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button className="save-btn" onClick={addHabit}>Add Habit</button>
+            </div>
+          </div>
+        </>
       )}
 
       {activeTab === 'stats' && (

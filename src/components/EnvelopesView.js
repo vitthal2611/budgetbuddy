@@ -699,6 +699,49 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           </div>
         )}
 
+        {/* Recent Transactions */}
+        {(() => {
+          const recent = [...transactions]
+            .filter(t => t.type === 'expense' || t.type === 'income')
+            .sort((a, b) => {
+              const da = new Date(a.date.split('-').reverse().join('-'));
+              const db = new Date(b.date.split('-').reverse().join('-'));
+              return db - da;
+            })
+            .slice(0, 3);
+
+          if (recent.length === 0) return null;
+
+          return (
+            <div className="ev-recent-section">
+              <div className="ev-recent-header">
+                <span className="ev-recent-title">Recent</span>
+                <button
+                  className="ev-recent-all"
+                  onClick={() => onViewTransactions({})}
+                >View all →</button>
+              </div>
+              <div className="ev-recent-list">
+                {recent.map(t => (
+                  <div key={t.id} className="ev-recent-row">
+                    <div className={`ev-recent-dot ${t.type}`} />
+                    <div className="ev-recent-body">
+                      <span className="ev-recent-note">{t.note}</span>
+                      {t.envelope && <span className="ev-recent-env">{t.envelope}</span>}
+                    </div>
+                    <div className="ev-recent-right">
+                      <span className={`ev-recent-amt ${t.type}`}>
+                        {t.type === 'income' ? '+' : '-'}₹{fmt(t.amount)}
+                      </span>
+                      <span className="ev-recent-date">{t.date.slice(0, 5)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Envelopes */}
         <div className="ev-section-divider">
           <span>Envelopes</span>

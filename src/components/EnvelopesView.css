@@ -2264,3 +2264,113 @@
 .ev-year-env-bal      { font-weight: 700; font-size: 13px; }
 .ev-year-env-bal.pos  { color: #059669; }
 .ev-year-env-bal.neg  { color: #dc2626; }
+
+/* ===== RECENT TRANSACTIONS ===== */
+.ev-recent-section {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.ev-recent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ev-recent-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.ev-recent-all {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ev-recent-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ev-recent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ev-recent-row:last-child {
+  border-bottom: none;
+}
+
+.ev-recent-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ev-recent-dot.expense { background: #ef4444; }
+.ev-recent-dot.income  { background: #10b981; }
+
+.ev-recent-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ev-recent-note {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ev-recent-env {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ev-recent-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.ev-recent-amt {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ev-recent-amt.expense { color: #ef4444; }
+.ev-recent-amt.income  { color: #10b981; }
+
+.ev-recent-date {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
