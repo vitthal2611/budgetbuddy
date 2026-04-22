@@ -24,6 +24,38 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+
+.tx-back-btn {
+  padding: 8px 12px;
+  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all var(--transition-fast) var(--ease-standard);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 44px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tx-back-btn:hover {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+
+.tx-back-btn:active {
+  transform: scale(0.97);
+  background: var(--primary);
+  color: #fff;
 }
 
 .tx-title {
@@ -32,6 +64,8 @@
   color: var(--text-primary);
   letter-spacing: var(--tracking-tight);
   margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .tx-header-actions {

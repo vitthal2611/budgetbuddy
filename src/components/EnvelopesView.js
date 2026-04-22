@@ -81,23 +81,15 @@ const useIsDesktop = () => {
 const fmt = (n) => Math.abs(n).toLocaleString('en-IN');
 const getCatIcon = (cat) => cat === 'need' ? '🛒' : cat === 'want' ? '🎉' : '💰';
 
-const renderEnvelopeCard = (envelope, {
+const renderEnvelopeRow = (envelope, {
   goalProgress, annualYTD,
   selectedYear, selectedMonth,
   onAddTransaction, onViewTransactions,
   onEditBudget,
 }) => {
-  const pct = envelope.filled > 0 ? Math.min((envelope.spent / envelope.filled) * 100, 100) : 0;
-  const isOver    = envelope.remaining < 0;
-  const isWarning = !isOver && pct >= 80;
-  const isLow     = !isOver && !isWarning && pct >= 50;
-  const isGoal    = envelope.envelopeType === 'goal';
-  const isAnnual  = envelope.envelopeType === 'annual';
-  const goalPct   = isGoal && envelope.goalAmount > 0
-    ? Math.min((goalProgress[envelope.name] / envelope.goalAmount) * 100, 100) : 0;
-
-  // Status color
-  const statusCls = isOver ? 'status-over' : isWarning ? 'status-warn' : isLow ? 'status-low' : 'status-ok';
+  const isOver = envelope.remaining < 0;
+  const isGoal = envelope.envelopeType === 'goal';
+  const isAnnual = envelope.envelopeType === 'annual';
 
   // Simplified pace indicators
   let paceIcon = null;
@@ -128,68 +120,44 @@ const renderEnvelopeCard = (envelope, {
       paceIcon = '⚠️';
   }
 
-  const catIcon = getCatIcon(envelope.category);
-
   return (
-    <div key={envelope.name}
-      className={`env-card ${isOver ? 'env-over' : ''} ${isGoal ? 'env-goal' : ''} ${isAnnual ? 'env-annual' : ''} ${envelope.filled === 0 ? 'env-unfilled' : ''}`}
+    <div 
+      key={envelope.name}
+      className={`env-card-compact ${isOver ? 'over' : ''} ${envelope.filled === 0 ? 'unfilled' : ''}`}
+      onClick={() => onAddTransaction('expense', { envelope: envelope.name })}
     >
-      {/* Left accent bar */}
-      <div className={`env-card-accent ${envelope.filled === 0 ? 'status-empty' : statusCls}`} />
-
-      <div className="env-card-body">
-        {/* Header: Category icon + Name + Pace */}
-        <div className="env-card-header">
-          <div className="env-card-title-row">
-            <span className="env-card-icon">{catIcon}</span>
-            <span className="env-card-name">{envelope.name}</span>
-            {paceIcon && <span className="env-pace-badge">{paceIcon}</span>}
-          </div>
+      {/* Header: Name + Pace */}
+      <div className="env-card-compact-header">
+        <div className="env-card-compact-name">
+          {envelope.name}
+          {paceIcon && <span className="env-card-compact-pace">{paceIcon}</span>}
         </div>
+      </div>
 
-        {/* Amounts Grid - 3 columns */}
-        <div className="env-card-amounts">
-          <div 
-            className="env-amount-item clickable" 
-            onClick={(e) => { e.stopPropagation(); onEditBudget(envelope); }}
-          >
-            <span className="env-amount-label">Budget</span>
-            <span className="env-amount-value budget">₹{fmt(envelope.filled)}</span>
-            <span className="env-amount-edit-hint">✏️</span>
-          </div>
-          <div className="env-amount-item">
-            <span className="env-amount-label">Spent</span>
-            <span className="env-amount-value spent">₹{fmt(envelope.spent)}</span>
-          </div>
-          <div className="env-amount-item">
-            <span className="env-amount-label">Left</span>
-            <span className={`env-amount-value ${isOver ? 'negative' : envelope.filled === 0 ? 'unfilled' : 'positive'}`}>
-              {envelope.filled === 0 ? '—' : `${isOver ? '-' : ''}₹${fmt(envelope.remaining)}`}
-            </span>
-          </div>
-        </div>
+      {/* Budget - Clickable to edit */}
+      <div 
+        className="env-card-compact-budget clickable"
+        onClick={(e) => { e.stopPropagation(); onEditBudget(envelope); }}
+      >
+        <span className="env-card-compact-label">Budget</span>
+        <span className="env-card-compact-value primary">₹{fmt(envelope.filled)}</span>
+      </div>
 
-        {/* Progress bar */}
-        <div className="env-card-progress">
-          <div className={`env-card-progress-fill ${isOver ? 'over' : isWarning ? 'warning' : envelope.category}`}
-            style={{ width: envelope.filled === 0 ? '0%' : `${isGoal ? goalPct : pct}%` }} />
-        </div>
+      {/* Spent - Clickable to view transactions */}
+      <div 
+        className="env-card-compact-spent clickable"
+        onClick={(e) => { e.stopPropagation(); onViewTransactions({ envelope: envelope.name, year: selectedYear, month: selectedMonth }); }}
+      >
+        <span className="env-card-compact-label">Spent</span>
+        <span className="env-card-compact-value spent">₹{fmt(envelope.spent)}</span>
+      </div>
 
-        {/* Action buttons - always visible */}
-        <div className="env-card-actions">
-          <button 
-            className="env-card-btn primary"
-            onClick={(e) => { e.stopPropagation(); onAddTransaction('expense', { envelope: envelope.name }); }}
-          >
-            ➕ Expense
-          </button>
-          <button 
-            className="env-card-btn secondary"
-            onClick={(e) => { e.stopPropagation(); onViewTransactions({ envelope: envelope.name, year: selectedYear, month: selectedMonth }); }}
-          >
-            📋 History
-          </button>
-        </div>
+      {/* Balance */}
+      <div className="env-card-compact-balance">
+        <span className="env-card-compact-label">Balance</span>
+        <span className={`env-card-compact-value ${isOver ? 'negative' : envelope.filled === 0 ? 'unfilled' : 'positive'}`}>
+          {envelope.filled === 0 ? '—' : `${isOver ? '-' : ''}₹${fmt(envelope.remaining)}`}
+        </span>
       </div>
     </div>
   );
@@ -352,6 +320,9 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
   const today = new Date();
   const [selectedYear,  setSelectedYear]  = useState(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(today.getMonth());
+  
+  // ── FAB menu state ───────────────────────────────────────────
+  const [fabOpen, setFabOpen] = useState(false);
 
   const prevMonth = () => {
     if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
@@ -587,33 +558,35 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
 
         {/* Summary card — month mode */}
         {viewMode === 'month' && (
-          <div className="ev-header-card">
-            <div className="ev-summary-row">
-              <div className="ev-summary-item">
-                <span className="ev-summary-label">Income</span>
-                <span className="ev-summary-value income">₹{fmt(monthlyIncome)}</span>
+          <>
+            <div className="ev-header-card">
+              <div className="ev-summary-row">
+                <div className="ev-summary-item">
+                  <span className="ev-summary-label">Income</span>
+                  <span className="ev-summary-value income">₹{fmt(monthlyIncome)}</span>
+                </div>
+                <div className="ev-summary-divider" />
+                <div className="ev-summary-item">
+                  <span className="ev-summary-label">Spent</span>
+                  <span className="ev-summary-value spent">₹{fmt(totalSpent)}</span>
+                </div>
+                <div className="ev-summary-divider" />
+                <div className="ev-summary-item">
+                  <span className="ev-summary-label">To Assign</span>
+                  <span className={`ev-summary-value assign ${unallocated === 0 ? 'zero' : unallocated < 0 ? 'neg' : 'pos'}`}>
+                    {unallocated < 0 ? '-' : ''}₹{fmt(unallocated)}
+                  </span>
+                </div>
               </div>
-              <div className="ev-summary-divider" />
-              <div className="ev-summary-item">
-                <span className="ev-summary-label">Spent</span>
-                <span className="ev-summary-value spent">₹{fmt(totalSpent)}</span>
-              </div>
-              <div className="ev-summary-divider" />
-              <div className="ev-summary-item">
-                <span className="ev-summary-label">To Assign</span>
-                <span className={`ev-summary-value assign ${unallocated === 0 ? 'zero' : unallocated < 0 ? 'neg' : 'pos'}`}>
-                  {unallocated < 0 ? '-' : ''}₹{fmt(unallocated)}
-                </span>
-              </div>
+              {unallocated !== 0 && (
+                <div className={`ev-alert ${unallocated < 0 ? 'danger' : 'warning'}`}>
+                  {unallocated > 0
+                    ? `₹${fmt(unallocated)} unallocated — tap a budget to assign`
+                    : `Over-allocated by ₹${fmt(Math.abs(unallocated))}`}
+                </div>
+              )}
             </div>
-            {unallocated !== 0 && (
-              <div className={`ev-alert ${unallocated < 0 ? 'danger' : 'warning'}`}>
-                {unallocated > 0
-                  ? `₹${fmt(unallocated)} unallocated — tap a budget to assign`
-                  : `Over-allocated by ₹${fmt(Math.abs(unallocated))}`}
-              </div>
-            )}
-          </div>
+          </>
         )}
 
         {/* Summary card — year mode */}
@@ -761,14 +734,10 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
             {(() => {
               const allEnvelopes = Object.values(envelopesByCategory).flat();
               const sorted = [...allEnvelopes]
-                .sort((a, b) => {
-                  const da = lastUsed[a.name] || new Date(0);
-                  const db = lastUsed[b.name] || new Date(0);
-                  return db - da;
-                });
+                .sort((a, b) => a.name.localeCompare(b.name));
               return (
-                <div className="ev-envelope-list">
-                  {sorted.map(envelope => renderEnvelopeCard(envelope, {
+                <div className="ev-envelope-grid">
+                  {sorted.map(envelope => renderEnvelopeRow(envelope, {
                     goalProgress, annualYTD,
                     selectedYear, selectedMonth,
                     onAddTransaction, onViewTransactions,
@@ -787,15 +756,7 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
         </>)} {/* end month view */}
       </div>
 
-      {/* FAB */}
-      <button 
-        className="ev-fab"
-        onClick={() => onAddTransaction('expense')}
-        aria-label="Add expense"
-        title="Add expense"
-      >
-        +
-      </button>
+
 
       {/* ── MODALS ── */}
       {editingEnvelope && (
@@ -837,6 +798,67 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
           onConfirm={confirmDeleteEnvelope}
           onClose={() => setDeleteTarget(null)}
         />
+      )}
+
+      {/* ── FAB (Floating Action Button) - Mobile only ── */}
+      {!isDesktop && viewMode === 'month' && (
+        <>
+          {/* Backdrop when FAB is open */}
+          {fabOpen && (
+            <div 
+              className="ev-fab-backdrop" 
+              onClick={() => setFabOpen(false)}
+            />
+          )}
+
+          {/* FAB Menu */}
+          <div className={`ev-fab-container ${fabOpen ? 'open' : ''}`}>
+            {/* Action buttons - appear when open */}
+            {fabOpen && (
+              <>
+                <button 
+                  className="ev-fab-action income"
+                  onClick={() => {
+                    setFabOpen(false);
+                    onAddTransaction('income');
+                  }}
+                >
+                  <span className="ev-fab-action-icon">💰</span>
+                  <span className="ev-fab-action-label">Income</span>
+                </button>
+                <button 
+                  className="ev-fab-action expense"
+                  onClick={() => {
+                    setFabOpen(false);
+                    onAddTransaction('expense');
+                  }}
+                >
+                  <span className="ev-fab-action-icon">🛒</span>
+                  <span className="ev-fab-action-label">Expense</span>
+                </button>
+                <button 
+                  className="ev-fab-action transfer"
+                  onClick={() => {
+                    setFabOpen(false);
+                    onAddTransaction('transfer');
+                  }}
+                >
+                  <span className="ev-fab-action-icon">🔄</span>
+                  <span className="ev-fab-action-label">Transfer</span>
+                </button>
+              </>
+            )}
+
+            {/* Main FAB button */}
+            <button 
+              className="ev-fab-main"
+              onClick={() => setFabOpen(!fabOpen)}
+              aria-label="Add transaction"
+            >
+              <span className={`ev-fab-icon ${fabOpen ? 'open' : ''}`}>+</span>
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

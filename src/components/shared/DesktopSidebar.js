@@ -4,7 +4,6 @@ import './DesktopSidebar.css';
 const NAV_ITEMS = [
   { id: 'envelopes',    icon: '📦', label: 'Budget'       },
   { id: 'habits',       icon: '🎯', label: 'Habits'       },
-  { id: 'add',          icon: '➕', label: 'Add'          },
   { id: 'todos',        icon: '✅', label: 'To-Do'        },
   { id: 'transactions', icon: '💳', label: 'Transactions' },
   { id: 'reports',      icon: '📊', label: 'Reports'      },
@@ -38,12 +37,6 @@ const DesktopSidebar = ({
           <span className="sidebar-brand-buddy">Buddy</span>
         </div>
       </div>
-
-      {/* ── Add Transaction ── */}
-      <button className="sidebar-add-btn" onClick={() => onAddTransaction('expense')}>
-        <span className="sidebar-add-icon">+</span>
-        Add Transaction
-      </button>
 
       {/* ── Nav ── */}
       <div className="sidebar-section-label">Navigate</div>

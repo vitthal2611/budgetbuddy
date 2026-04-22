@@ -20,7 +20,7 @@ const formatGroupLabel = (ddmmyyyy) => {
   return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
-const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onFiltersCleared }) => {
+const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onFiltersCleared, onNavigate }) => {
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
@@ -209,6 +209,15 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
       <div className="tx-top">
         {/* Header */}
         <div className="tx-header">
+          {initialFilters.envelope && onNavigate && (
+            <button 
+              className="tx-back-btn" 
+              onClick={() => onNavigate('envelopes')}
+              aria-label="Back to Envelopes"
+            >
+              ← Back
+            </button>
+          )}
           <h1 className="tx-title">Transactions</h1>
           <div className="tx-header-actions">
             <button className="tx-icon-btn" onClick={() => setShowImport(true)} title="Import CSV">

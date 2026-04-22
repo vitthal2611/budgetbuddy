@@ -8,7 +8,7 @@ import Settings from './components/settings/Settings';
 import Reports from './components/reports/Reports';
 import HabitTracker from './components/HabitTracker';
 import TodoMatrix from './components/TodoMatrix';
-import AddTransaction from './components/AddTransaction';
+
 import TransactionModal from './components/TransactionModal';
 import Auth from './components/Auth';
 import LoadingSpinner from './components/shared/LoadingSpinner';
@@ -558,9 +558,6 @@ function App() {
               {activeTab === 'habits' && (
                 <HabitTracker />
               )}
-              {activeTab === 'add' && (
-                <AddTransaction onAddTransaction={handleAddTransaction} />
-              )}
               {activeTab === 'todos' && (
                 <TodoMatrix />
               )}
@@ -574,6 +571,7 @@ function App() {
                   onDelete={handleDeleteTransaction}
                   initialFilters={transactionFilters}
                   onFiltersCleared={() => setTransactionFilters({})}
+                  onNavigate={setActiveTab}
                 />
               )}
               {activeTab === 'settings' && (

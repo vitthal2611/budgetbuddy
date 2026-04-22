@@ -21,15 +21,6 @@ const BottomNav = ({ activeTab, onTabChange, onOpenMenu }) => (
     </button>
 
     <button
-      className={`nav-tab ${activeTab === 'add' ? 'active' : ''}`}
-      onClick={() => onTabChange('add')}
-      aria-label="Add"
-    >
-      <span className="nav-icon">➕</span>
-      <span className="nav-label">Add</span>
-    </button>
-
-    <button
       className={`nav-tab ${activeTab === 'habits' ? 'active' : ''}`}
       onClick={() => onTabChange('habits')}
       aria-label="Habits"

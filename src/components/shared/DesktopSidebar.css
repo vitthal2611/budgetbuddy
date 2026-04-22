@@ -53,41 +53,6 @@
   .sidebar-brand-good   { color: #fff; }
   .sidebar-brand-buddy  { color: rgba(165,180,252,0.6); }
 
-  /* ── Add Transaction button ── */
-  .sidebar-add-btn {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 16px 12px 8px;
-    padding: 10px 14px;
-    background: #6366f1;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s, transform 0.1s;
-    letter-spacing: 0.1px;
-    flex-shrink: 0;
-  }
-  .sidebar-add-btn:hover  { background: #4f46e5; }
-  .sidebar-add-btn:active { transform: scale(0.98); }
-
-  .sidebar-add-icon {
-    width: 20px;
-    height: 20px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    font-weight: 300;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-
   /* ── Nav section label ── */
   .sidebar-nav-section,
   .sidebar-section-label {
