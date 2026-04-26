@@ -19,6 +19,45 @@ const ATOMIC_QUOTES = [
   { text: "Never miss twice. Missing once is an accident. Missing twice is the start of a new habit.", law: "Law 4" }
 ];
 
+const HABIT_TEMPLATES = [
+  {
+    category: "Health & Fitness",
+    templates: [
+      { emoji: "💪", name: "Do 1 pushup", identity: "I am a person who exercises daily", time: "07:00", location: "Bedroom", difficulty: "easy" },
+      { emoji: "🏃", name: "Put on running shoes", identity: "I am a runner", time: "06:30", location: "Home", difficulty: "easy" },
+      { emoji: "🥗", name: "Eat one vegetable", identity: "I am a healthy eater", time: "12:00", location: "Kitchen", difficulty: "easy" },
+      { emoji: "💧", name: "Drink one glass of water", identity: "I am someone who stays hydrated", time: "08:00", location: "Kitchen", difficulty: "easy" }
+    ]
+  },
+  {
+    category: "Learning & Growth",
+    templates: [
+      { emoji: "📖", name: "Read one page", identity: "I am a reader", time: "21:00", location: "Bedroom", difficulty: "easy" },
+      { emoji: "✍️", name: "Write one sentence", identity: "I am a writer", time: "09:00", location: "Office", difficulty: "easy" },
+      { emoji: "🧠", name: "Learn one word", identity: "I am a lifelong learner", time: "10:00", location: "Office", difficulty: "easy" },
+      { emoji: "🎨", name: "Draw for 2 minutes", identity: "I am creative", time: "19:00", location: "Living Room", difficulty: "easy" }
+    ]
+  },
+  {
+    category: "Mindfulness",
+    templates: [
+      { emoji: "🧘", name: "Take one deep breath", identity: "I am calm and centered", time: "07:30", location: "Bedroom", difficulty: "easy" },
+      { emoji: "🙏", name: "Write one gratitude", identity: "I am grateful", time: "22:00", location: "Bedroom", difficulty: "easy" },
+      { emoji: "📝", name: "Journal one thought", identity: "I am self-aware", time: "21:30", location: "Bedroom", difficulty: "easy" },
+      { emoji: "🌅", name: "Watch the sunrise", identity: "I am present", time: "06:00", location: "Outdoors", difficulty: "easy" }
+    ]
+  },
+  {
+    category: "Productivity",
+    templates: [
+      { emoji: "🛏️", name: "Make your bed", identity: "I am organized", time: "07:00", location: "Bedroom", difficulty: "easy" },
+      { emoji: "📧", name: "Clear one email", identity: "I am on top of things", time: "09:00", location: "Office", difficulty: "easy" },
+      { emoji: "🧹", name: "Clean one surface", identity: "I am tidy", time: "20:00", location: "Home", difficulty: "easy" },
+      { emoji: "📱", name: "Put phone in drawer", identity: "I am focused", time: "22:00", location: "Bedroom", difficulty: "easy" }
+    ]
+  }
+];
+
 const HabitTracker = () => {
   const [data, setData] = useState({ habits: [], completions: {} });
   const [activeTab, setActiveTab] = useState('today');
@@ -29,16 +68,56 @@ const HabitTracker = () => {
     d.setHours(0, 0, 0, 0);
     return d;
   });
+  const [viewMode, setViewMode] = useState('day'); // 'day' or 'week' - MOVED UP
 
   const isViewingToday = (() => {
-    const t = new Date(); t.setHours(0,0,0,0);
-    return viewDate.getTime() === t.getTime();
+    const t = new Date(); 
+    t.setHours(0,0,0,0);
+    
+    if (viewMode === 'week') {
+      // Check if current week contains today
+      const startOfWeek = new Date(viewDate);
+      const day = startOfWeek.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      startOfWeek.setDate(startOfWeek.getDate() + diff);
+      startOfWeek.setHours(0,0,0,0);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      endOfWeek.setHours(23,59,59,999);
+      
+      return t >= startOfWeek && t <= endOfWeek;
+    } else {
+      return viewDate.getTime() === t.getTime();
+    }
   })();
 
   const viewDateStr = `${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-${String(viewDate.getDate()).padStart(2,'0')}`;
 
-  const goBack = () => setViewDate(d => { const n = new Date(d); n.setDate(n.getDate()-1); return n; });
-  const goForward = () => { if (!isViewingToday) setViewDate(d => { const n = new Date(d); n.setDate(n.getDate()+1); return n; }); };
+  const goBack = () => setViewDate(d => { 
+    const n = new Date(d); 
+    if (viewMode === 'week') {
+      n.setDate(n.getDate() - 7); // Go back 1 week
+    } else {
+      n.setDate(n.getDate() - 1); // Go back 1 day
+    }
+    return n; 
+  });
+  
+  const goForward = () => { 
+    if (!isViewingToday) {
+      setViewDate(d => { 
+        const n = new Date(d); 
+        if (viewMode === 'week') {
+          n.setDate(n.getDate() + 7); // Go forward 1 week
+        } else {
+          n.setDate(n.getDate() + 1); // Go forward 1 day
+        }
+        return n; 
+      }); 
+    }
+  };
+  
   const goToday = () => { const t = new Date(); t.setHours(0,0,0,0); setViewDate(t); };
   
   // Form state
@@ -72,9 +151,17 @@ const HabitTracker = () => {
   const [identityError, setIdentityError] = useState(false);
   const [twoMinuteWarning, setTwoMinuteWarning] = useState(false);
   
-  // Weekly review
   const [showWeeklyReview, setShowWeeklyReview] = useState(false);
   const [weeklyReviewData, setWeeklyReviewData] = useState(null);
+  const [lastCompletedHabit, setLastCompletedHabit] = useState(null);
+  const [showMilestone, setShowMilestone] = useState(false);
+  const [milestoneData, setMilestoneData] = useState(null);
+  const [swipedHabitId, setSwipedHabitId] = useState(null);
+  const touchStartX = React.useRef(null);
+  // viewMode moved up before navigation functions
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [completionTimes, setCompletionTimes] = useState({});
 
   useEffect(() => {
     const unsubscribe = habitService.subscribeToHabits((habitData) => {
@@ -181,6 +268,28 @@ const HabitTracker = () => {
     const today = new Date();
     const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 86400000);
     return ATOMIC_QUOTES[dayOfYear % ATOMIC_QUOTES.length];
+  };
+
+  const getCueText = (habit) => {
+    // Show identity (most important for Atomic Habits)
+    if (habit.identity?.trim()) return `💭 ${habit.identity.trim()}`;
+    return null;
+  };
+
+  const getImplementationIntention = (habit) => {
+    // Show time + location as Implementation Intention
+    if (habit.time && habit.location) return `📍 ${habit.time} · ${habit.location}`;
+    if (habit.time) return `⏰ ${habit.time}`;
+    if (habit.location) return `📍 ${habit.location}`;
+    return null;
+  };
+
+  const getStackCue = (habit, stackedHabit) => {
+    // Show stack relationship if available
+    if (stackedHabit) return `🔗 After: ${stackedHabit.name}`;
+    // Otherwise show custom trigger
+    if (habit.customTrigger?.trim()) return `⚡ ${habit.customTrigger.trim()}`;
+    return null;
   };
 
   const isCompletedToday = (habitId) => {
@@ -386,6 +495,7 @@ const HabitTracker = () => {
     const isCurrentlyCompleted = isCompletedToday(habitId);
 
     if (isCurrentlyCompleted) {
+      // Uncompleting - remove from completions
       if (habit.frequency === 'daily') {
         if (newCompletions[viewDateStr]) {
           newCompletions[viewDateStr] = newCompletions[viewDateStr].filter(id => id !== habitId);
@@ -407,14 +517,148 @@ const HabitTracker = () => {
           if (newCompletions[dateStr]) newCompletions[dateStr] = newCompletions[dateStr].filter(id => id !== habitId);
         }
       }
+      setLastCompletedHabit(null);
     } else {
+      // Completing - add to completions
       if (!newCompletions[viewDateStr]) newCompletions[viewDateStr] = [];
       newCompletions[viewDateStr].push(habitId);
+      
+      // Store for undo
+      setLastCompletedHabit({ habitId, date: viewDateStr });
+      
+      // Track completion time
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      setCompletionTimes(prev => ({
+        ...prev,
+        [`${habitId}-${viewDateStr}`]: timeStr
+      }));
+      
+      // Check for milestone
+      const newStreak = getStreak(habitId) + 1;
+      if ([7, 30, 50, 100, 365].includes(newStreak)) {
+        setMilestoneData({
+          habitName: habit.name,
+          streak: newStreak,
+          emoji: newStreak === 7 ? '🎯' : newStreak === 30 ? '🔥' : newStreak === 50 ? '⭐' : newStreak === 100 ? '💎' : '👑'
+        });
+        setShowMilestone(true);
+        setTimeout(() => setShowMilestone(false), 4000);
+      }
     }
 
     const newData = { ...data, completions: newCompletions };
     setData(newData);
     await habitService.saveHabits(newData);
+  };
+
+  const undoLastCompletion = async () => {
+    if (!lastCompletedHabit) return;
+    
+    const newCompletions = { ...data.completions };
+    if (newCompletions[lastCompletedHabit.date]) {
+      newCompletions[lastCompletedHabit.date] = newCompletions[lastCompletedHabit.date].filter(
+        id => id !== lastCompletedHabit.habitId
+      );
+    }
+    
+    const newData = { ...data, completions: newCompletions };
+    setData(newData);
+    await habitService.saveHabits(newData);
+    setLastCompletedHabit(null);
+  };
+
+  const handleTouchStart = (e, habitId) => {
+    touchStartX.current = e.touches[0].clientX;
+    if (swipedHabitId && swipedHabitId !== habitId) setSwipedHabitId(null);
+  };
+
+  const handleTouchEnd = (e, habitId) => {
+    if (touchStartX.current === null) return;
+    const dx = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 50) {
+      toggleHabit(habitId);
+      setSwipedHabitId(null);
+    }
+    touchStartX.current = null;
+  };
+
+  const exportData = (format) => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    
+    if (format === 'json') {
+      const dataStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `atomic-streaks-${timestamp}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } else if (format === 'csv') {
+      let csv = 'Habit Name,Identity,Frequency,Difficulty,Current Streak,Total Completions\n';
+      data.habits.forEach(habit => {
+        const streak = getStreak(habit.id);
+        const totalCompletions = Object.values(data.completions).flat().filter(id => id === habit.id).length;
+        csv += `"${habit.name}","${habit.identity}","${habit.frequency}","${habit.difficulty}",${streak},${totalCompletions}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `atomic-streaks-${timestamp}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } else if (format === 'text') {
+      let text = `Atomic Streaks Report - ${timestamp}\n\n`;
+      text += `Total Habits: ${data.habits.length}\n`;
+      text += `Best Streak: ${Math.max(...data.habits.map(h => getStreak(h.id)), 0)} days\n\n`;
+      text += `=== HABITS ===\n\n`;
+      data.habits.forEach(habit => {
+        const streak = getStreak(habit.id);
+        const totalCompletions = Object.values(data.completions).flat().filter(id => id === habit.id).length;
+        text += `${habit.name}\n`;
+        text += `  Identity: ${habit.identity}\n`;
+        text += `  Frequency: ${habit.frequency}\n`;
+        text += `  Current Streak: ${streak} days\n`;
+        text += `  Total Completions: ${totalCompletions}\n\n`;
+      });
+      const blob = new Blob([text], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `atomic-streaks-${timestamp}.txt`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    setShowExportModal(false);
+  };
+
+  const addFromTemplate = async (template) => {
+    const newHabit = {
+      id: `h_${Date.now()}`,
+      name: template.name,
+      identity: template.identity,
+      time: template.time,
+      location: template.location,
+      reward: '',
+      stackAfter: '',
+      customTrigger: '',
+      frequency: 'daily',
+      habitType: 'positive',
+      difficulty: template.difficulty,
+      createdAt: getTodayString()
+    };
+    
+    const newData = {
+      ...data,
+      habits: [...data.habits, newHabit]
+    };
+    
+    setData(newData);
+    await habitService.saveHabits(newData);
+    setShowTemplateModal(false);
   };
 
   const addHabit = async () => {
@@ -590,8 +834,12 @@ const HabitTracker = () => {
   }
 
   const todayHabits = sortHabitsForToday(data.habits);
+  
+  // Separate incomplete and completed habits
+  const incompleteHabits = todayHabits.filter(h => !isCompletedToday(h.id));
+  const completedHabits = todayHabits.filter(h => isCompletedToday(h.id));
 
-  const completedToday = todayHabits.filter(h => isCompletedToday(h.id)).length;
+  const completedToday = completedHabits.length;
   const totalToday = todayHabits.length;
   const allDone = totalToday > 0 && completedToday === totalToday;
   const progressPercent = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
@@ -607,13 +855,23 @@ const HabitTracker = () => {
 
         {/* Date navigation with divider */}
         <div className="habit-date-nav">
-          <button className="habit-date-arrow" onClick={goBack} aria-label="Previous day">‹</button>
+          <button className="habit-date-arrow" onClick={goBack} aria-label={viewMode === 'week' ? 'Previous week' : 'Previous day'}>‹</button>
           <div className="habit-date-center">
             <span className="habit-date-label">
-              {isViewingToday
-                ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-                : viewDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-              }
+              {viewMode === 'week' ? (() => {
+                const startOfWeek = new Date(viewDate);
+                const day = startOfWeek.getDay();
+                const diff = day === 0 ? -6 : 1 - day;
+                startOfWeek.setDate(startOfWeek.getDate() + diff);
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(endOfWeek.getDate() + 6);
+                
+                return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+              })() : (
+                isViewingToday
+                  ? new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+                  : viewDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+              )}
             </span>
             {!isViewingToday && (
               <button className="habit-today-chip" onClick={goToday}>Today</button>
@@ -623,7 +881,7 @@ const HabitTracker = () => {
             className="habit-date-arrow"
             onClick={goForward}
             disabled={isViewingToday}
-            aria-label="Next day"
+            aria-label={viewMode === 'week' ? 'Next week' : 'Next day'}
           >›</button>
         </div>
 
@@ -666,10 +924,37 @@ const HabitTracker = () => {
           className={`habit-tab ${activeTab === 'stats' ? 'active' : ''}`}
           onClick={() => setActiveTab('stats')}
         >Stats</button>
+        <button
+          className={`habit-tab ${activeTab === 'achievements' ? 'active' : ''}`}
+          onClick={() => setActiveTab('achievements')}
+        >🏆</button>
       </div>
 
       {activeTab === 'today' && (
-        <div className="habit-content">
+        <>
+          <div className="view-mode-tabs">
+            <button
+              className={`view-mode-tab ${viewMode === 'day' ? 'active' : ''}`}
+              onClick={() => setViewMode('day')}
+            >
+              Day View
+            </button>
+            <button
+              className={`view-mode-tab ${viewMode === 'week' ? 'active' : ''}`}
+              onClick={() => setViewMode('week')}
+            >
+              Week View
+            </button>
+          </div>
+
+          {viewMode === 'day' ? (
+            <div className="habit-content">
+
+          {/* Daily Quote */}
+          <div className="daily-quote">
+            <div className="quote-text">"{quote.text}"</div>
+            <div className="quote-source">— {quote.law}</div>
+          </div>
 
           {allDone && totalToday > 0 && (
             <div className="celebration-banner">
@@ -681,8 +966,18 @@ const HabitTracker = () => {
             </div>
           )}
 
+          {/* Undo button */}
+          {lastCompletedHabit && (
+            <div className="undo-banner">
+              <span>Habit completed</span>
+              <button className="undo-btn" onClick={undoLastCompletion}>
+                ↶ Undo
+              </button>
+            </div>
+          )}
+
           <div className="habit-list">
-            {todayHabits.map(habit => {
+            {incompleteHabits.map(habit => {
               const completed = isCompletedToday(habit.id);
               const streak = getStreak(habit.id);
               const missed = missedYesterday(habit.id);
@@ -694,6 +989,8 @@ const HabitTracker = () => {
                   key={habit.id}
                   className={`habit-card ${completed ? 'completed' : ''} ${isStacked ? 'stacked' : ''}`}
                   onClick={() => toggleHabit(habit.id)}
+                  onTouchStart={(e) => handleTouchStart(e, habit.id)}
+                  onTouchEnd={(e) => handleTouchEnd(e, habit.id)}
                   role="button"
                   tabIndex={0}
                   onKeyPress={(e) => {
@@ -711,34 +1008,36 @@ const HabitTracker = () => {
                   {/* Right: content */}
                   <div className="habit-main">
 
-                    {/* Row 1: name + streak + time */}
+                    {/* Row 1: name + streak */}
                     <div className="habit-row1">
-                      <span className={`habit-type-dot ${habit.habitType}`} />
+                      <span className={`habit-type-dot ${habit.habitType || 'positive'}`} />
                       <span className="habit-name">{habit.name}</span>
                       <div className="habit-row1-right">
                         {streak > 0 && (
-                          <span className={`habit-streak-pill ${completed ? 'active' : ''}`}>
-                            🔥 {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
+                          <span className={`habit-streak-pill ${completed ? 'active' : ''} ${
+                            streak >= 100 ? 'streak-legendary' : 
+                            streak >= 50 ? 'streak-epic' : 
+                            streak >= 30 ? 'streak-great' : 
+                            streak >= 7 ? 'streak-good' : ''
+                          }`}>
+                            {streak >= 100 ? '👑' : streak >= 50 ? '💎' : streak >= 30 ? '⭐' : '🔥'} {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
                           </span>
-                        )}
-                        {habit.time && (
-                          <span className="habit-time">{habit.time}</span>
                         )}
                       </div>
                     </div>
 
-                    {/* Cue — always visible */}
+                    {/* Cues — always visible */}
                     {(() => {
-                      const cue = stackedHabit
-                        ? `🔗 After: ${stackedHabit.name}`
-                        : (habit.customTrigger && habit.customTrigger.trim())
-                        ? `⚡ ${habit.customTrigger.trim()}`
-                        : (habit.time && habit.location)
-                        ? `📍 ${habit.time} · ${habit.location}`
-                        : (habit.identity && habit.identity.trim())
-                        ? `💭 ${habit.identity.trim()}`
-                        : null;
-                      return cue ? <div className="habit-cue">{cue}</div> : null;
+                      const stackCue = getStackCue(habit, stackedHabit);
+                      const identityCue = getCueText(habit);
+                      const implementationCue = getImplementationIntention(habit);
+                      return (
+                        <>
+                          {stackCue && <div className="habit-cue habit-cue-stack">{stackCue}</div>}
+                          {identityCue && <div className="habit-cue habit-cue-identity">{identityCue}</div>}
+                          {implementationCue && <div className="habit-cue habit-cue-implementation">{implementationCue}</div>}
+                        </>
+                      );
                     })()}
 
                     {/* Alerts */}
@@ -762,11 +1061,172 @@ const HabitTracker = () => {
                 </div>
               );
             })}
+
+            {completedHabits.length > 0 && (
+              <>
+                <div className="completed-divider">
+                  <span className="completed-divider-text">Completed ({completedHabits.length})</span>
+                </div>
+                {completedHabits.map(habit => {
+                  const completed = isCompletedToday(habit.id);
+                  const streak = getStreak(habit.id);
+                  const missed = missedYesterday(habit.id);
+                  const stackedHabit = habit.stackAfter ? data.habits.find(h => h.id === habit.stackAfter) : null;
+                  const isStacked = !!habit.stackAfter;
+                  
+                  return (
+                    <div
+                      key={habit.id}
+                      className={`habit-card ${completed ? 'completed' : ''} ${isStacked ? 'stacked' : ''}`}
+                      onClick={() => toggleHabit(habit.id)}
+                      onTouchStart={(e) => handleTouchStart(e, habit.id)}
+                      onTouchEnd={(e) => handleTouchEnd(e, habit.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') toggleHabit(habit.id);
+                      }}
+                    >
+                      {isStacked && <div className="stack-connector" />}
+
+                      {/* Left: check circle */}
+                      <div className={`habit-check ${completed ? 'checked' : ''}`}
+                        aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}>
+                        {completed && <span className="check-mark">✓</span>}
+                      </div>
+
+                      {/* Right: content */}
+                      <div className="habit-main">
+
+                        {/* Row 1: name + streak */}
+                        <div className="habit-row1">
+                          <span className={`habit-type-dot ${habit.habitType || 'positive'}`} />
+                          <span className="habit-name">{habit.name}</span>
+                          <div className="habit-row1-right">
+                            {streak > 0 && (
+                              <span className={`habit-streak-pill ${completed ? 'active' : ''} ${
+                                streak >= 100 ? 'streak-legendary' : 
+                                streak >= 50 ? 'streak-epic' : 
+                                streak >= 30 ? 'streak-great' : 
+                                streak >= 7 ? 'streak-good' : ''
+                              }`}>
+                                {streak >= 100 ? '👑' : streak >= 50 ? '💎' : streak >= 30 ? '⭐' : '🔥'} {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
+                              </span>
+                            )}
+                            {completionTimes[`${habit.id}-${viewDateStr}`] && (
+                              <span className="completion-time-badge">
+                                ✓ {completionTimes[`${habit.id}-${viewDateStr}`]}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Cues — always visible */}
+                        {(() => {
+                          const stackCue = getStackCue(habit, stackedHabit);
+                          const identityCue = getCueText(habit);
+                          const implementationCue = getImplementationIntention(habit);
+                          return (
+                            <>
+                              {stackCue && <div className="habit-cue habit-cue-stack">{stackCue}</div>}
+                              {identityCue && <div className="habit-cue habit-cue-identity">{identityCue}</div>}
+                              {implementationCue && <div className="habit-cue habit-cue-implementation">{implementationCue}</div>}
+                            </>
+                          );
+                        })()}
+
+                        {/* Alerts */}
+                        {!completed && missed && (
+                          <div className="habit-alert missed">⚠️ Don't miss twice!</div>
+                        )}
+                        {completed && habit.reward && (
+                          <div className="habit-alert reward">🎉 {habit.reward}</div>
+                        )}
+
+                        {/* Row 3: badges */}
+                        <div className="habit-badges">
+                          <span className="habit-badge">
+                            {habit.frequency === 'daily' ? 'Daily' : habit.frequency === 'weekly' ? 'Weekly' : 'Monthly'}
+                          </span>
+                          <span className="habit-difficulty">
+                            {habit.difficulty === 'easy' ? '~2m' : habit.difficulty === 'medium' ? '~10m' : '30m+'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
         </div>
+          ) : (
+            <div className="habit-content">
+              <div className="week-view">
+              {(() => {
+                const weekDays = [];
+                const today = new Date();
+                const startOfWeek = new Date(viewDate);
+                const day = startOfWeek.getDay();
+                const diff = day === 0 ? -6 : 1 - day;
+                startOfWeek.setDate(startOfWeek.getDate() + diff);
+                
+                for (let i = 0; i < 7; i++) {
+                  const currentDay = new Date(startOfWeek);
+                  currentDay.setDate(currentDay.getDate() + i);
+                  const dateStr = `${currentDay.getFullYear()}-${String(currentDay.getMonth() + 1).padStart(2, '0')}-${String(currentDay.getDate()).padStart(2, '0')}`;
+                  const isToday = currentDay.toDateString() === today.toDateString();
+                  
+                  const dailyHabits = data.habits.filter(h => h.frequency === 'daily');
+                  const completedHabits = data.completions[dateStr]?.filter(id => 
+                    dailyHabits.some(h => h.id === id)
+                  ) || [];
+                  
+                  const completionRate = dailyHabits.length > 0 
+                    ? Math.round((completedHabits.length / dailyHabits.length) * 100) 
+                    : 0;
+                  
+                  weekDays.push(
+                    <div key={i} className="week-day-card">
+                      <div className="week-day-header">
+                        <div className={`week-day-label ${isToday ? 'today' : ''}`}>
+                          {currentDay.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </div>
+                        <div className="week-day-stats">
+                          {completedHabits.length}/{dailyHabits.length}
+                        </div>
+                      </div>
+                      <div className="week-day-progress">
+                        <div 
+                          className="week-day-progress-fill" 
+                          style={{ width: `${completionRate}%` }}
+                        />
+                      </div>
+                      <div className="week-day-habits">
+                        {dailyHabits.map(habit => {
+                          const isCompleted = completedHabits.includes(habit.id);
+                          return (
+                            <div 
+                              key={habit.id}
+                              className={`week-habit-dot ${isCompleted ? 'completed' : ''}`}
+                              title={habit.name}
+                            >
+                              {isCompleted ? '✓' : habit.name.charAt(0)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return weekDays;
+              })()}
+              </div>
+            </div>
+          )}
+        </>
       )}
-
-      {/* ── Habits tab ── */}
       {activeTab === 'habits' && (
         <div className="habit-content">
           {data.habits.length === 0 ? (
@@ -776,6 +1236,43 @@ const HabitTracker = () => {
               <div style={{ fontSize: 14 }}>Tap ＋ to add your first habit</div>
             </div>
           ) : (
+            <>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <button
+                  onClick={() => setShowTemplateModal(true)}
+                  style={{
+                    flex: 1,
+                    padding: '12px 16px',
+                    background: 'var(--primary-bg)',
+                    color: 'var(--primary)',
+                    border: '2px solid var(--primary-light)',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  📚 Templates
+                </button>
+                <button
+                  onClick={() => setShowExportModal(true)}
+                  style={{
+                    flex: 1,
+                    padding: '12px 16px',
+                    background: 'var(--info-bg)',
+                    color: 'var(--info-text)',
+                    border: '2px solid var(--info-light)',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  📤 Export
+                </button>
+              </div>
             <div className="manage-section">
               <div className="habit-manage-list">
                 {data.habits.map(habit => (
@@ -805,6 +1302,7 @@ const HabitTracker = () => {
                 ))}
               </div>
             </div>
+            </>
           )}
         </div>
       )}
@@ -940,6 +1438,100 @@ const HabitTracker = () => {
             </div>
           </div>
         </>
+      )}
+
+      {/* Achievements Tab */}
+      {activeTab === 'achievements' && (
+        <div className="habit-content">
+          <div className="achievements-section">
+            <h3 className="stats-section-title">Your Achievements</h3>
+            <div className="achievements-grid">
+              {(() => {
+                const achievements = [
+                  { id: 'first', icon: '🎯', name: 'First Step', desc: 'Complete 1 habit', unlocked: data.habits.some(h => getStreak(h.id) >= 1) },
+                  { id: 'week', icon: '📅', name: 'Week Warrior', desc: '7 day streak', unlocked: data.habits.some(h => getStreak(h.id) >= 7) },
+                  { id: 'month', icon: '🔥', name: 'Month Master', desc: '30 day streak', unlocked: data.habits.some(h => getStreak(h.id) >= 30) },
+                  { id: 'fifty', icon: '⭐', name: 'Star Player', desc: '50 day streak', unlocked: data.habits.some(h => getStreak(h.id) >= 50) },
+                  { id: 'hundred', icon: '💎', name: 'Diamond', desc: '100 day streak', unlocked: data.habits.some(h => getStreak(h.id) >= 100) },
+                  { id: 'year', icon: '👑', name: 'Legend', desc: '365 day streak', unlocked: data.habits.some(h => getStreak(h.id) >= 365) },
+                  { id: 'multi', icon: '🎭', name: 'Multi-tasker', desc: '5+ habits', unlocked: data.habits.length >= 5 },
+                  { id: 'perfect', icon: '💯', name: 'Perfectionist', desc: '7 perfect days', unlocked: (() => {
+                    let perfectDays = 0;
+                    const today = new Date();
+                    for (let i = 0; i < 30; i++) {
+                      const d = new Date(today);
+                      d.setDate(d.getDate() - i);
+                      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                      const dailyHabits = data.habits.filter(h => h.frequency === 'daily');
+                      const completed = data.completions[dateStr]?.filter(id => dailyHabits.some(h => h.id === id)) || [];
+                      if (dailyHabits.length > 0 && completed.length === dailyHabits.length) perfectDays++;
+                    }
+                    return perfectDays >= 7;
+                  })() },
+                  { id: 'early', icon: '🌅', name: 'Early Bird', desc: 'Habit before 7am', unlocked: data.habits.some(h => {
+                    if (!h.time) return false;
+                    const [hours] = h.time.split(':').map(Number);
+                    return hours < 7;
+                  }) }
+                ];
+                
+                return achievements.map(achievement => (
+                  <div
+                    key={achievement.id}
+                    className={`achievement-badge ${achievement.unlocked ? 'unlocked' : 'locked'}`}
+                  >
+                    <div className="achievement-icon">{achievement.icon}</div>
+                    <div className="achievement-name">{achievement.name}</div>
+                    <div className="achievement-desc">{achievement.desc}</div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+
+          <div className="stats-boxes">
+            <div className="stat-box">
+              <div className="stat-value">{(() => {
+                const achievements = [
+                  data.habits.some(h => getStreak(h.id) >= 1),
+                  data.habits.some(h => getStreak(h.id) >= 7),
+                  data.habits.some(h => getStreak(h.id) >= 30),
+                  data.habits.some(h => getStreak(h.id) >= 50),
+                  data.habits.some(h => getStreak(h.id) >= 100),
+                  data.habits.some(h => getStreak(h.id) >= 365),
+                  data.habits.length >= 5,
+                  data.habits.some(h => {
+                    if (!h.time) return false;
+                    const [hours] = h.time.split(':').map(Number);
+                    return hours < 7;
+                  })
+                ];
+                return achievements.filter(Boolean).length;
+              })()}/9</div>
+              <div className="stat-label">Unlocked</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-value">{Math.max(...data.habits.map(h => getStreak(h.id)), 0)}</div>
+              <div className="stat-label">Best Streak</div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-value">{(() => {
+                let perfectDays = 0;
+                const today = new Date();
+                for (let i = 0; i < 30; i++) {
+                  const d = new Date(today);
+                  d.setDate(d.getDate() - i);
+                  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  const dailyHabits = data.habits.filter(h => h.frequency === 'daily');
+                  const completed = data.completions[dateStr]?.filter(id => dailyHabits.some(h => h.id === id)) || [];
+                  if (dailyHabits.length > 0 && completed.length === dailyHabits.length) perfectDays++;
+                }
+                return perfectDays;
+              })()}</div>
+              <div className="stat-label">Perfect Days</div>
+            </div>
+          </div>
+        </div>
       )}
 
       {activeTab === 'stats' && (
@@ -1332,6 +1924,107 @@ const HabitTracker = () => {
             <div className="modal-actions">
               <button className="cancel-btn" onClick={() => setShowDeleteModal(false)}>Cancel</button>
               <button className="delete-confirm-btn" onClick={confirmDelete}>Delete</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Milestone Celebration */}
+      {showMilestone && milestoneData && (
+        <div className="milestone-overlay">
+          <div className="milestone-card">
+            <div className="milestone-emoji">{milestoneData.emoji}</div>
+            <div className="milestone-title">Milestone Reached!</div>
+            <div className="milestone-streak">{milestoneData.streak} Day Streak</div>
+            <div className="milestone-habit">{milestoneData.habitName}</div>
+            <div className="milestone-message">
+              {milestoneData.streak === 7 && "One week strong! You're building momentum."}
+              {milestoneData.streak === 30 && "30 days! This is becoming part of who you are."}
+              {milestoneData.streak === 50 && "50 days! You're in the top 1% of habit builders."}
+              {milestoneData.streak === 100 && "100 days! You've mastered this habit."}
+              {milestoneData.streak === 365 && "ONE YEAR! You are legendary!"}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <>
+          <div className="modal-overlay" onClick={() => setShowExportModal(false)} />
+          <div className="habit-modal export-modal">
+            <div className="modal-handle" />
+            <h3>Export Data</h3>
+            <div className="export-options">
+              <div className="export-option" onClick={() => exportData('json')}>
+                <div className="export-option-left">
+                  <span className="export-icon">📄</span>
+                  <div className="export-option-text">
+                    <div className="export-option-title">JSON Format</div>
+                    <div className="export-option-desc">Complete data backup</div>
+                  </div>
+                </div>
+                <span className="export-arrow">→</span>
+              </div>
+              <div className="export-option" onClick={() => exportData('csv')}>
+                <div className="export-option-left">
+                  <span className="export-icon">📊</span>
+                  <div className="export-option-text">
+                    <div className="export-option-title">CSV Format</div>
+                    <div className="export-option-desc">Spreadsheet compatible</div>
+                  </div>
+                </div>
+                <span className="export-arrow">→</span>
+              </div>
+              <div className="export-option" onClick={() => exportData('text')}>
+                <div className="export-option-left">
+                  <span className="export-icon">📝</span>
+                  <div className="export-option-text">
+                    <div className="export-option-title">Text Summary</div>
+                    <div className="export-option-desc">Human-readable report</div>
+                  </div>
+                </div>
+                <span className="export-arrow">→</span>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="cancel-btn full-width" onClick={() => setShowExportModal(false)}>Close</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Template Library Modal */}
+      {showTemplateModal && (
+        <>
+          <div className="modal-overlay" onClick={() => setShowTemplateModal(false)} />
+          <div className="habit-modal">
+            <div className="modal-handle" />
+            <h3>Habit Templates</h3>
+            <div className="template-library">
+              {HABIT_TEMPLATES.map(category => (
+                <div key={category.category} className="template-category">
+                  <div className="template-category-title">{category.category}</div>
+                  {category.templates.map((template, idx) => (
+                    <div key={idx} className="template-card">
+                      <span className="template-emoji">{template.emoji}</span>
+                      <div className="template-info">
+                        <div className="template-name">{template.name}</div>
+                        <div className="template-identity">{template.identity}</div>
+                      </div>
+                      <button
+                        className="template-add-btn"
+                        onClick={() => addFromTemplate(template)}
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="modal-actions">
+              <button className="cancel-btn full-width" onClick={() => setShowTemplateModal(false)}>Close</button>
             </div>
           </div>
         </>

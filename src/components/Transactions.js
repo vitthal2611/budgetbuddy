@@ -20,7 +20,7 @@ const formatGroupLabel = (ddmmyyyy) => {
   return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
-const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onFiltersCleared, onNavigate }) => {
+const Transactions = ({ transactions, onEdit, onDelete, onAdd, initialFilters = {}, onFiltersCleared, onNavigate }) => {
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
@@ -32,9 +32,16 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
   const [filterYear, setFilterYear] = useState(initialFilters.year || currentYear);
   const [filterPaymentMethod, setFilterPaymentMethod] = useState(initialFilters.paymentMethod || 'all');
   const [filterEnvelope, setFilterEnvelope] = useState(initialFilters.envelope || 'all');
+  const [filterDateRange, setFilterDateRange] = useState({ start: '', end: '' });
+  const [viewMode, setViewMode] = useState('month'); // 'month' or 'day'
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterSheet, setShowFilterSheet] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showFabMenu, setShowFabMenu] = useState(false);
   const [swipedId, setSwipedId] = useState(null);
   const touchStartX = useRef(null);
 
@@ -80,8 +87,29 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
       if (filterType !== 'all' && t.type !== filterType) return false;
 
       const d = parseDate(t.date);
-      if (d.getFullYear() !== filterYear) return false;
-      if (filterMonth !== 'all' && d.getMonth() !== parseInt(filterMonth)) return false;
+      
+      // Day view mode - show only selected day
+      if (viewMode === 'day') {
+        if (t.date !== selectedDate) return false;
+      } else {
+        // Month view mode
+        // Date range filter takes precedence over month/year filter
+        if (filterDateRange.start || filterDateRange.end) {
+          if (filterDateRange.start) {
+            const startDate = new Date(filterDateRange.start);
+            if (d < startDate) return false;
+          }
+          if (filterDateRange.end) {
+            const endDate = new Date(filterDateRange.end);
+            endDate.setHours(23, 59, 59, 999); // Include the end date
+            if (d > endDate) return false;
+          }
+        } else {
+          // Use month/year filter only if no date range is set
+          if (d.getFullYear() !== filterYear) return false;
+          if (filterMonth !== 'all' && d.getMonth() !== parseInt(filterMonth)) return false;
+        }
+      }
 
       if (filterPaymentMethod !== 'all') {
         const match = t.paymentMethod === filterPaymentMethod ||
@@ -99,15 +127,92 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
 
       return true;
     });
-  }, [transactions, filterType, filterMonth, filterYear, filterPaymentMethod, filterEnvelope, searchQuery]);
+  }, [transactions, filterType, filterMonth, filterYear, filterPaymentMethod, filterEnvelope, filterDateRange, searchQuery, viewMode, selectedDate]);
+
+  // Calculate opening balances for day view
+  const openingBalances = useMemo(() => {
+    if (viewMode !== 'day') return {};
+    
+    const balances = {};
+    const selectedDateObj = parseDate(selectedDate);
+    
+    // Sort all transactions chronologically
+    const allSorted = [...transactions].sort((a, b) => parseDate(a.date) - parseDate(b.date));
+    
+    // Calculate balances up to (but not including) the selected date
+    allSorted.forEach(t => {
+      const tDate = parseDate(t.date);
+      if (tDate >= selectedDateObj) return; // Stop before selected date
+      
+      if (t.type === 'income' && t.paymentMethod) {
+        if (!balances[t.paymentMethod]) balances[t.paymentMethod] = 0;
+        balances[t.paymentMethod] += parseFloat(t.amount);
+      } else if (t.type === 'expense' && t.paymentMethod) {
+        if (!balances[t.paymentMethod]) balances[t.paymentMethod] = 0;
+        balances[t.paymentMethod] -= parseFloat(t.amount);
+      } else if (t.type === 'transfer') {
+        if (t.sourceAccount) {
+          if (!balances[t.sourceAccount]) balances[t.sourceAccount] = 0;
+          balances[t.sourceAccount] -= parseFloat(t.amount);
+        }
+        if (t.destinationAccount) {
+          if (!balances[t.destinationAccount]) balances[t.destinationAccount] = 0;
+          balances[t.destinationAccount] += parseFloat(t.amount);
+        }
+      }
+    });
+    
+    return balances;
+  }, [transactions, viewMode, selectedDate]);
 
   // Sort and group by date
   const groupedTransactions = useMemo(() => {
+    // Sort all transactions chronologically (oldest first) to calculate running balances
+    const allSorted = [...transactions].sort((a, b) => parseDate(a.date) - parseDate(b.date));
+    
+    // Calculate running balances for each payment method
+    const balances = {};
+    const transactionBalances = new Map();
+    
+    allSorted.forEach(t => {
+      if (t.type === 'income' && t.paymentMethod) {
+        if (!balances[t.paymentMethod]) balances[t.paymentMethod] = 0;
+        balances[t.paymentMethod] += parseFloat(t.amount);
+        transactionBalances.set(t.id, { balance: balances[t.paymentMethod], paymentMethod: t.paymentMethod });
+      } else if (t.type === 'expense' && t.paymentMethod) {
+        if (!balances[t.paymentMethod]) balances[t.paymentMethod] = 0;
+        balances[t.paymentMethod] -= parseFloat(t.amount);
+        transactionBalances.set(t.id, { balance: balances[t.paymentMethod], paymentMethod: t.paymentMethod });
+      } else if (t.type === 'transfer') {
+        if (t.sourceAccount) {
+          if (!balances[t.sourceAccount]) balances[t.sourceAccount] = 0;
+          balances[t.sourceAccount] -= parseFloat(t.amount);
+        }
+        if (t.destinationAccount) {
+          if (!balances[t.destinationAccount]) balances[t.destinationAccount] = 0;
+          balances[t.destinationAccount] += parseFloat(t.amount);
+          transactionBalances.set(t.id, { balance: balances[t.destinationAccount], paymentMethod: t.destinationAccount });
+        }
+      }
+    });
+    
+    // Now sort filtered transactions for display (newest first)
     const sorted = [...filteredTransactions].sort((a, b) => parseDate(b.date) - parseDate(a.date));
+    
+    // Add balance info to each transaction
+    const sortedWithBalance = sorted.map(t => {
+      const balanceInfo = transactionBalances.get(t.id);
+      return { 
+        ...t, 
+        balance: balanceInfo?.balance ?? null,
+        balancePaymentMethod: balanceInfo?.paymentMethod ?? null
+      };
+    });
+    
     const groups = [];
     let currentDate = null;
 
-    sorted.forEach(t => {
+    sortedWithBalance.forEach(t => {
       if (t.date !== currentDate) {
         currentDate = t.date;
         groups.push({ date: t.date, label: formatGroupLabel(t.date), items: [] });
@@ -116,7 +221,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
     });
 
     return groups;
-  }, [filteredTransactions]);
+  }, [filteredTransactions, transactions]);
 
   const totalStats = useMemo(() => {
     let income = 0, expense = 0, credits = 0;
@@ -136,6 +241,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
     filterMonth !== currentMonth || filterYear !== currentYear,
     filterPaymentMethod !== 'all',
     filterEnvelope !== 'all',
+    filterDateRange.start || filterDateRange.end,
   ].filter(Boolean).length;
 
   const clearFilters = () => {
@@ -144,9 +250,34 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
     setFilterYear(currentYear);
     setFilterPaymentMethod('all');
     setFilterEnvelope('all');
+    setFilterDateRange({ start: '', end: '' });
+    setViewMode('month');
     setSearchQuery('');
     if (onFiltersCleared) onFiltersCleared();
   };
+
+  const goToPreviousDay = () => {
+    const d = parseDate(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(`${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`);
+  };
+
+  const goToNextDay = () => {
+    const d = parseDate(selectedDate);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(`${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`);
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    setSelectedDate(`${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`);
+  };
+
+  const isViewingToday = (() => {
+    const today = new Date();
+    const todayStr = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
+    return selectedDate === todayStr;
+  })();
 
   const handleImport = (importedTransactions) => {
     window.dispatchEvent(new CustomEvent('importTransactions', { detail: importedTransactions }));
@@ -258,26 +389,55 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
         </div>
 
         {/* Month nav */}
-        <div className="tx-month-nav">
-          <button className="tx-month-arrow" onClick={() => {
-            if (filterMonth === 'all') return;
-            const m = parseInt(filterMonth);
-            if (m === 0) { setFilterMonth(11); setFilterYear(y => y - 1); }
-            else setFilterMonth(m - 1);
-          }}>‹</button>
-          <button
-            className={`tx-month-label ${filterMonth === 'all' ? 'all' : ''}`}
-            onClick={() => setFilterMonth(filterMonth === 'all' ? currentMonth : 'all')}
-          >
-            {filterMonth === 'all' ? `All of ${filterYear}` : `${months[parseInt(filterMonth)]} ${filterYear}`}
-          </button>
-          <button className="tx-month-arrow" onClick={() => {
-            if (filterMonth === 'all') return;
-            const m = parseInt(filterMonth);
-            if (m === 11) { setFilterMonth(0); setFilterYear(y => y + 1); }
-            else setFilterMonth(m + 1);
-          }}>›</button>
-        </div>
+        {viewMode === 'month' ? (
+          <div className="tx-month-nav">
+            <button className="tx-month-arrow" onClick={() => {
+              if (filterMonth === 'all') return;
+              const m = parseInt(filterMonth);
+              if (m === 0) { setFilterMonth(11); setFilterYear(y => y - 1); }
+              else setFilterMonth(m - 1);
+            }}>‹</button>
+            <button
+              className={`tx-month-label ${filterMonth === 'all' ? 'all' : ''}`}
+              onClick={() => setFilterMonth(filterMonth === 'all' ? currentMonth : 'all')}
+            >
+              {filterMonth === 'all' ? `All of ${filterYear}` : `${months[parseInt(filterMonth)]} ${filterYear}`}
+            </button>
+            <button className="tx-month-arrow" onClick={() => {
+              if (filterMonth === 'all') return;
+              const m = parseInt(filterMonth);
+              if (m === 11) { setFilterMonth(0); setFilterYear(y => y + 1); }
+              else setFilterMonth(m + 1);
+            }}>›</button>
+            <button 
+              className="tx-view-mode-btn" 
+              onClick={() => setViewMode('day')}
+              title="Switch to day view"
+            >
+              📅 Day
+            </button>
+          </div>
+        ) : (
+          <div className="tx-month-nav">
+            <button className="tx-month-arrow" onClick={goToPreviousDay}>‹</button>
+            <div className="tx-day-nav-center">
+              <button className="tx-month-label" onClick={() => setViewMode('month')}>
+                {parseDate(selectedDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+              </button>
+              {!isViewingToday && (
+                <button className="tx-today-chip" onClick={goToToday}>Today</button>
+              )}
+            </div>
+            <button className="tx-month-arrow" onClick={goToNextDay}>›</button>
+            <button 
+              className="tx-view-mode-btn" 
+              onClick={() => setViewMode('month')}
+              title="Switch to month view"
+            >
+              📆 Month
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="tx-stats">
@@ -322,6 +482,15 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
                 {filterEnvelope} ×
               </span>
             )}
+            {(filterDateRange.start || filterDateRange.end) && (
+              <span className="tx-filter-pill" onClick={() => setFilterDateRange({ start: '', end: '' })}>
+                {filterDateRange.start && filterDateRange.end 
+                  ? `${filterDateRange.start} to ${filterDateRange.end}` 
+                  : filterDateRange.start 
+                  ? `From ${filterDateRange.start}` 
+                  : `Until ${filterDateRange.end}`} ×
+              </span>
+            )}
             <button className="tx-clear-all" onClick={clearFilters}>Clear all</button>
           </div>
         )}
@@ -329,6 +498,28 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
 
       {/* ── Scrollable list ── */}
       <div className="tx-scroll">
+        {/* Opening balances for day view */}
+        {viewMode === 'day' && Object.keys(openingBalances).length > 0 && (
+          <div className="tx-opening-balances">
+            <div className="tx-opening-title">Opening Balance</div>
+            <div className="tx-opening-list">
+              {Object.entries(openingBalances)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([method, balance]) => (
+                  <div key={method} className="tx-opening-item">
+                    <div className="tx-opening-method">
+                      <span className="tx-opening-icon">💳</span>
+                      {method}
+                    </div>
+                    <div className={`tx-opening-balance ${balance < 0 ? 'negative' : balance === 0 ? 'zero' : ''}`}>
+                      ₹{fmt(balance)}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {groupedTransactions.length === 0 ? (
           <div className="tx-empty">
             <div className="tx-empty-icon">📭</div>
@@ -384,7 +575,14 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
                             </span>
                             <span className={`tx-item-amount ${getAmountClass(t)}`}>{formatAmount(t)}</span>
                           </div>
-                          <div className="tx-item-sub">{getSubLabel(t)}</div>
+                          <div className="tx-item-sub">
+                            <span>{getSubLabel(t)}</span>
+                            {t.balance !== null && (
+                              <span className="tx-item-balance">
+                                Bal: ₹{fmt(t.balance)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         {/* Desktop actions */}
                         <div className="tx-item-actions desktop-only">
@@ -428,9 +626,42 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
                 </div>
               </div>
 
+              {/* Date Range */}
+              <div className="tx-filter-section">
+                <div className="tx-filter-label">Date Range</div>
+                <div className="tx-date-range">
+                  <div className="tx-date-input-group">
+                    <label className="tx-date-label">From</label>
+                    <input
+                      type="date"
+                      className="tx-date-input"
+                      value={filterDateRange.start}
+                      onChange={(e) => setFilterDateRange({ ...filterDateRange, start: e.target.value })}
+                    />
+                  </div>
+                  <div className="tx-date-input-group">
+                    <label className="tx-date-label">To</label>
+                    <input
+                      type="date"
+                      className="tx-date-input"
+                      value={filterDateRange.end}
+                      onChange={(e) => setFilterDateRange({ ...filterDateRange, end: e.target.value })}
+                    />
+                  </div>
+                </div>
+                {(filterDateRange.start || filterDateRange.end) && (
+                  <button 
+                    className="tx-clear-date-range" 
+                    onClick={() => setFilterDateRange({ start: '', end: '' })}
+                  >
+                    Clear date range
+                  </button>
+                )}
+              </div>
+
               {/* Year */}
               <div className="tx-filter-section">
-                <div className="tx-filter-label">Year</div>
+                <div className="tx-filter-label">Year (Quick Select)</div>
                 <div className="tx-chip-row">
                   {availableYears.map(y => (
                     <button key={y} className={`tx-chip ${filterYear === y ? 'active' : ''}`}
@@ -441,7 +672,7 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
 
               {/* Month */}
               <div className="tx-filter-section">
-                <div className="tx-filter-label">Month</div>
+                <div className="tx-filter-label">Month (Quick Select)</div>
                 <div className="tx-chip-row wrap">
                   <button className={`tx-chip ${filterMonth === 'all' ? 'active' : ''}`}
                     onClick={() => setFilterMonth('all')}>All</button>
@@ -499,6 +730,56 @@ const Transactions = ({ transactions, onEdit, onDelete, initialFilters = {}, onF
           onClose={() => setShowImport(false)}
           existingTransactions={transactions}
         />
+      )}
+
+      {/* FAB and menu */}
+      {onAdd && (
+        <>
+          {showFabMenu && (
+            <>
+              <div className="tx-fab-backdrop" onClick={() => setShowFabMenu(false)} />
+              <div className="tx-fab-menu">
+                <div 
+                  className="tx-fab-item"
+                  onClick={() => {
+                    setShowFabMenu(false);
+                    onAdd('income');
+                  }}
+                >
+                  <div className="tx-fab-icon income">↑</div>
+                  <span className="tx-fab-label">Add Income</span>
+                </div>
+                <div 
+                  className="tx-fab-item"
+                  onClick={() => {
+                    setShowFabMenu(false);
+                    onAdd('expense');
+                  }}
+                >
+                  <div className="tx-fab-icon expense">↓</div>
+                  <span className="tx-fab-label">Add Expense</span>
+                </div>
+                <div 
+                  className="tx-fab-item"
+                  onClick={() => {
+                    setShowFabMenu(false);
+                    onAdd('transfer');
+                  }}
+                >
+                  <div className="tx-fab-icon transfer">⇄</div>
+                  <span className="tx-fab-label">Transfer</span>
+                </div>
+              </div>
+            </>
+          )}
+          <button 
+            className={`tx-fab ${showFabMenu ? 'open' : ''}`}
+            onClick={() => setShowFabMenu(!showFabMenu)}
+            aria-label="Add transaction"
+          >
+            +
+          </button>
+        </>
       )}
     </div>
   );

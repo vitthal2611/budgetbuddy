@@ -12,12 +12,12 @@ const BottomNav = ({ activeTab, onTabChange, onOpenMenu }) => (
     </button>
 
     <button
-      className={`nav-tab ${activeTab === 'transactions' ? 'active' : ''}`}
-      onClick={() => onTabChange('transactions')}
-      aria-label="Transactions"
+      className={`nav-tab ${activeTab === 'todos' ? 'active' : ''}`}
+      onClick={() => onTabChange('todos')}
+      aria-label="To-Do"
     >
-      <span className="nav-icon">💳</span>
-      <span className="nav-label">History</span>
+      <span className="nav-icon">✅</span>
+      <span className="nav-label">To-Do</span>
     </button>
 
     <button

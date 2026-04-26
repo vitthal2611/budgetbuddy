@@ -674,6 +674,39 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
 
         {/* Recent Transactions */}
         {(() => {
+          // Sort all transactions chronologically to calculate running balances
+          const allSorted = [...transactions].sort((a, b) => {
+            const da = new Date(a.date.split('-').reverse().join('-'));
+            const db = new Date(b.date.split('-').reverse().join('-'));
+            return da - db;
+          });
+          
+          // Calculate running balances for each payment method
+          const balances = {};
+          const transactionBalances = new Map();
+          
+          allSorted.forEach(t => {
+            if (t.type === 'income' && t.paymentMethod) {
+              if (!balances[t.paymentMethod]) balances[t.paymentMethod] = 0;
+              balances[t.paymentMethod] += parseFloat(t.amount);
+              transactionBalances.set(t.id, { balance: balances[t.paymentMethod], paymentMethod: t.paymentMethod });
+            } else if (t.type === 'expense' && t.paymentMethod) {
+              if (!balances[t.paymentMethod]) balances[t.paymentMethod] = 0;
+              balances[t.paymentMethod] -= parseFloat(t.amount);
+              transactionBalances.set(t.id, { balance: balances[t.paymentMethod], paymentMethod: t.paymentMethod });
+            } else if (t.type === 'transfer') {
+              if (t.sourceAccount) {
+                if (!balances[t.sourceAccount]) balances[t.sourceAccount] = 0;
+                balances[t.sourceAccount] -= parseFloat(t.amount);
+              }
+              if (t.destinationAccount) {
+                if (!balances[t.destinationAccount]) balances[t.destinationAccount] = 0;
+                balances[t.destinationAccount] += parseFloat(t.amount);
+                transactionBalances.set(t.id, { balance: balances[t.destinationAccount], paymentMethod: t.destinationAccount });
+              }
+            }
+          });
+          
           const recent = [...transactions]
             .filter(t => t.type === 'expense' || t.type === 'income')
             .sort((a, b) => {
@@ -681,7 +714,15 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
               const db = new Date(b.date.split('-').reverse().join('-'));
               return db - da;
             })
-            .slice(0, 3);
+            .slice(0, 3)
+            .map(t => {
+              const balanceInfo = transactionBalances.get(t.id);
+              return {
+                ...t,
+                balance: balanceInfo?.balance ?? null,
+                balancePaymentMethod: balanceInfo?.paymentMethod ?? null
+              };
+            });
 
           if (recent.length === 0) return null;
 
@@ -700,7 +741,14 @@ const EnvelopesView = ({ transactions, budgets, setBudgets, onAddTransaction, on
                     <div className={`ev-recent-dot ${t.type}`} />
                     <div className="ev-recent-body">
                       <span className="ev-recent-note">{t.note}</span>
-                      {t.envelope && <span className="ev-recent-env">{t.envelope}</span>}
+                      <div className="ev-recent-meta">
+                        {t.envelope && <span className="ev-recent-env">{t.envelope}</span>}
+                        {t.balance !== null && (
+                          <span className="ev-recent-balance">
+                            Bal: ₹{fmt(t.balance)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="ev-recent-right">
                       <span className={`ev-recent-amt ${t.type}`}>

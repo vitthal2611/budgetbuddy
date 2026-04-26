@@ -354,10 +354,14 @@
   align-items: flex-end;
   justify-content: center;
   animation: fadeIn 0.2s;
+  backdrop-filter: blur(2px);
 }
 
 .modal {
-  position: relative;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: var(--bg-secondary);
   border-radius: 20px 20px 0 0;
   width: 100%;
@@ -369,6 +373,12 @@
   animation: slideUp 0.3s;
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
+  margin: 0 auto;
+}
+
+.modal-delete {
+  max-height: 50vh;
+  padding-top: 8px;
 }
 
 .modal-handle {
@@ -488,18 +498,19 @@
 .delete-warning {
   color: var(--text-primary);
   font-size: 14px;
-  margin: 0 20px 16px;
+  margin: 0 20px 20px;
   line-height: 1.5;
-  padding: 12px;
+  padding: 16px;
   background: var(--danger-bg);
   border-radius: 8px;
   border: 1px solid var(--danger-light);
+  word-wrap: break-word;
 }
 
 .modal-actions {
   display: flex;
   gap: 12px;
-  margin-top: 20px;
+  margin-top: 0;
   padding: 0 20px;
 }
 
@@ -514,6 +525,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  min-height: 44px;
 }
 
 .btn-cancel {
@@ -584,8 +596,10 @@
   }
 
   .modal {
+    position: relative;
     border-radius: 20px;
     max-height: 90vh;
+    bottom: auto;
   }
 
   .modal-handle {

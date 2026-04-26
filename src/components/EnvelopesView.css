@@ -2702,3 +2702,22 @@
     display: none;
   }
 }
+
+
+/* Recent transaction balance */
+.ev-recent-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ev-recent-balance {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-bg);
+  padding: 2px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}

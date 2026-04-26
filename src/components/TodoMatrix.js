@@ -355,6 +355,7 @@ const TodoMatrix = () => {
         <>
           <div className="modal-overlay" onClick={() => setShowDeleteModal(false)} />
           <div className="modal modal-delete">
+            <div className="modal-handle" />
             <h3>Delete Task?</h3>
             <p className="delete-warning">
               Are you sure you want to delete "{deletingTask?.title}"? This cannot be undone.

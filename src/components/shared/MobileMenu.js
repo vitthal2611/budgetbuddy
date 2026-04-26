@@ -17,11 +17,11 @@ const MobileMenu = ({ user, onNavigate, onExport, onDeleteAll, onSignOut, onClos
       </div>
 
       <div className="mobile-menu-items">
-        <button className="menu-item" onClick={() => { onNavigate('todos'); onClose(); }}>
-          <span className="menu-icon">✅</span>
+        <button className="menu-item" onClick={() => { onNavigate('transactions'); onClose(); }}>
+          <span className="menu-icon">📋</span>
           <div className="menu-text">
-            <div className="menu-title">To-Do</div>
-            <div className="menu-subtitle">Tasks & priorities</div>
+            <div className="menu-title">All Transactions</div>
+            <div className="menu-subtitle">View transaction history</div>
           </div>
         </button>
 

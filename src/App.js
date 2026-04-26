@@ -569,6 +569,7 @@ function App() {
                   transactions={transactions}
                   onEdit={handleEditTransaction}
                   onDelete={handleDeleteTransaction}
+                  onAdd={handleAddTransaction}
                   initialFilters={transactionFilters}
                   onFiltersCleared={() => setTransactionFilters({})}
                   onNavigate={setActiveTab}
