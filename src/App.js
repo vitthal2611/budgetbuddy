@@ -29,7 +29,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // App state
-  const [activeTab, setActiveTab] = useState('envelopes');
+  const [activeTab, setActiveTab] = useState('habits'); // Changed default to habits
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('expense');
   const [editTransaction, setEditTransaction] = useState(null);

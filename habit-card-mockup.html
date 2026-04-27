@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic Streaks - Habit Card Redesign Mockup</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f8fafc;
+      padding: 20px;
+      color: #1e293b;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #6366f1;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #64748b;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 24px 0 12px;
+    }
+
+    /* ========== NEW HABIT CARD DESIGN ========== */
+    .habit-card {
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 16px;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      margin-bottom: 16px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .habit-card:active {
+      transform: scale(0.98);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .habit-card.completed {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-color: #86efac;
+    }
+
+    .habit-card.stacked {
+      border-left: 4px solid #6366f1;
+    }
+
+    /* Top section with check and content */
+    .habit-card-top {
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      align-items: flex-start;
+    }
+
+    /* Check circle */
+    .habit-check {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border-radius: 50%;
+      border: 2.5px solid #cbd5e1;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: white;
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+    }
+
+    .habit-check.checked {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-color: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+    }
+
+    /* Main content */
+    .habit-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Trigger badge */
+    .habit-trigger-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+      border: 1px solid #c4b5fd;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6d28d9;
+      align-self: flex-start;
+      box-shadow: 0 1px 3px rgba(109, 40, 217, 0.1);
+    }
+
+    /* Name and streak row */
+    .habit-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: space-between;
+    }
+
+    .habit-name-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .habit-type-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+    }
+
+    .habit-action-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: -0.3px;
+    }
+
+    .habit-card.completed .habit-action-text {
+      color: #16a34a;
+    }
+
+    /* Streak badge */
+    .habit-streak-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      border: 1px solid;
+    }
+
+    .streak-normal {
+      color: #64748b;
+      background: #f1f5f9;
+      border-color: #e2e8f0;
+    }
+
+    .streak-good {
+      background: linear-gradient(135deg, #fff7ed, #fed7aa);
+      color: #ea580c;
+      border-color: #fdba74;
+      box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.1);
+    }
+
+    .streak-great {
+      background: linear-gradient(135deg, #fef3c7, #fde047);
+      color: #a16207;
+      border-color: #fde047;
+      box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.2);
+    }
+
+    .streak-epic {
+      background: linear-gradient(135deg, #dbeafe, #93c5fd);
+      color: #1e40af;
+      border-color: #93c5fd;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .streak-legendary {
+      background: linear-gradient(135deg, #fae8ff, #f0abfc);
+      color: #a21caf;
+      border-color: #f0abfc;
+      box-shadow: 0 0 0 2px rgba(217, 70, 239, 0.2);
+    }
+
+    /* Cues */
+    .habit-cue {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid;
+    }
+
+    .habit-cue-identity {
+      color: #6366f1;
+      background: #eef2ff;
+      border-color: #c7d2fe;
+      box-shadow: 0 1px 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .habit-cue-implementation {
+      color: #64748b;
+      background: #f8fafc;
+      border-color: #e2e8f0;
+      font-weight: 500;
+    }
+
+    /* Alerts */
+    .habit-alert {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 10px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      align-self: flex-start;
+      border: 1px solid;
+    }
+
+    .habit-alert.missed {
+      color: #b91c1c;
+      background: linear-gradient(135deg, #fef2f2, #fee2e2);
+      border-color: #fecaca;
+    }
+
+    .habit-alert.reward {
+      color: #065f46;
+      background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+      border-color: #6ee7b7;
+    }
+
+    /* Bottom section */
+    .habit-card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+      gap: 8px;
+    }
+
+    .habit-card.completed .habit-card-bottom {
+      background: rgba(34, 197, 94, 0.05);
+      border-top-color: #86efac;
+    }
+
+    .habit-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .habit-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      background: white;
+      border-radius: 12px;
+      color: #64748b;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      border: 1px solid #e2e8f0;
+    }
+
+    .habit-difficulty {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border-radius: 12px;
+      color: #92400e;
+      border: 1px solid #fde047;
+    }
+
+    .completion-time-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+      color: #1e40af;
+      border-radius: 12px;
+      border: 1px solid #93c5fd;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .comparison-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      .comparison {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Atomic Streaks</h1>
+    <p class="subtitle">Habit Card Redesign Mockup</p>
+
+    <div class="section-title">✨ New Design Examples</div>
+
+    <!-- Example 1: Stacked Habit -->
+    <div class="habit-card stacked">
+      <div class="habit-card-top">
+        <div class="habit-check checked">✓</div>
+        <div class="habit-main">
+          <div class="habit-trigger-badge">
+            <span>🔗</span>
+            <span>After I brush my teeth</span>
+          </div>
+          <div class="habit-name-row">
+            <div class="habit-name-left">
+              <div class="habit-type-dot"></div>
+              <div class="habit-action-text">Floss one tooth</div>
+            </div>
+            <div class="habit-streak-pill streak-good">🔥 15d</div>
+          </div>
+          <div class="habit-cue habit-cue-identity">
+            <span>💭</span>
+            <span>I am someone who takes care of my teeth</span>
+          </div>
+        </div>
+      </div>
+      <div class="habit-card-bottom">
+        <div class="habit-badges">
+          <div class="habit-badge">Daily</div>
+          <div class="habit-difficulty">~2m</div>
+        </div>
+        <div class="completion-time-badge">✓ 07:05</div>
+      </div>
+    </div>
+
+    <!-- Example 2: Time-Based Habit -->
+    <div class="habit-card">
+      <div class="habit-card-top">
+        <div class="habit-check"></div>
+        <div class="habit-main">
+          <div class="habit-trigger-badge">
+            <span>⏰</span>
+            <span>06:30</span>
+          </div>
+          <div class="habit-name-row">
+            <div class="habit-name-left">
+              <div class="habit-type-dot"></div>
+              <div class="habit-action-text">Put on running shoes</div>
+            </div>
+            <div class="habit-streak-pill streak-epic">💎 52d</div>
+          </div>
+          <div class="habit-cue habit-cue-identity">
+            <span>💭</span>
+            <span>I am a runner</span>
+          </div>
+          <div class="habit-cue habit-cue-implementation">
+            <span>📍</span>
+            <span>06:30 · Bedroom</span>
+          </div>
+        </div>
+      </div>
+      <div class="habit-card-bottom">
+        <div class="habit-badges">
+          <div class="habit-badge">Daily</div>
+          <div class="habit-difficulty">~2m</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Example 3: Custom Trigger with Alert -->
+    <div class="habit-card">
+      <div class="habit-card-top">
+        <div class="habit-check"></div>
+        <div class="habit-main">
+          <div class="habit-trigger-badge">
+            <span>⚡</span>
+            <span>When I feel stressed</span>
+          </div>
+          <div class="habit-name-row">
+            <div class="habit-name-left">
+              <div class="habit-type-dot"></div>
+              <div class="habit-action-text">Take one deep breath</div>
+            </div>
+            <div class="habit-streak-pill streak-good">🔥 7d</div>
+          </div>
+          <div class="habit-cue habit-cue-identity">
+            <span>💭</span>
+            <span>I am calm and centered</span>
+          </div>
+          <div class="habit-alert missed">
+            <span>⚠️</span>
+            <span>Don't miss twice!</span>
+          </div>
+        </div>
+      </div>
+      <div class="habit-card-bottom">
+        <div class="habit-badges">
+          <div class="habit-badge">Daily</div>
+          <div class="habit-difficulty">~2m</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Example 4: Completed with Reward -->
+    <div class="habit-card completed">
+      <div class="habit-card-top">
+        <div class="habit-check checked">✓</div>
+        <div class="habit-main">
+          <div class="habit-trigger-badge">
+            <span>📍</span>
+            <span>Kitchen</span>
+          </div>
+          <div class="habit-name-row">
+            <div class="habit-name-left">
+              <div class="habit-type-dot"></div>
+              <div class="habit-action-text">Drink one glass of water</div>
+            </div>
+            <div class="habit-streak-pill streak-legendary">👑 105d</div>
+          </div>
+          <div class="habit-cue habit-cue-identity">
+            <span>💭</span>
+            <span>I am someone who stays hydrated</span>
+          </div>
+          <div class="habit-cue habit-cue-implementation">
+            <span>📍</span>
+            <span>08:00 · Kitchen</span>
+          </div>
+          <div class="habit-alert reward">
+            <span>🎉</span>
+            <span>Enjoy coffee</span>
+          </div>
+        </div>
+      </div>
+      <div class="habit-card-bottom">
+        <div class="habit-badges">
+          <div class="habit-badge">Daily</div>
+          <div class="habit-difficulty">~2m</div>
+        </div>
+        <div class="completion-time-badge">✓ 08:15</div>
+      </div>
+    </div>
+
+    <!-- Example 5: Simple Habit (No Trigger) -->
+    <div class="habit-card">
+      <div class="habit-card-top">
+        <div class="habit-check"></div>
+        <div class="habit-main">
+          <div class="habit-name-row">
+            <div class="habit-name-left">
+              <div class="habit-type-dot"></div>
+              <div class="habit-action-text">Read one page</div>
+            </div>
+            <div class="habit-streak-pill streak-great">⭐ 30d</div>
+          </div>
+          <div class="habit-cue habit-cue-identity">
+            <span>💭</span>
+            <span>I am a reader</span>
+          </div>
+          <div class="habit-cue habit-cue-implementation">
+            <span>⏰</span>
+            <span>21:00</span>
+          </div>
+        </div>
+      </div>
+      <div class="habit-card-bottom">
+        <div class="habit-badges">
+          <div class="habit-badge">Daily</div>
+          <div class="habit-difficulty">~2m</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">📊 Key Features</div>
+    <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 16px;">
+      <ul style="list-style: none; padding: 0;">
+        <li style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">✅ Trigger badge at top (purple gradient)</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">✅ Larger habit name (16px, bold)</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">✅ Identity cue most prominent (blue)</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">✅ Implementation intention (gray)</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">✅ Bottom badge bar (separated)</li>
+        <li style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">✅ Completion time on right</li>
+        <li style="padding: 8px 0;">✅ Green gradient when completed</li>
+      </ul>
+    </div>
+
+    <div class="section-title">🎨 Design Principles</div>
+    <div style="background: white; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 32px;">
+      <p style="margin-bottom: 12px; color: #64748b; line-height: 1.6;">
+        <strong style="color: #1e293b;">Atomic Habits Compliant:</strong> Trigger → Action → Identity → Details
+      </p>
+      <p style="margin-bottom: 12px; color: #64748b; line-height: 1.6;">
+        <strong style="color: #1e293b;">Visual Hierarchy:</strong> Most important info at top, metadata at bottom
+      </p>
+      <p style="margin-bottom: 0; color: #64748b; line-height: 1.6;">
+        <strong style="color: #1e293b;">Contained Design:</strong> Everything stays within card boundaries
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>

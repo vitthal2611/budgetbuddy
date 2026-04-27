@@ -3,6 +3,15 @@ import React from 'react';
 const BottomNav = ({ activeTab, onTabChange, onOpenMenu }) => (
   <div className="bottom-nav">
     <button
+      className={`nav-tab ${activeTab === 'habits' ? 'active' : ''}`}
+      onClick={() => onTabChange('habits')}
+      aria-label="Habits"
+    >
+      <span className="nav-icon">🎯</span>
+      <span className="nav-label">Habits</span>
+    </button>
+
+    <button
       className={`nav-tab ${activeTab === 'envelopes' ? 'active' : ''}`}
       onClick={() => onTabChange('envelopes')}
       aria-label="Envelopes"
@@ -18,15 +27,6 @@ const BottomNav = ({ activeTab, onTabChange, onOpenMenu }) => (
     >
       <span className="nav-icon">✅</span>
       <span className="nav-label">To-Do</span>
-    </button>
-
-    <button
-      className={`nav-tab ${activeTab === 'habits' ? 'active' : ''}`}
-      onClick={() => onTabChange('habits')}
-      aria-label="Habits"
-    >
-      <span className="nav-icon">🎯</span>
-      <span className="nav-label">Habits</span>
     </button>
 
     <button

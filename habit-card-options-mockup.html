@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atomic Streaks - Habit Card Design Options</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f8fafc;
+      padding: 20px;
+      color: #1e293b;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #6366f1;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #64748b;
+      margin-bottom: 32px;
+      font-size: 16px;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 32px;
+      margin-bottom: 32px;
+    }
+
+    .option-section {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .option-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .option-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .option-badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-recommended {
+      background: linear-gradient(135deg, #fef3c7, #fde047);
+      color: #92400e;
+      border: 1px solid #fde047;
+    }
+
+    .badge-compliant {
+      background: linear-gradient(135deg, #dbeafe, #93c5fd);
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+
+    .badge-compact {
+      background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+
+    .option-description {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .cards-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ========== OPTION 1: IDENTITY-FIRST ========== */
+    .card-option1 {
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 16px;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .card-option1:active {
+      transform: scale(0.98);
+    }
+
+    .card-option1.completed {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-color: #86efac;
+    }
+
+    .card-option1-top {
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      align-items: flex-start;
+    }
+
+    .card-option1-identity-section {
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      border-top: 1px solid #c7d2fe;
+      border-bottom: 1px solid #c7d2fe;
+    }
+
+    .card-option1-identity {
+      font-size: 14px;
+      font-weight: 700;
+      color: #4338ca;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-option1-details {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card-option1-trigger-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-option1-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+      border: 1px solid #c4b5fd;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6d28d9;
+    }
+
+    .card-option1-action {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .card-option1-implementation {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .card-option1-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* ========== OPTION 3: HEADER BAR ========== */
+    .card-option3 {
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 16px;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .card-option3:active {
+      transform: scale(0.98);
+    }
+
+    .card-option3.completed {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-color: #86efac;
+    }
+
+    .card-option3-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      border-bottom: 2px solid #c7d2fe;
+    }
+
+    .card-option3-identity {
+      font-size: 14px;
+      font-weight: 700;
+      color: #4338ca;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .card-option3-body {
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      align-items: flex-start;
+    }
+
+    .card-option3-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card-option3-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+      border: 1px solid #c4b5fd;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6d28d9;
+      align-self: flex-start;
+    }
+
+    .card-option3-action {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .card-option3-implementation {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .card-option3-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    /* ========== OPTION 4: MINIMALIST ========== */
+    .card-option4 {
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border-radius: 16px;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .card-option4:active {
+      transform: scale(0.98);
+    }
+
+    .card-option4.completed {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-color: #86efac;
+    }
+
+    .card-option4-top {
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      align-items: flex-start;
+    }
+
+    .card-option4-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-option4-identity-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-option4-identity {
+      font-size: 13px;
+      font-weight: 700;
+      color: #4338ca;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-option4-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent);
+    }
+
+    .card-option4-action {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .card-option4-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .card-option4-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+      border: 1px solid #c4b5fd;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #6d28d9;
+    }
+
+    /* ========== SHARED COMPONENTS ========== */
+    .check-circle {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border-radius: 50%;
+      border: 2.5px solid #cbd5e1;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: white;
+      flex-shrink: 0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .check-circle.checked {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-color: #22c55e;
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+    }
+
+    .streak-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .streak-good {
+      background: linear-gradient(135deg, #fff7ed, #fed7aa);
+      color: #ea580c;
+      border: 1px solid #fdba74;
+    }
+
+    .streak-great {
+      background: linear-gradient(135deg, #fef3c7, #fde047);
+      color: #a16207;
+      border: 1px solid #fde047;
+    }
+
+    .streak-epic {
+      background: linear-gradient(135deg, #dbeafe, #93c5fd);
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+
+    .badge-small {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-frequency {
+      background: white;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+
+    .badge-difficulty {
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      color: #92400e;
+      border: 1px solid #fde047;
+    }
+
+    .badge-time {
+      background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+
+    .badges-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Comparison section */
+    .comparison-section {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      border: 2px solid #e2e8f0;
+      margin-top: 32px;
+    }
+
+    .comparison-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .comparison-card {
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .comparison-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 12px;
+    }
+
+    .comparison-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .comparison-list li {
+      padding: 6px 0;
+      font-size: 13px;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .comparison-list li::before {
+      content: "✓";
+      color: #22c55e;
+      font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+      .options-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Atomic Streaks</h1>
+    <p class="subtitle">Habit Card Design Options - Interactive Mockups</p>
+
+    <div class="options-grid">
+      <!-- OPTION 1: IDENTITY-FIRST -->
+      <div class="option-section">
+        <div class="option-header">
+          <div class="option-title">Option 1: Identity-First</div>
+          <div class="option-badge badge-compliant">Most Compliant</div>
+        </div>
+        <div class="option-description">
+          Identity is the largest, most prominent element. Purest implementation of Atomic Habits principles.
+        </div>
+        <div class="cards-container">
+          <!-- Incomplete habit -->
+          <div class="card-option1">
+            <div class="card-option1-top">
+              <div class="check-circle"></div>
+            </div>
+            <div class="card-option1-identity-section">
+              <div class="card-option1-identity">
+                <span>💭</span>
+                <span>I am a person who exercises daily</span>
+              </div>
+            </div>
+            <div class="card-option1-details">
+              <div class="card-option1-trigger-row">
+                <div class="card-option1-trigger">
+                  <span>⏰</span>
+                  <span>07:00</span>
+                </div>
+                <div class="streak-badge streak-good">🔥 15d</div>
+              </div>
+              <div class="card-option1-action">Do 1 pushup</div>
+              <div class="card-option1-implementation">📍 07:00 · Bedroom</div>
+            </div>
+            <div class="card-option1-bottom">
+              <div class="badges-row">
+                <div class="badge-small badge-frequency">DAILY</div>
+                <div class="badge-small badge-difficulty">~2M</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completed habit -->
+          <div class="card-option1 completed">
+            <div class="card-option1-top">
+              <div class="check-circle checked">✓</div>
+            </div>
+            <div class="card-option1-identity-section">
+              <div class="card-option1-identity">
+                <span>💭</span>
+                <span>I am a reader</span>
+              </div>
+            </div>
+            <div class="card-option1-details">
+              <div class="card-option1-trigger-row">
+                <div class="card-option1-trigger">
+                  <span>⏰</span>
+                  <span>21:00</span>
+                </div>
+                <div class="streak-badge streak-great">⭐ 30d</div>
+              </div>
+              <div class="card-option1-action">Read one page</div>
+              <div class="card-option1-implementation">📍 21:00 · Bedroom</div>
+            </div>
+            <div class="card-option1-bottom">
+              <div class="badges-row">
+                <div class="badge-small badge-frequency">DAILY</div>
+                <div class="badge-small badge-difficulty">~2M</div>
+              </div>
+              <div class="badge-small badge-time">✓ 21:15</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTION 3: HEADER BAR -->
+      <div class="option-section">
+        <div class="option-header">
+          <div class="option-title">Option 3: Header Bar</div>
+          <div class="option-badge badge-recommended">Recommended</div>
+        </div>
+        <div class="option-description">
+          Identity as a full-width header banner. Clean three-section layout with professional look.
+        </div>
+        <div class="cards-container">
+          <!-- Incomplete habit -->
+          <div class="card-option3">
+            <div class="card-option3-header">
+              <div class="card-option3-identity">
+                <span>💭</span>
+                <span>I am organized and clean</span>
+              </div>
+              <div class="streak-badge streak-good">🔥 7d</div>
+            </div>
+            <div class="card-option3-body">
+              <div class="check-circle"></div>
+              <div class="card-option3-content">
+                <div class="card-option3-trigger">
+                  <span>🔗</span>
+                  <span>After Dinner</span>
+                </div>
+                <div class="card-option3-action">Put the plate in dishwasher</div>
+                <div class="card-option3-implementation">📍 20:00 · Kitchen</div>
+              </div>
+            </div>
+            <div class="card-option3-footer">
+              <div class="badges-row">
+                <div class="badge-small badge-frequency">DAILY</div>
+                <div class="badge-small badge-difficulty">~2M</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completed habit -->
+          <div class="card-option3 completed">
+            <div class="card-option3-header">
+              <div class="card-option3-identity">
+                <span>💭</span>
+                <span>I am a runner</span>
+              </div>
+              <div class="streak-badge streak-epic">💎 52d</div>
+            </div>
+            <div class="card-option3-body">
+              <div class="check-circle checked">✓</div>
+              <div class="card-option3-content">
+                <div class="card-option3-trigger">
+                  <span>⏰</span>
+                  <span>06:30</span>
+                </div>
+                <div class="card-option3-action">Put on running shoes</div>
+                <div class="card-option3-implementation">📍 06:30 · Bedroom</div>
+              </div>
+            </div>
+            <div class="card-option3-footer">
+              <div class="badges-row">
+                <div class="badge-small badge-frequency">DAILY</div>
+                <div class="badge-small badge-difficulty">~2M</div>
+              </div>
+              <div class="badge-small badge-time">✓ 06:45</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTION 4: MINIMALIST -->
+      <div class="option-section">
+        <div class="option-header">
+          <div class="option-title">Option 4: Minimalist</div>
+          <div class="option-badge badge-compact">Most Compact</div>
+        </div>
+        <div class="option-description">
+          Very compact and modern design. Identity + Streak on one line. Fast to scan.
+        </div>
+        <div class="cards-container">
+          <!-- Incomplete habit -->
+          <div class="card-option4">
+            <div class="card-option4-top">
+              <div class="check-circle"></div>
+              <div class="card-option4-content">
+                <div class="card-option4-identity-row">
+                  <div class="card-option4-identity">
+                    <span>💭</span>
+                    <span>I am calm and centered</span>
+                  </div>
+                  <div class="streak-badge streak-good">🔥 7d</div>
+                </div>
+                <div class="card-option4-divider"></div>
+                <div class="card-option4-action">Take one deep breath</div>
+                <div class="card-option4-meta-row">
+                  <div class="card-option4-trigger">
+                    <span>⚡</span>
+                    <span>When I feel stressed</span>
+                  </div>
+                  <div class="badge-small badge-frequency">DAILY</div>
+                  <div class="badge-small badge-difficulty">~2M</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completed habit -->
+          <div class="card-option4 completed">
+            <div class="card-option4-top">
+              <div class="check-circle checked">✓</div>
+              <div class="card-option4-content">
+                <div class="card-option4-identity-row">
+                  <div class="card-option4-identity">
+                    <span>💭</span>
+                    <span>I am someone who stays hydrated</span>
+                  </div>
+                  <div class="streak-badge streak-epic">💎 105d</div>
+                </div>
+                <div class="card-option4-divider"></div>
+                <div class="card-option4-action">Drink one glass of water</div>
+                <div class="card-option4-meta-row">
+                  <div class="card-option4-trigger">
+                    <span>📍</span>
+                    <span>Kitchen</span>
+                  </div>
+                  <div class="badge-small badge-frequency">DAILY</div>
+                  <div class="badge-small badge-difficulty">~2M</div>
+                  <div class="badge-small badge-time">✓ 08:15</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPARISON SECTION -->
+    <div class="comparison-section">
+      <div class="comparison-title">📊 Quick Comparison</div>
+      <div class="comparison-grid">
+        <div class="comparison-card">
+          <div class="comparison-card-title">Option 1: Identity-First</div>
+          <ul class="comparison-list">
+            <li>Identity is largest element</li>
+            <li>Purest Atomic Habits</li>
+            <li>Very clear hierarchy</li>
+            <li>Slightly taller cards</li>
+            <li>Easy to scan</li>
+          </ul>
+        </div>
+
+        <div class="comparison-card">
+          <div class="comparison-card-title">Option 3: Header Bar</div>
+          <ul class="comparison-list">
+            <li>Identity as header banner</li>
+            <li>Professional look</li>
+            <li>Three clear sections</li>
+            <li>Best overall balance</li>
+            <li>Modern and clean</li>
+          </ul>
+        </div>
+
+        <div class="comparison-card">
+          <div class="comparison-card-title">Option 4: Minimalist</div>
+          <ul class="comparison-list">
+            <li>Most compact design</li>
+            <li>Modern aesthetic</li>
+            <li>Fast to scan</li>
+            <li>Good for many habits</li>
+            <li>Less visual clutter</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 32px; padding: 24px; background: white; border-radius: 16px; border: 2px solid #e2e8f0;">
+      <h2 style="font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">
+        Which design do you prefer?
+      </h2>
+      <p style="color: #64748b; font-size: 14px; line-height: 1.6;">
+        All three options follow Atomic Habits principles with Identity as the most prominent element.<br>
+        Choose based on your preference for layout style and card height.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

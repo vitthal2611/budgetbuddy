@@ -60,7 +60,7 @@ const HABIT_TEMPLATES = [
 
 const HabitTracker = () => {
   const [data, setData] = useState({ habits: [], completions: {} });
-  const [activeTab, setActiveTab] = useState('today');
+  const [activeTab, setActiveTab] = useState('today'); // Default to 'today' when Habits is opened
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
@@ -129,7 +129,6 @@ const HabitTracker = () => {
   const [formReward, setFormReward] = useState('');
   const [formFrequency, setFormFrequency] = useState('daily');
   const [formDifficulty, setFormDifficulty] = useState('easy');
-  const [formStackAfter, setFormStackAfter] = useState('');
   const [formCustomTrigger, setFormCustomTrigger] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -145,7 +144,6 @@ const HabitTracker = () => {
   const [editFrequency, setEditFrequency] = useState('daily');
   const [editType, setEditType] = useState('positive');
   const [editDifficulty, setEditDifficulty] = useState('easy');
-  const [editStackAfter, setEditStackAfter] = useState('');
   const [editCustomTrigger, setEditCustomTrigger] = useState('');
   const [nameError, setNameError] = useState(false);
   const [identityError, setIdentityError] = useState(false);
@@ -162,6 +160,21 @@ const HabitTracker = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [completionTimes, setCompletionTimes] = useState({});
+  const [editingInlineId, setEditingInlineId] = useState(null);
+  const [formIdentityIcon, setFormIdentityIcon] = useState('💭');
+  const [editIdentityIcon, setEditIdentityIcon] = useState('💭');
+  const [showIdentityIconPicker, setShowIdentityIconPicker] = useState(false);
+  const [showEditIdentityIconPicker, setShowEditIdentityIconPicker] = useState(false);
+  const [customIconInput, setCustomIconInput] = useState('');
+  const [showCustomIconInput, setShowCustomIconInput] = useState(false);
+  const [editCustomIconInput, setEditCustomIconInput] = useState('');
+  const [showEditCustomIconInput, setShowEditCustomIconInput] = useState(false);
+
+  const IDENTITY_ICONS = [
+    '💭', '🎯', '💪', '🧠', '❤️', '⭐', '🔥', '✨', '🌟', '💎',
+    '🏆', '👑', '🎨', '📚', '🏃', '🧘', '🌱', '🦋', '🌈', '☀️',
+    '🌙', '⚡', '🎵', '🎭', '🎪', '🎬', '📝', '✍️', '🖊️', '📖'
+  ];
 
   useEffect(() => {
     const unsubscribe = habitService.subscribeToHabits((habitData) => {
@@ -169,7 +182,18 @@ const HabitTracker = () => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Set a timeout to stop loading if subscription fails
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.error('Habit loading timeout - setting loading to false');
+        setLoading(false);
+      }
+    }, 3000);
+
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, []);
 
   // Check for weekly review on mount
@@ -282,6 +306,51 @@ const HabitTracker = () => {
     if (habit.time) return `⏰ ${habit.time}`;
     if (habit.location) return `📍 ${habit.location}`;
     return null;
+  };
+
+  const getHabitDisplayName = (habit, stackedHabit) => {
+    // Format: [Trigger] → [Habit Name]
+    // More innovative and attractive display
+    
+    let trigger = '';
+    let triggerIcon = '';
+    
+    // Priority 1: Stack relationship
+    if (stackedHabit) {
+      trigger = `After ${stackedHabit.name}`;
+      triggerIcon = '🔗';
+    }
+    // Priority 2: Custom trigger
+    else if (habit.customTrigger?.trim()) {
+      trigger = habit.customTrigger.trim();
+      triggerIcon = '⚡';
+    }
+    // Priority 3: Time
+    else if (habit.time) {
+      trigger = `${habit.time}`;
+      triggerIcon = '⏰';
+    }
+    // Priority 4: Location
+    else if (habit.location) {
+      trigger = habit.location;
+      triggerIcon = '📍';
+    }
+    
+    // Return formatted name with trigger in a compact, attractive way
+    if (trigger) {
+      return (
+        <div className="habit-name-container">
+          <div className="habit-trigger-badge">
+            <span className="trigger-icon">{triggerIcon}</span>
+            <span className="trigger-text">{trigger}</span>
+          </div>
+          <div className="habit-action-text">{habit.name}</div>
+        </div>
+      );
+    }
+    
+    // No trigger, just return habit name
+    return <div className="habit-action-text">{habit.name}</div>;
   };
 
   const getStackCue = (habit, stackedHabit) => {
@@ -416,67 +485,101 @@ const HabitTracker = () => {
 
   const getStreak = (habitId) => {
     const habit = data.habits.find(h => h.id === habitId);
-    if (!habit) return 0;
+    if (!habit || !habit.createdAt) return 0;
     
-    let streak = 0;
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Parse the createdAt date string (format: YYYY-MM-DD)
+    const [year, month, day] = habit.createdAt.split('-').map(Number);
+    const createdDate = new Date(year, month - 1, day); // month is 0-indexed
+    createdDate.setHours(0, 0, 0, 0);
+    
+    // Calculate total days since creation
+    const diffTime = today - createdDate;
+    const totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include creation day
+    
+    let consecutiveStreak = 0;
     
     if (habit.frequency === 'daily') {
-      for (let i = 0; i < 365; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      // Check each day from creation date to today
+      for (let i = 0; i < totalDays; i++) {
+        const checkDate = new Date(createdDate);
+        checkDate.setDate(checkDate.getDate() + i);
+        const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+        
         if (data.completions[dateStr]?.includes(habitId)) {
-          streak++;
+          consecutiveStreak++;
         } else {
-          break;
+          // Reset streak if a day is missed
+          consecutiveStreak = 0;
         }
       }
     } else if (habit.frequency === 'weekly') {
-      for (let i = 0; i < 52; i++) {
-        const weekStart = new Date(today);
-        const day = weekStart.getDay();
-        const diff = day === 0 ? -6 : 1 - day;
-        weekStart.setDate(weekStart.getDate() + diff - (i * 7));
+      // Calculate weeks since creation
+      const weeksSinceCreation = Math.ceil(totalDays / 7);
+      
+      for (let weekIndex = 0; weekIndex < weeksSinceCreation; weekIndex++) {
+        const weekStartDate = new Date(createdDate);
+        weekStartDate.setDate(weekStartDate.getDate() + (weekIndex * 7));
         
         let foundInWeek = false;
-        for (let j = 0; j < 7; j++) {
-          const d = new Date(weekStart);
-          d.setDate(d.getDate() + j);
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        
+        // Check 7 days in this week (or until today)
+        for (let dayInWeek = 0; dayInWeek < 7; dayInWeek++) {
+          const checkDate = new Date(weekStartDate);
+          checkDate.setDate(checkDate.getDate() + dayInWeek);
+          
+          // Don't check beyond today
+          if (checkDate > today) break;
+          
+          const dateStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+          
           if (data.completions[dateStr]?.includes(habitId)) {
             foundInWeek = true;
             break;
           }
         }
+        
         if (foundInWeek) {
-          streak++;
+          consecutiveStreak++;
         } else {
-          break;
+          // Reset streak if a week is missed
+          consecutiveStreak = 0;
         }
       }
     } else if (habit.frequency === 'monthly') {
-      for (let i = 0; i < 12; i++) {
-        const monthStart = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        const monthEnd = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
+      // Calculate months since creation
+      const monthsSinceCreation = (today.getFullYear() - createdDate.getFullYear()) * 12 + 
+                                   (today.getMonth() - createdDate.getMonth()) + 1;
+      
+      for (let monthIndex = 0; monthIndex < monthsSinceCreation; monthIndex++) {
+        const checkMonth = new Date(createdDate.getFullYear(), createdDate.getMonth() + monthIndex, 1);
+        const monthStart = new Date(Math.max(checkMonth.getTime(), createdDate.getTime()));
+        const monthEnd = new Date(checkMonth.getFullYear(), checkMonth.getMonth() + 1, 0);
+        const actualMonthEnd = new Date(Math.min(monthEnd.getTime(), today.getTime()));
         
         let foundInMonth = false;
-        for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
+        
+        for (let d = new Date(monthStart); d <= actualMonthEnd; d.setDate(d.getDate() + 1)) {
           const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          
           if (data.completions[dateStr]?.includes(habitId)) {
             foundInMonth = true;
             break;
           }
         }
+        
         if (foundInMonth) {
-          streak++;
+          consecutiveStreak++;
         } else {
-          break;
+          // Reset streak if a month is missed
+          consecutiveStreak = 0;
         }
       }
     }
     
-    return streak;
+    return consecutiveStreak;
   };
 
   const missedYesterday = (habitId) => {
@@ -688,11 +791,11 @@ const HabitTracker = () => {
       id: `h_${Date.now()}`,
       name: formName.trim(),
       identity: formIdentity.trim(),
+      identityIcon: formIdentityIcon,
       time: formTime.trim(),
       location: finalLocation,
       reward: formReward.trim(),
-      stackAfter: formStackAfter,
-      customTrigger: formStackAfter ? '' : formCustomTrigger.trim(),
+      customTrigger: formCustomTrigger.trim(),
       frequency: formFrequency,
       habitType: 'positive',
       difficulty: formDifficulty,
@@ -713,10 +816,10 @@ const HabitTracker = () => {
     setFormLocation('');
     setFormCustomLocation('');
     setFormIdentity('');
+    setFormIdentityIcon('💭');
     setFormReward('');
     setFormFrequency('daily');
     setFormDifficulty('easy');
-    setFormStackAfter('');
     setFormCustomTrigger('');
     setShowAddModal(false);
   };
@@ -730,11 +833,11 @@ const HabitTracker = () => {
       id: `h_${Date.now()}`,
       name: formName.trim(),
       identity: formIdentity.trim(),
+      identityIcon: formIdentityIcon,
       time: formTime.trim(),
       location: finalLocation,
       reward: formReward.trim(),
-      stackAfter: formStackAfter,
-      customTrigger: formStackAfter ? '' : formCustomTrigger.trim(),
+      customTrigger: formCustomTrigger.trim(),
       frequency: formFrequency,
       habitType: 'positive',
       difficulty: formDifficulty,
@@ -755,10 +858,10 @@ const HabitTracker = () => {
     setFormLocation('');
     setFormCustomLocation('');
     setFormIdentity('');
+    setFormIdentityIcon('💭');
     setFormReward('');
     setFormFrequency('daily');
     setFormDifficulty('easy');
-    setFormStackAfter('');
     setFormCustomTrigger('');
     setShowAddModal(false);
   };
@@ -773,7 +876,6 @@ const HabitTracker = () => {
     setEditFrequency(habit.frequency);
     setEditType(habit.habitType);
     setEditDifficulty(habit.difficulty);
-    setEditStackAfter(habit.stackAfter || '');
     setEditCustomTrigger(habit.customTrigger || '');
     setShowEditModal(true);
   };
@@ -797,8 +899,7 @@ const HabitTracker = () => {
             frequency: editFrequency,
             habitType: editType,
             difficulty: editDifficulty,
-            stackAfter: editStackAfter,
-            customTrigger: editStackAfter ? '' : editCustomTrigger.trim()
+            customTrigger: editCustomTrigger.trim()
           }
         : h
     );
@@ -807,6 +908,62 @@ const HabitTracker = () => {
     setData(newData);
     await habitService.saveHabits(newData);
     setShowEditModal(false);
+  };
+
+  const startInlineEdit = (habit) => {
+    setEditingInlineId(habit.id);
+    setEditName(habit.name);
+    setEditTime(habit.time || '');
+    setEditLocation(habit.location || '');
+    setEditIdentity(habit.identity || '');
+    setEditIdentityIcon(habit.identityIcon || '💭');
+    setEditReward(habit.reward || '');
+    setEditFrequency(habit.frequency);
+    setEditDifficulty(habit.difficulty);
+    setEditCustomTrigger(habit.customTrigger || '');
+  };
+
+  const saveInlineEdit = async (habitId) => {
+    if (!editName.trim()) {
+      setNameError(true);
+      setTimeout(() => setNameError(false), 500);
+      return;
+    }
+
+    const updatedHabits = data.habits.map(h => 
+      h.id === habitId
+        ? {
+            ...h,
+            name: editName.trim(),
+            time: editTime.trim(),
+            location: editLocation.trim(),
+            identity: editIdentity.trim(),
+            identityIcon: editIdentityIcon,
+            reward: editReward.trim(),
+            frequency: editFrequency,
+            difficulty: editDifficulty,
+            customTrigger: editCustomTrigger.trim()
+          }
+        : h
+    );
+    
+    const newData = { ...data, habits: updatedHabits };
+    setData(newData);
+    await habitService.saveHabits(newData);
+    setEditingInlineId(null);
+  };
+
+  const cancelInlineEdit = () => {
+    setEditingInlineId(null);
+    setEditName('');
+    setEditTime('');
+    setEditLocation('');
+    setEditIdentity('');
+    setEditIdentityIcon('💭');
+    setEditReward('');
+    setEditFrequency('daily');
+    setEditDifficulty('easy');
+    setEditCustomTrigger('');
   };
 
   const openDeleteModal = (habit) => {
@@ -981,83 +1138,343 @@ const HabitTracker = () => {
               const completed = isCompletedToday(habit.id);
               const streak = getStreak(habit.id);
               const missed = missedYesterday(habit.id);
-              const stackedHabit = habit.stackAfter ? data.habits.find(h => h.id === habit.stackAfter) : null;
-              const isStacked = !!habit.stackAfter;
+              const isEditing = editingInlineId === habit.id;
               
               return (
                 <div
                   key={habit.id}
-                  className={`habit-card ${completed ? 'completed' : ''} ${isStacked ? 'stacked' : ''}`}
-                  onClick={() => toggleHabit(habit.id)}
-                  onTouchStart={(e) => handleTouchStart(e, habit.id)}
-                  onTouchEnd={(e) => handleTouchEnd(e, habit.id)}
+                  className={`habit-card ${completed ? 'completed' : ''} ${isEditing ? 'editing' : ''}`}
                   role="button"
                   tabIndex={0}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') toggleHabit(habit.id);
-                  }}
                 >
-                  {isStacked && <div className="stack-connector" />}
-
-                  {/* Left: check circle */}
-                  <div className={`habit-check ${completed ? 'checked' : ''}`}
-                    aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}>
-                    {completed && <span className="check-mark">✓</span>}
-                  </div>
-
-                  {/* Right: content */}
-                  <div className="habit-main">
-
-                    {/* Row 1: name + streak */}
-                    <div className="habit-row1">
-                      <span className={`habit-type-dot ${habit.habitType || 'positive'}`} />
-                      <span className="habit-name">{habit.name}</span>
-                      <div className="habit-row1-right">
-                        {streak > 0 && (
-                          <span className={`habit-streak-pill ${completed ? 'active' : ''} ${
-                            streak >= 100 ? 'streak-legendary' : 
-                            streak >= 50 ? 'streak-epic' : 
-                            streak >= 30 ? 'streak-great' : 
-                            streak >= 7 ? 'streak-good' : ''
-                          }`}>
-                            {streak >= 100 ? '👑' : streak >= 50 ? '💎' : streak >= 30 ? '⭐' : '🔥'} {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
-                          </span>
-                        )}
+                  {/* Header: Identity + Streak */}
+                  {!isEditing && habit.identity?.trim() && (
+                    <div className="habit-card-header">
+                      <div className="habit-identity-header">
+                        <span>{habit.identityIcon || '💭'}</span>
+                        <span>{habit.identity.trim()}</span>
+                      </div>
+                      <div className={`habit-streak-pill ${
+                        streak >= 100 ? 'streak-legendary' : 
+                        streak >= 50 ? 'streak-epic' : 
+                        streak >= 30 ? 'streak-great' : 
+                        streak >= 7 ? 'streak-good' : 
+                        'streak-normal'
+                      }`}>
+                        {streak >= 100 ? '👑' : streak >= 50 ? '💎' : streak >= 30 ? '⭐' : '🔥'} {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
                       </div>
                     </div>
+                  )}
 
-                    {/* Cues — always visible */}
-                    {(() => {
-                      const stackCue = getStackCue(habit, stackedHabit);
-                      const identityCue = getCueText(habit);
-                      const implementationCue = getImplementationIntention(habit);
-                      return (
-                        <>
-                          {stackCue && <div className="habit-cue habit-cue-stack">{stackCue}</div>}
-                          {identityCue && <div className="habit-cue habit-cue-identity">{identityCue}</div>}
-                          {implementationCue && <div className="habit-cue habit-cue-implementation">{implementationCue}</div>}
-                        </>
-                      );
-                    })()}
+                  {isEditing ? (
+                    /* Inline Edit Mode */
+                    <div className="habit-inline-edit">
+                      <div className="inline-edit-section">
+                        <label className="inline-edit-label">Identity</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                          <button
+                            type="button"
+                            className="identity-icon-btn-inline"
+                            onClick={() => setShowEditIdentityIconPicker(!showEditIdentityIconPicker)}
+                            style={{
+                              fontSize: '20px',
+                              padding: '8px 10px',
+                              border: '2px solid #c7d2fe',
+                              borderRadius: '8px',
+                              background: '#eef2ff',
+                              cursor: 'pointer',
+                              flexShrink: 0,
+                              minWidth: '44px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            {editIdentityIcon}
+                          </button>
+                          <input
+                            type="text"
+                            className="inline-edit-input"
+                            placeholder="I am a person who..."
+                            value={editIdentity}
+                            onChange={(e) => setEditIdentity(e.target.value)}
+                            style={{ flex: 1 }}
+                          />
+                        </div>
+                        {showEditIdentityIconPicker && (
+                          <div className="identity-icon-picker-inline" style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: 'repeat(6, 1fr)', 
+                            gap: '6px', 
+                            marginTop: '8px',
+                            padding: '8px',
+                            background: 'white',
+                            borderRadius: '8px',
+                            border: '2px solid #e2e8f0'
+                          }}>
+                            {IDENTITY_ICONS.map(icon => (
+                              <button
+                                key={icon}
+                                type="button"
+                                onClick={() => {
+                                  setEditIdentityIcon(icon);
+                                  setShowEditIdentityIconPicker(false);
+                                  setShowEditCustomIconInput(false);
+                                }}
+                                style={{
+                                  fontSize: '20px',
+                                  padding: '6px',
+                                  border: editIdentityIcon === icon ? '2px solid #6366f1' : '2px solid #e2e8f0',
+                                  borderRadius: '6px',
+                                  background: editIdentityIcon === icon ? '#eef2ff' : 'white',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {icon}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setShowEditCustomIconInput(!showEditCustomIconInput)}
+                              style={{
+                                fontSize: '12px',
+                                padding: '6px',
+                                border: '2px solid #6366f1',
+                                borderRadius: '6px',
+                                background: '#eef2ff',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                fontWeight: 700,
+                                color: '#6366f1',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              title="Add custom emoji"
+                            >
+                              ➕
+                            </button>
+                          </div>
+                        )}
+                        {showEditCustomIconInput && (
+                          <div style={{ marginTop: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <input
+                                type="text"
+                                placeholder="Paste emoji..."
+                                value={editCustomIconInput}
+                                onChange={(e) => setEditCustomIconInput(e.target.value)}
+                                maxLength={2}
+                                style={{
+                                  flex: 1,
+                                  padding: '8px 10px',
+                                  border: '2px solid #c7d2fe',
+                                  borderRadius: '6px',
+                                  fontSize: '14px',
+                                  textAlign: 'center'
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (editCustomIconInput.trim()) {
+                                    setEditIdentityIcon(editCustomIconInput.trim());
+                                    setEditCustomIconInput('');
+                                    setShowEditCustomIconInput(false);
+                                    setShowEditIdentityIconPicker(false);
+                                  }
+                                }}
+                                style={{
+                                  padding: '8px 12px',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  background: '#6366f1',
+                                  color: 'white',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                Use
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="inline-edit-section">
+                        <label className="inline-edit-label">Habit Name</label>
+                        <input
+                          type="text"
+                          className="inline-edit-input"
+                          placeholder="Habit name"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                        />
+                      </div>
 
-                    {/* Alerts */}
-                    {!completed && missed && (
-                      <div className="habit-alert missed">⚠️ Don't miss twice!</div>
-                    )}
-                    {completed && habit.reward && (
-                      <div className="habit-alert reward">🎉 {habit.reward}</div>
-                    )}
+                      <div className="inline-edit-row">
+                        <div className="inline-edit-section">
+                          <label className="inline-edit-label">Time</label>
+                          <input
+                            type="time"
+                            className="inline-edit-input"
+                            value={editTime}
+                            onChange={(e) => setEditTime(e.target.value)}
+                          />
+                        </div>
+                        <div className="inline-edit-section">
+                          <label className="inline-edit-label">Location</label>
+                          <input
+                            type="text"
+                            className="inline-edit-input"
+                            placeholder="Location"
+                            value={editLocation}
+                            onChange={(e) => setEditLocation(e.target.value)}
+                          />
+                        </div>
+                      </div>
 
-                    {/* Row 3: badges */}
-                    <div className="habit-badges">
-                      <span className="habit-badge">
-                        {habit.frequency === 'daily' ? 'Daily' : habit.frequency === 'weekly' ? 'Weekly' : 'Monthly'}
-                      </span>
-                      <span className="habit-difficulty">
-                        {habit.difficulty === 'easy' ? '~2m' : habit.difficulty === 'medium' ? '~10m' : '30m+'}
-                      </span>
+                      <div className="inline-edit-section">
+                        <label className="inline-edit-label">Custom Trigger</label>
+                        <input
+                          type="text"
+                          className="inline-edit-input"
+                          placeholder="e.g. After I wake up, When I feel stressed..."
+                          value={editCustomTrigger}
+                          onChange={(e) => setEditCustomTrigger(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="inline-edit-row">
+                        <div className="inline-edit-section">
+                          <label className="inline-edit-label">Difficulty</label>
+                          <select
+                            className="inline-edit-input"
+                            value={editDifficulty}
+                            onChange={(e) => setEditDifficulty(e.target.value)}
+                          >
+                            <option value="easy">~2 min</option>
+                            <option value="medium">~10 min</option>
+                            <option value="hard">30+ min</option>
+                          </select>
+                        </div>
+                        <div className="inline-edit-section">
+                          <label className="inline-edit-label">Frequency</label>
+                          <select
+                            className="inline-edit-input"
+                            value={editFrequency}
+                            onChange={(e) => setEditFrequency(e.target.value)}
+                          >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="inline-edit-actions">
+                        <button 
+                          className="inline-edit-cancel"
+                          onClick={cancelInlineEdit}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          className="inline-edit-save"
+                          onClick={() => saveInlineEdit(habit.id)}
+                        >
+                          Save Changes
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      {/* Body: Content only */}
+                      <div className="habit-card-body">
+                        <div 
+                          className="habit-card-content"
+                          onDoubleClick={() => startInlineEdit(habit)}
+                          style={{ cursor: 'text' }}
+                        >
+                          {/* Trigger + Action in single row */}
+                          <div className="habit-main-row">
+                            {(() => {
+                              let trigger = '';
+                              let triggerIcon = '';
+                              
+                              if (habit.customTrigger?.trim()) {
+                                trigger = habit.customTrigger.trim();
+                                triggerIcon = '⚡';
+                              } else if (habit.time) {
+                                trigger = habit.time;
+                                triggerIcon = '⏰';
+                              } else if (habit.location) {
+                                trigger = habit.location;
+                                triggerIcon = '📍';
+                              }
+                              
+                              return trigger ? (
+                                <div className="habit-trigger-badge">
+                                  <span>{triggerIcon}</span>
+                                  <span>{trigger}</span>
+                                </div>
+                              ) : null;
+                            })()}
+                            
+                            <div className="habit-action-text">{habit.name}</div>
+                          </div>
+
+                          {/* Implementation */}
+                          {(() => {
+                            const implIntention = getImplementationIntention(habit);
+                            return implIntention ? (
+                              <div className="habit-implementation">{implIntention}</div>
+                            ) : null;
+                          })()}
+
+                          {/* Alerts */}
+                          {!completed && missed && (
+                            <div className="habit-alert missed">
+                              <span>⚠️</span>
+                              <span>Don't miss twice!</span>
+                            </div>
+                          )}
+                          {completed && habit.reward && (
+                            <div className="habit-alert reward">
+                              <span>🎉</span>
+                              <span>{habit.reward}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer: Badges + Check */}
+                      <div className="habit-card-footer">
+                        <div className="habit-badges-row">
+                          <div className="habit-badge habit-badge-frequency">
+                            {habit.frequency === 'daily' ? 'DAILY' : habit.frequency === 'weekly' ? 'WEEKLY' : 'MONTHLY'}
+                          </div>
+                          <div className="habit-badge habit-badge-difficulty">
+                            {habit.difficulty === 'easy' ? '~2M' : habit.difficulty === 'medium' ? '~10M' : '30M+'}
+                          </div>
+                        </div>
+                        
+                        <div 
+                          className={`habit-check ${completed ? 'checked' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleHabit(habit.id);
+                          }}
+                          aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {completed && <span className="check-mark">✓</span>}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -1071,88 +1488,348 @@ const HabitTracker = () => {
                   const completed = isCompletedToday(habit.id);
                   const streak = getStreak(habit.id);
                   const missed = missedYesterday(habit.id);
-                  const stackedHabit = habit.stackAfter ? data.habits.find(h => h.id === habit.stackAfter) : null;
-                  const isStacked = !!habit.stackAfter;
+                  const isEditing = editingInlineId === habit.id;
                   
                   return (
                     <div
                       key={habit.id}
-                      className={`habit-card ${completed ? 'completed' : ''} ${isStacked ? 'stacked' : ''}`}
-                      onClick={() => toggleHabit(habit.id)}
-                      onTouchStart={(e) => handleTouchStart(e, habit.id)}
-                      onTouchEnd={(e) => handleTouchEnd(e, habit.id)}
+                      className={`habit-card ${completed ? 'completed' : ''} ${isEditing ? 'editing' : ''}`}
                       role="button"
                       tabIndex={0}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') toggleHabit(habit.id);
-                      }}
                     >
-                      {isStacked && <div className="stack-connector" />}
-
-                      {/* Left: check circle */}
-                      <div className={`habit-check ${completed ? 'checked' : ''}`}
-                        aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}>
-                        {completed && <span className="check-mark">✓</span>}
-                      </div>
-
-                      {/* Right: content */}
-                      <div className="habit-main">
-
-                        {/* Row 1: name + streak */}
-                        <div className="habit-row1">
-                          <span className={`habit-type-dot ${habit.habitType || 'positive'}`} />
-                          <span className="habit-name">{habit.name}</span>
-                          <div className="habit-row1-right">
-                            {streak > 0 && (
-                              <span className={`habit-streak-pill ${completed ? 'active' : ''} ${
-                                streak >= 100 ? 'streak-legendary' : 
-                                streak >= 50 ? 'streak-epic' : 
-                                streak >= 30 ? 'streak-great' : 
-                                streak >= 7 ? 'streak-good' : ''
-                              }`}>
-                                {streak >= 100 ? '👑' : streak >= 50 ? '💎' : streak >= 30 ? '⭐' : '🔥'} {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
-                              </span>
-                            )}
-                            {completionTimes[`${habit.id}-${viewDateStr}`] && (
-                              <span className="completion-time-badge">
-                                ✓ {completionTimes[`${habit.id}-${viewDateStr}`]}
-                              </span>
-                            )}
+                      {/* Header: Identity + Streak */}
+                      {!isEditing && habit.identity?.trim() && (
+                        <div className="habit-card-header">
+                          <div className="habit-identity-header">
+                            <span>{habit.identityIcon || '💭'}</span>
+                            <span>{habit.identity.trim()}</span>
+                          </div>
+                          <div className={`habit-streak-pill ${
+                            streak >= 100 ? 'streak-legendary' : 
+                            streak >= 50 ? 'streak-epic' : 
+                            streak >= 30 ? 'streak-great' : 
+                            streak >= 7 ? 'streak-good' : 
+                            'streak-normal'
+                          }`}>
+                            {streak >= 100 ? '👑' : streak >= 50 ? '💎' : streak >= 30 ? '⭐' : '🔥'} {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
                           </div>
                         </div>
+                      )}
 
-                        {/* Cues — always visible */}
-                        {(() => {
-                          const stackCue = getStackCue(habit, stackedHabit);
-                          const identityCue = getCueText(habit);
-                          const implementationCue = getImplementationIntention(habit);
-                          return (
-                            <>
-                              {stackCue && <div className="habit-cue habit-cue-stack">{stackCue}</div>}
-                              {identityCue && <div className="habit-cue habit-cue-identity">{identityCue}</div>}
-                              {implementationCue && <div className="habit-cue habit-cue-implementation">{implementationCue}</div>}
-                            </>
-                          );
-                        })()}
+                      {isEditing ? (
+                        /* Inline Edit Mode */
+                        <div className="habit-inline-edit" style={{ flex: 1 }}>
+                          <div className="inline-edit-section">
+                            <label className="inline-edit-label">Identity</label>
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                              <button
+                                type="button"
+                                className="identity-icon-btn-inline"
+                                onClick={() => setShowEditIdentityIconPicker(!showEditIdentityIconPicker)}
+                                style={{
+                                  fontSize: '20px',
+                                  padding: '8px 10px',
+                                  border: '2px solid #c7d2fe',
+                                  borderRadius: '8px',
+                                  background: '#eef2ff',
+                                  cursor: 'pointer',
+                                  flexShrink: 0,
+                                  minWidth: '44px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                {editIdentityIcon}
+                              </button>
+                              <input
+                                type="text"
+                                className="inline-edit-input"
+                                placeholder="I am a person who..."
+                                value={editIdentity}
+                                onChange={(e) => setEditIdentity(e.target.value)}
+                                style={{ flex: 1 }}
+                              />
+                            </div>
+                            {showEditIdentityIconPicker && (
+                              <div className="identity-icon-picker-inline" style={{ 
+                                display: 'grid', 
+                                gridTemplateColumns: 'repeat(6, 1fr)', 
+                                gap: '6px', 
+                                marginTop: '8px',
+                                padding: '8px',
+                                background: 'white',
+                                borderRadius: '8px',
+                                border: '2px solid #e2e8f0'
+                              }}>
+                                {IDENTITY_ICONS.map(icon => (
+                                  <button
+                                    key={icon}
+                                    type="button"
+                                    onClick={() => {
+                                      setEditIdentityIcon(icon);
+                                      setShowEditIdentityIconPicker(false);
+                                      setShowEditCustomIconInput(false);
+                                    }}
+                                    style={{
+                                      fontSize: '20px',
+                                      padding: '6px',
+                                      border: editIdentityIcon === icon ? '2px solid #6366f1' : '2px solid #e2e8f0',
+                                      borderRadius: '6px',
+                                      background: editIdentityIcon === icon ? '#eef2ff' : 'white',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                  >
+                                    {icon}
+                                  </button>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() => setShowEditCustomIconInput(!showEditCustomIconInput)}
+                                  style={{
+                                    fontSize: '12px',
+                                    padding: '6px',
+                                    border: '2px solid #6366f1',
+                                    borderRadius: '6px',
+                                    background: '#eef2ff',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    fontWeight: 700,
+                                    color: '#6366f1',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                  title="Add custom emoji"
+                                >
+                                  ➕
+                                </button>
+                              </div>
+                            )}
+                            {showEditCustomIconInput && (
+                              <div style={{ marginTop: '8px' }}>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <input
+                                    type="text"
+                                    placeholder="Paste emoji..."
+                                    value={editCustomIconInput}
+                                    onChange={(e) => setEditCustomIconInput(e.target.value)}
+                                    maxLength={2}
+                                    style={{
+                                      flex: 1,
+                                      padding: '8px 10px',
+                                      border: '2px solid #c7d2fe',
+                                      borderRadius: '6px',
+                                      fontSize: '14px',
+                                      textAlign: 'center'
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (editCustomIconInput.trim()) {
+                                        setEditIdentityIcon(editCustomIconInput.trim());
+                                        setEditCustomIconInput('');
+                                        setShowEditCustomIconInput(false);
+                                        setShowEditIdentityIconPicker(false);
+                                      }
+                                    }}
+                                    style={{
+                                      padding: '8px 12px',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      background: '#6366f1',
+                                      color: 'white',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      fontSize: '12px'
+                                    }}
+                                  >
+                                    Use
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="inline-edit-section">
+                            <label className="inline-edit-label">Habit Name</label>
+                            <input
+                              type="text"
+                              className="inline-edit-input"
+                              placeholder="Habit name"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                            />
+                          </div>
 
-                        {/* Alerts */}
-                        {!completed && missed && (
-                          <div className="habit-alert missed">⚠️ Don't miss twice!</div>
-                        )}
-                        {completed && habit.reward && (
-                          <div className="habit-alert reward">🎉 {habit.reward}</div>
-                        )}
+                          <div className="inline-edit-row">
+                            <div className="inline-edit-section">
+                              <label className="inline-edit-label">Time</label>
+                              <input
+                                type="time"
+                                className="inline-edit-input"
+                                value={editTime}
+                                onChange={(e) => setEditTime(e.target.value)}
+                              />
+                            </div>
+                            <div className="inline-edit-section">
+                              <label className="inline-edit-label">Location</label>
+                              <input
+                                type="text"
+                                className="inline-edit-input"
+                                placeholder="Location"
+                                value={editLocation}
+                                onChange={(e) => setEditLocation(e.target.value)}
+                              />
+                            </div>
+                          </div>
 
-                        {/* Row 3: badges */}
-                        <div className="habit-badges">
-                          <span className="habit-badge">
-                            {habit.frequency === 'daily' ? 'Daily' : habit.frequency === 'weekly' ? 'Weekly' : 'Monthly'}
-                          </span>
-                          <span className="habit-difficulty">
-                            {habit.difficulty === 'easy' ? '~2m' : habit.difficulty === 'medium' ? '~10m' : '30m+'}
-                          </span>
+                          <div className="inline-edit-section">
+                            <label className="inline-edit-label">Custom Trigger</label>
+                            <input
+                              type="text"
+                              className="inline-edit-input"
+                              placeholder="e.g. After I wake up, When I feel stressed..."
+                              value={editCustomTrigger}
+                              onChange={(e) => setEditCustomTrigger(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="inline-edit-row">
+                            <div className="inline-edit-section">
+                              <label className="inline-edit-label">Difficulty</label>
+                              <select
+                                className="inline-edit-input"
+                                value={editDifficulty}
+                                onChange={(e) => setEditDifficulty(e.target.value)}
+                              >
+                                <option value="easy">~2 min</option>
+                                <option value="medium">~10 min</option>
+                                <option value="hard">30+ min</option>
+                              </select>
+                            </div>
+                            <div className="inline-edit-section">
+                              <label className="inline-edit-label">Frequency</label>
+                              <select
+                                className="inline-edit-input"
+                                value={editFrequency}
+                                onChange={(e) => setEditFrequency(e.target.value)}
+                              >
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="inline-edit-actions">
+                            <button 
+                              className="inline-edit-cancel"
+                              onClick={cancelInlineEdit}
+                            >
+                              Cancel
+                            </button>
+                            <button 
+                              className="inline-edit-save"
+                              onClick={() => saveInlineEdit(habit.id)}
+                            >
+                              Save Changes
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <>
+                          {/* Body: Content only */}
+                          <div className="habit-card-body">
+                            <div 
+                              className="habit-card-content"
+                              onDoubleClick={() => startInlineEdit(habit)}
+                              style={{ cursor: 'text' }}
+                            >
+                              {/* Trigger + Action in single row */}
+                              <div className="habit-main-row">
+                                {(() => {
+                                  let trigger = '';
+                                  let triggerIcon = '';
+                                  
+                                  if (habit.customTrigger?.trim()) {
+                                    trigger = habit.customTrigger.trim();
+                                    triggerIcon = '⚡';
+                                  } else if (habit.time) {
+                                    trigger = habit.time;
+                                    triggerIcon = '⏰';
+                                  } else if (habit.location) {
+                                    trigger = habit.location;
+                                    triggerIcon = '📍';
+                                  }
+                                  
+                                  return trigger ? (
+                                    <div className="habit-trigger-badge">
+                                      <span>{triggerIcon}</span>
+                                      <span>{trigger}</span>
+                                    </div>
+                                  ) : null;
+                                })()}
+                                
+                                <div className="habit-action-text">{habit.name}</div>
+                              </div>
+
+                              {/* Implementation */}
+                              {(() => {
+                                const implIntention = getImplementationIntention(habit);
+                                return implIntention ? (
+                                  <div className="habit-implementation">{implIntention}</div>
+                                ) : null;
+                              })()}
+
+                              {/* Alerts */}
+                              {!completed && missed && (
+                                <div className="habit-alert missed">
+                                  <span>⚠️</span>
+                                  <span>Don't miss twice!</span>
+                                </div>
+                              )}
+                              {completed && habit.reward && (
+                                <div className="habit-alert reward">
+                                  <span>🎉</span>
+                                  <span>{habit.reward}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Footer: Badges + Check */}
+                          <div className="habit-card-footer">
+                            <div className="habit-badges-row">
+                              <div className="habit-badge habit-badge-frequency">
+                                {habit.frequency === 'daily' ? 'DAILY' : habit.frequency === 'weekly' ? 'WEEKLY' : 'MONTHLY'}
+                              </div>
+                              <div className="habit-badge habit-badge-difficulty">
+                                {habit.difficulty === 'easy' ? '~2M' : habit.difficulty === 'medium' ? '~10M' : '30M+'}
+                              </div>
+                            </div>
+                            {completionTimes[`${habit.id}-${viewDateStr}`] && (
+                              <div className="habit-badge habit-badge-time">
+                                ✓ {completionTimes[`${habit.id}-${viewDateStr}`]}
+                              </div>
+                            )}
+                            
+                            <div 
+                              className={`habit-check ${completed ? 'checked' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleHabit(habit.id);
+                              }}
+                              aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {completed && <span className="check-mark">✓</span>}
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -1318,123 +1995,283 @@ const HabitTracker = () => {
       {showAddModal && (
         <>
           <div className="modal-overlay" onClick={() => setShowAddModal(false)} />
-          <div className="habit-modal">
+          <div className="habit-modal add-habit-card-modal">
             <div className="modal-handle" />
-            <h3>New Habit</h3>
-            <div className="tip-box" style={{ margin: '0 20px 16px' }}>
-              Scale your habit down to something you can do in 2 minutes.
+            <h3>Create New Habit</h3>
+            
+            {/* Live Preview Card */}
+            <div className="habit-preview-card">
+              <div className="habit-card-header">
+                <div className="habit-identity-header">
+                  <span>{formIdentityIcon}</span>
+                  <span>{formIdentity || 'Your identity...'}</span>
+                </div>
+                <div className="habit-streak-pill streak-normal">
+                  🔥 0d
+                </div>
+              </div>
+              
+              <div className="habit-card-body">
+                <div className="habit-check">
+                  <span style={{ opacity: 0.3 }}>✓</span>
+                </div>
+                <div className="habit-card-content">
+                  {(formCustomTrigger || formTime || formLocation) && (
+                    <div className="habit-trigger-badge">
+                      <span>{formCustomTrigger ? '⚡' : formTime ? '⏰' : '📍'}</span>
+                      <span>{formCustomTrigger || formTime || formLocation || 'Trigger'}</span>
+                    </div>
+                  )}
+                  <div className="habit-action-text">{formName || 'Your habit action...'}</div>
+                  {(formTime || formLocation) && (
+                    <div className="habit-implementation">
+                      {formTime && `⏰ ${formTime}`} {formTime && formLocation && '·'} {formLocation && `📍 ${formLocation}`}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="habit-card-footer">
+                <div className="habit-badges-row">
+                  <div className="habit-badge habit-badge-frequency">
+                    {formFrequency.toUpperCase()}
+                  </div>
+                  <div className="habit-badge habit-badge-difficulty">
+                    {formDifficulty === 'easy' ? '~2M' : formDifficulty === 'medium' ? '~10M' : '30M+'}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <label>What habit? (Keep it tiny!)</label>
-            <input
-              type="text"
-              placeholder="e.g. Read one page, Do 1 pushup"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              className={nameError ? 'error' : ''}
-            />
+            {/* Card-based Input Form */}
+            <div className="habit-card-form">
+              
+              {/* Identity Section */}
+              <div className="form-card">
+                <div className="form-card-header">
+                  <span className="form-card-icon">💭</span>
+                  <span className="form-card-title">Identity</span>
+                  <span className="form-card-required">*</span>
+                </div>
+                <div className="form-card-body">
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                    <button
+                      type="button"
+                      className="identity-icon-btn"
+                      onClick={() => setShowIdentityIconPicker(!showIdentityIconPicker)}
+                    >
+                      {formIdentityIcon}
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="I am a person who..."
+                      value={formIdentity}
+                      onChange={(e) => setFormIdentity(e.target.value)}
+                      onFocus={(e) => {
+                        if (!formIdentity) {
+                          setFormIdentity('I am a person who ');
+                          setTimeout(() => {
+                            e.target.setSelectionRange(e.target.value.length, e.target.value.length);
+                          }, 0);
+                        }
+                      }}
+                      className={`form-card-input ${identityError ? 'error' : ''}`}
+                    />
+                  </div>
+                  {showIdentityIconPicker && (
+                    <div className="identity-icon-picker" style={{ marginTop: '12px' }}>
+                      {IDENTITY_ICONS.map(icon => (
+                        <button
+                          key={icon}
+                          type="button"
+                          className="identity-icon-option"
+                          onClick={() => {
+                            setFormIdentityIcon(icon);
+                            setShowIdentityIconPicker(false);
+                            setShowCustomIconInput(false);
+                          }}
+                        >
+                          {icon}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="identity-icon-option custom-icon-btn"
+                        onClick={() => setShowCustomIconInput(!showCustomIconInput)}
+                        title="Add custom emoji"
+                      >
+                        ➕
+                      </button>
+                    </div>
+                  )}
+                  {showCustomIconInput && (
+                    <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Paste emoji..."
+                        value={customIconInput}
+                        onChange={(e) => setCustomIconInput(e.target.value)}
+                        maxLength={2}
+                        className="form-card-input"
+                        style={{ textAlign: 'center', flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customIconInput.trim()) {
+                            setFormIdentityIcon(customIconInput.trim());
+                            setCustomIconInput('');
+                            setShowCustomIconInput(false);
+                            setShowIdentityIconPicker(false);
+                          }
+                        }}
+                        className="icon-use-btn"
+                      >
+                        Use
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-            <label>Who are you becoming? *</label>
-            <input
-              type="text"
-              placeholder="I am a person who..."
-              value={formIdentity}
-              onChange={(e) => setFormIdentity(e.target.value)}
-              className={identityError ? 'error' : ''}
-            />
+              {/* Action Section */}
+              <div className="form-card">
+                <div className="form-card-header">
+                  <span className="form-card-icon">✅</span>
+                  <span className="form-card-title">Action</span>
+                  <span className="form-card-required">*</span>
+                </div>
+                <div className="form-card-body">
+                  <input
+                    type="text"
+                    placeholder="e.g. Read one page, Do 1 pushup"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className={`form-card-input ${nameError ? 'error' : ''}`}
+                  />
+                  <div className="form-card-hint">Keep it tiny! Something you can do in ~2 minutes</div>
+                </div>
+              </div>
 
-            <label>When & where?</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '0 20px 12px' }}>
-              <input
-                type="time"
-                value={formTime}
-                onChange={(e) => setFormTime(e.target.value)}
-                style={{ margin: 0 }}
-              />
-              <select
-                value={formLocation}
-                onChange={(e) => setFormLocation(e.target.value)}
-                style={{ margin: 0 }}
-              >
-                <option value="">Location</option>
-                <option value="Home">Home</option>
-                <option value="Kitchen">Kitchen</option>
-                <option value="Bedroom">Bedroom</option>
-                <option value="Living Room">Living Room</option>
-                <option value="Bathroom">Bathroom</option>
-                <option value="Office">Office</option>
-                <option value="Gym">Gym</option>
-                <option value="Car">Car</option>
-                <option value="Outdoors">Outdoors</option>
-                <option value="custom">+ Custom</option>
-              </select>
-            </div>
-            {formLocation === 'custom' && (
-              <input
-                type="text"
-                placeholder="Enter custom location"
-                value={formCustomLocation}
-                onChange={(e) => setFormCustomLocation(e.target.value)}
-              />
-            )}
+              {/* Trigger Section */}
+              <div className="form-card">
+                <div className="form-card-header">
+                  <span className="form-card-icon">⚡</span>
+                  <span className="form-card-title">Trigger</span>
+                </div>
+                <div className="form-card-body">
+                  <input
+                    type="text"
+                    placeholder="e.g. After I wake up, When I feel stressed..."
+                    value={formCustomTrigger}
+                    onChange={(e) => setFormCustomTrigger(e.target.value)}
+                    className="form-card-input"
+                  />
+                </div>
+              </div>
 
-            <label>Trigger</label>
-            <select
-              value={formStackAfter}
-              onChange={(e) => { setFormStackAfter(e.target.value); setFormCustomTrigger(''); }}
-            >
-              <option value="">— No stacking / use custom trigger</option>
-              {data.habits.map(h => (
-                <option key={h.id} value={h.id}>🔗 After: {h.name}</option>
-              ))}
-            </select>
-            {!formStackAfter && (
-              <input
-                type="text"
-                placeholder="e.g. After I wake up, When I feel stressed…"
-                value={formCustomTrigger}
-                onChange={(e) => setFormCustomTrigger(e.target.value)}
-              />
-            )}
+              {/* Time & Place Section */}
+              <div className="form-card">
+                <div className="form-card-header">
+                  <span className="form-card-icon">📍</span>
+                  <span className="form-card-title">Time & Place</span>
+                </div>
+                <div className="form-card-body">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <input
+                      type="time"
+                      value={formTime}
+                      onChange={(e) => setFormTime(e.target.value)}
+                      className="form-card-input"
+                    />
+                    <select
+                      value={formLocation}
+                      onChange={(e) => setFormLocation(e.target.value)}
+                      className="form-card-input"
+                    >
+                      <option value="">Location</option>
+                      <option value="Home">Home</option>
+                      <option value="Kitchen">Kitchen</option>
+                      <option value="Bedroom">Bedroom</option>
+                      <option value="Living Room">Living Room</option>
+                      <option value="Bathroom">Bathroom</option>
+                      <option value="Office">Office</option>
+                      <option value="Gym">Gym</option>
+                      <option value="Car">Car</option>
+                      <option value="Outdoors">Outdoors</option>
+                      <option value="custom">+ Custom</option>
+                    </select>
+                  </div>
+                  {formLocation === 'custom' && (
+                    <input
+                      type="text"
+                      placeholder="Enter custom location"
+                      value={formCustomLocation}
+                      onChange={(e) => setFormCustomLocation(e.target.value)}
+                      className="form-card-input"
+                      style={{ marginTop: '8px' }}
+                    />
+                  )}
+                </div>
+              </div>
 
-            <label>Reward</label>
-            <input
-              type="text"
-              placeholder="e.g. Check phone, Enjoy coffee"
-              value={formReward}
-              onChange={(e) => setFormReward(e.target.value)}
-            />
+              {/* Duration & Frequency Section */}
+              <div className="form-card">
+                <div className="form-card-header">
+                  <span className="form-card-icon">⏱️</span>
+                  <span className="form-card-title">Duration & Frequency</span>
+                </div>
+                <div className="form-card-body">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>
+                    {[['easy','⚡','~2 min'],['medium','⏱️','~10 min'],['hard','🏋️','30+ min']].map(([val, icon, lbl]) => (
+                      <button
+                        key={val}
+                        type="button"
+                        className={`difficulty-btn ${formDifficulty === val ? 'active' : ''}`}
+                        onClick={() => setFormDifficulty(val)}
+                      >
+                        <span className="difficulty-icon">{icon}</span>
+                        <span className="difficulty-label">{lbl}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="frequency-toggle">
+                    {['daily','weekly','monthly'].map(f => (
+                      <button
+                        key={f}
+                        type="button"
+                        className={formFrequency === f ? 'active' : ''}
+                        onClick={() => setFormFrequency(f)}
+                      >
+                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
 
-            <label>Duration</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, margin: '0 20px 12px' }}>
-              {[['easy','⚡','~2 min'],['medium','⏱️','~10 min'],['hard','🏋️','30+ min']].map(([val, icon, lbl]) => (
-                <button
-                  key={val}
-                  className={`difficulty-btn ${formDifficulty === val ? 'active' : ''}`}
-                  onClick={() => setFormDifficulty(val)}
-                >
-                  <span className="difficulty-icon">{icon}</span>
-                  <span className="difficulty-label">{lbl}</span>
-                </button>
-              ))}
-            </div>
+              {/* Reward Section */}
+              <div className="form-card">
+                <div className="form-card-header">
+                  <span className="form-card-icon">🎉</span>
+                  <span className="form-card-title">Reward (Optional)</span>
+                </div>
+                <div className="form-card-body">
+                  <input
+                    type="text"
+                    placeholder="e.g. Check phone, Enjoy coffee"
+                    value={formReward}
+                    onChange={(e) => setFormReward(e.target.value)}
+                    className="form-card-input"
+                  />
+                </div>
+              </div>
 
-            <label>Frequency</label>
-            <div className="frequency-toggle" style={{ margin: '0 20px 16px' }}>
-              {['daily','weekly','monthly'].map(f => (
-                <button
-                  key={f}
-                  className={formFrequency === f ? 'active' : ''}
-                  onClick={() => setFormFrequency(f)}
-                >
-                  {f.charAt(0).toUpperCase() + f.slice(1)}
-                </button>
-              ))}
             </div>
 
             <div className="modal-actions">
               <button className="cancel-btn" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="save-btn" onClick={addHabit}>Add Habit</button>
+              <button className="save-btn" onClick={addHabit}>Create Habit</button>
             </div>
           </div>
         </>
@@ -1886,26 +2723,14 @@ const HabitTracker = () => {
               <option value="hard">Hard (30m+)</option>
             </select>
             
-            <label>Trigger</label>
-            <select
-              value={editStackAfter}
-              onChange={(e) => { setEditStackAfter(e.target.value); setEditCustomTrigger(''); }}
-            >
-              <option value="">— No stacking / use custom trigger</option>
-              {data.habits.filter(h => h.id !== editingHabit?.id).map(h => (
-                <option key={h.id} value={h.id}>🔗 After: {h.name}</option>
-              ))}
-            </select>
-            {!editStackAfter && (
-              <input
-                type="text"
-                className="custom-trigger-input"
-                placeholder="e.g. After I wake up, When I feel stressed…"
-                value={editCustomTrigger}
-                onChange={(e) => setEditCustomTrigger(e.target.value)}
-                style={{ marginTop: 8 }}
-              />
-            )}
+            <label>Custom Trigger</label>
+            <input
+              type="text"
+              className="custom-trigger-input"
+              placeholder="e.g. After I wake up, When I feel stressed..."
+              value={editCustomTrigger}
+              onChange={(e) => setEditCustomTrigger(e.target.value)}
+            />
             
             <div className="modal-actions">
               <button className="cancel-btn" onClick={() => setShowEditModal(false)}>Cancel</button>
