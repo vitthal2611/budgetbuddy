@@ -23,8 +23,8 @@ const HABIT_TEMPLATES = [
   {
     category: "Health & Fitness",
     templates: [
-      { emoji: "💪", name: "Do 1 pushup", identity: "I am a person who exercises daily", time: "07:00", location: "Bedroom", difficulty: "easy" },
-      { emoji: "🏃", name: "Put on running shoes", identity: "I am a runner", time: "06:30", location: "Home", difficulty: "easy" },
+      { emoji: "💪", name: "Do 1 pushup", identity: "I am someone who exercises daily", time: "07:00", location: "Bedroom", difficulty: "easy" },
+      { emoji: "🏃", name: "Put on your running shoes", identity: "I am a runner", time: "06:30", location: "Home", difficulty: "easy" },
       { emoji: "🥗", name: "Eat one vegetable", identity: "I am a healthy eater", time: "12:00", location: "Kitchen", difficulty: "easy" },
       { emoji: "💧", name: "Drink one glass of water", identity: "I am someone who stays hydrated", time: "08:00", location: "Kitchen", difficulty: "easy" }
     ]
@@ -33,8 +33,8 @@ const HABIT_TEMPLATES = [
     category: "Learning & Growth",
     templates: [
       { emoji: "📖", name: "Read one page", identity: "I am a reader", time: "21:00", location: "Bedroom", difficulty: "easy" },
-      { emoji: "✍️", name: "Write one sentence", identity: "I am a writer", time: "09:00", location: "Office", difficulty: "easy" },
-      { emoji: "🧠", name: "Learn one word", identity: "I am a lifelong learner", time: "10:00", location: "Office", difficulty: "easy" },
+      { emoji: "✍️", name: "Write one sentence in your journal", identity: "I am a writer", time: "09:00", location: "Office", difficulty: "easy" },
+      { emoji: "🧠", name: "Learn one new word", identity: "I am a lifelong learner", time: "10:00", location: "Office", difficulty: "easy" },
       { emoji: "🎨", name: "Draw for 2 minutes", identity: "I am creative", time: "19:00", location: "Living Room", difficulty: "easy" }
     ]
   },
@@ -42,18 +42,18 @@ const HABIT_TEMPLATES = [
     category: "Mindfulness",
     templates: [
       { emoji: "🧘", name: "Take one deep breath", identity: "I am calm and centered", time: "07:30", location: "Bedroom", difficulty: "easy" },
-      { emoji: "🙏", name: "Write one gratitude", identity: "I am grateful", time: "22:00", location: "Bedroom", difficulty: "easy" },
+      { emoji: "🙏", name: "Write down one thing you're grateful for", identity: "I am grateful", time: "22:00", location: "Bedroom", difficulty: "easy" },
       { emoji: "📝", name: "Journal one thought", identity: "I am self-aware", time: "21:30", location: "Bedroom", difficulty: "easy" },
-      { emoji: "🌅", name: "Watch the sunrise", identity: "I am present", time: "06:00", location: "Outdoors", difficulty: "easy" }
+      { emoji: "🌅", name: "Watch the sunrise for a moment", identity: "I am present", time: "06:00", location: "Outdoors", difficulty: "easy" }
     ]
   },
   {
     category: "Productivity",
     templates: [
       { emoji: "🛏️", name: "Make your bed", identity: "I am organized", time: "07:00", location: "Bedroom", difficulty: "easy" },
-      { emoji: "📧", name: "Clear one email", identity: "I am on top of things", time: "09:00", location: "Office", difficulty: "easy" },
+      { emoji: "📧", name: "Clear one email from your inbox", identity: "I am on top of things", time: "09:00", location: "Office", difficulty: "easy" },
       { emoji: "🧹", name: "Clean one surface", identity: "I am tidy", time: "20:00", location: "Home", difficulty: "easy" },
-      { emoji: "📱", name: "Put phone in drawer", identity: "I am focused", time: "22:00", location: "Bedroom", difficulty: "easy" }
+      { emoji: "📱", name: "Put your phone in the drawer", identity: "I am focused", time: "22:00", location: "Bedroom", difficulty: "easy" }
     ]
   }
 ];
@@ -998,9 +998,161 @@ const HabitTracker = () => {
     setShowDeleteModal(false);
   };
 
-  if (loading) {
-    return <div className="habit-loading">Loading habits...</div>;
-  }
+  const renderHabitCard = (habit, isCompleted) => {
+    const streak = getStreak(habit.id);
+    const isEditing = editingInlineId === habit.id;
+    const stackedHabitName = habit.stackAfter ? data.habits.find(h => h.id === habit.stackAfter)?.name : null;
+
+    let triggerText = null;
+    if (habit.customTrigger?.trim()) {
+      const ct = habit.customTrigger.trim();
+      triggerText = ct.toLowerCase().startsWith('after ') && !ct.toLowerCase().includes('your')
+        ? ct.replace(/^after /i, 'After your ')
+        : ct;
+    } else if (stackedHabitName) {
+      triggerText = `After your ${stackedHabitName.toLowerCase()}`;
+    } else if (habit.time || habit.location) {
+      const parts = [];
+      if (habit.time) parts.push(habit.time);
+      if (habit.location) parts.push(`at ${habit.location}`);
+      triggerText = parts.join(' ');
+    }
+
+    return (
+      <div
+        key={habit.id}
+        className={`habit-card ${isCompleted ? 'completed' : ''} ${isEditing ? 'editing' : ''}`}
+        role="article"
+      >
+        {isEditing ? (
+          <div className="habit-inline-edit" style={{ width: '100%' }}>
+            <div className="inline-edit-section">
+              <label className="inline-edit-label">Identity</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button type="button" className="identity-icon-btn-inline"
+                  onClick={() => setShowEditIdentityIconPicker(!showEditIdentityIconPicker)}
+                  style={{ fontSize:'20px', padding:'8px 10px', border:'2px solid #c7d2fe', borderRadius:'8px', background:'#eef2ff', cursor:'pointer', minWidth:'44px', display:'flex', alignItems:'center', justifyContent:'center' }}
+                >{editIdentityIcon}</button>
+                <input type="text" className="inline-edit-input" placeholder="I am a person who..."
+                  value={editIdentity} onChange={e => setEditIdentity(e.target.value)} style={{ flex:1 }} />
+              </div>
+            </div>
+            <div className="inline-edit-section">
+              <label className="inline-edit-label">Habit Name</label>
+              <input type="text" className="inline-edit-input" placeholder="Habit name"
+                value={editName} onChange={e => setEditName(e.target.value)} />
+            </div>
+            <div className="inline-edit-row">
+              <div className="inline-edit-section">
+                <label className="inline-edit-label">Time</label>
+                <input type="time" className="inline-edit-input" value={editTime} onChange={e => setEditTime(e.target.value)} />
+              </div>
+              <div className="inline-edit-section">
+                <label className="inline-edit-label">Location</label>
+                <input type="text" className="inline-edit-input" placeholder="Location"
+                  value={editLocation} onChange={e => setEditLocation(e.target.value)} />
+              </div>
+            </div>
+            <div className="inline-edit-section">
+              <label className="inline-edit-label">Custom Trigger</label>
+              <input type="text" className="inline-edit-input"
+                placeholder="e.g., After your morning coffee..."
+                value={editCustomTrigger} onChange={e => setEditCustomTrigger(e.target.value)} />
+            </div>
+            <div className="inline-edit-row">
+              <div className="inline-edit-section">
+                <label className="inline-edit-label">Difficulty</label>
+                <select className="inline-edit-input" value={editDifficulty} onChange={e => setEditDifficulty(e.target.value)}>
+                  <option value="easy">~2 min</option>
+                  <option value="medium">~10 min</option>
+                  <option value="hard">30+ min</option>
+                </select>
+              </div>
+              <div className="inline-edit-section">
+                <label className="inline-edit-label">Frequency</label>
+                <select className="inline-edit-input" value={editFrequency} onChange={e => setEditFrequency(e.target.value)}>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+            </div>
+            <div className="inline-edit-actions">
+              <button className="inline-edit-cancel" onClick={cancelInlineEdit}>Cancel</button>
+              <button className="inline-edit-save" onClick={() => saveInlineEdit(habit.id)}>Save Changes</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Icon bubble */}
+            <div className="habit-icon-bubble">
+              {habit.identityIcon || '🎯'}
+            </div>
+
+            {/* Card body */}
+            <div className="habit-card-body">
+              {/* Identity line */}
+              <div className="habit-identity-section">
+                {habit.identity ? (
+                  <div className="habit-identity-header">
+                    <span className="habit-identity-text">{habit.identity}</span>
+                  </div>
+                ) : (
+                  <div className="habit-identity-placeholder">
+                    <span className="identity-placeholder-text">Set your identity</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Habit name */}
+              <div className={`habit-action-name ${isCompleted ? 'done' : ''}`}>
+                {habit.name}
+              </div>
+
+              {/* Trigger + context meta row */}
+              <div className="habit-meta-row">
+                {triggerText && (
+                  <div className="trigger-badge">
+                    <span className="trigger-text">{triggerText}</span>
+                  </div>
+                )}
+                {habit.customTrigger?.trim() && habit.time && (
+                  <span className="context-time">⏰ {habit.time}</span>
+                )}
+                {habit.customTrigger?.trim() && habit.location && (
+                  <span className="context-location">📍 {habit.location}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Right side: streak + checkbox */}
+            <div className="habit-card-right">
+              {streak > 0 ? (
+                <span className="hc-streak">
+                  🔥 {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
+                </span>
+              ) : (
+                <span className="hc-streak-start">Start!</span>
+              )}
+              <button
+                className={`habit-check ${isCompleted ? 'checked' : ''}`}
+                onClick={e => {
+                  e.stopPropagation();
+                  if (navigator.vibrate) navigator.vibrate(10);
+                  toggleHabit(habit.id);
+                }}
+                aria-label={`Mark "${habit.name}" as ${isCompleted ? 'incomplete' : 'complete'}`}
+                aria-pressed={isCompleted}
+                type="button"
+              >
+                {isCompleted && <span aria-hidden="true" className="check-mark">✓</span>}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   // Only show habits that existed on viewDate (created on or before viewDate)
   const habitsForView = data.habits.filter(habit => {
@@ -1343,7 +1495,7 @@ const HabitTracker = () => {
                         <input
                           type="text"
                           className="inline-edit-input"
-                          placeholder="e.g. After I wake up, When I feel stressed..."
+                          placeholder="e.g., After your morning coffee, When you feel stressed..."
                           value={editCustomTrigger}
                           onChange={(e) => setEditCustomTrigger(e.target.value)}
                         />
@@ -1393,52 +1545,110 @@ const HabitTracker = () => {
                     </div>
                   ) : (
                     <>
-                      {/* Cue badge — top-left, single line with · separator */}
-                      {(() => {
-                        const trigger = habit.customTrigger?.trim()
-                          || (habit.stackAfter
-                            ? `After ${data.habits.find(h => h.id === habit.stackAfter)?.name || ''}`
-                            : null);
-                        const place = (habit.time && habit.location)
-                          ? `${habit.time} · ${habit.location}`
-                          : habit.time || habit.location || null;
-                        const parts = [place, trigger].filter(Boolean);
-                        if (!parts.length) return null;
-                        return (
-                          <div className="hc-cue-badge">{parts.join(' · ')}</div>
-                        );
-                      })()}
-
-                      {/* Single compact row: check · name · streak · actions */}
-                      <div className="hc-row">
-                        <div
-                          className={`habit-check ${completed ? 'checked' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); toggleHabit(habit.id); }}
-                          aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}
-                        >
-                          {completed && <span className="check-mark">✓</span>}
-                        </div>
-
-                        <div className="hc-body">
-                          <span className={`hc-name ${completed ? 'done' : ''}`}>{habit.name}</span>
-                          {!completed && missed && <span className="hc-alert">⚠️ Don't miss twice!</span>}
-                        </div>
-
-                        {streak > 0 && (
-                          <span className="hc-streak">🔥{streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}</span>
+                      {/* Identity Header - 15% of card height */}
+                      <div className="habit-identity-section">
+                        {habit.identity ? (
+                          <div className="habit-identity-header">
+                            <span className="habit-identity-icon">{habit.identityIcon || '💭'}</span>
+                            <span className="habit-identity-text">{habit.identity}</span>
+                          </div>
+                        ) : (
+                          <div className="habit-identity-placeholder">
+                            <span className="identity-placeholder-icon">💭</span>
+                            <span className="identity-placeholder-text">Set your identity</span>
+                          </div>
                         )}
+                      </div>
 
-                        <div className="hc-actions">
+                      {/* Trigger + Action + Context Rows - 60% of card height */}
+                      <div className="habit-trigger-action-row">
+                        {/* Trigger - Full width row */}
+                        <div className="habit-trigger-section">
+                          {(() => {
+                            let trigger = null;
+                            // Priority: customTrigger > stackAfter > time/location
+                            if (habit.customTrigger?.trim()) {
+                              const customTrigger = habit.customTrigger.trim();
+                              if (customTrigger.toLowerCase().startsWith('after ') && !customTrigger.toLowerCase().includes('your')) {
+                                trigger = customTrigger.replace(/^after /i, 'After your ');
+                              } else {
+                                trigger = customTrigger;
+                              }
+                            } else if (habit.stackAfter) {
+                              const stackedHabitName = data.habits.find(h => h.id === habit.stackAfter)?.name || '';
+                              trigger = `After your ${stackedHabitName.toLowerCase()}`;
+                            } else if (habit.time || habit.location) {
+                              // Show time/location as trigger if no custom trigger
+                              const parts = [];
+                              if (habit.time) parts.push(habit.time);
+                              if (habit.location) parts.push(`at ${habit.location}`);
+                              trigger = parts.join(' ');
+                            }
+                            
+                            return trigger ? (
+                              <div className="trigger-badge">
+                                <span className="trigger-text">{trigger}</span>
+                              </div>
+                            ) : (
+                              <div className="trigger-placeholder">
+                                <span className="trigger-placeholder-icon">⚡</span>
+                                <span className="trigger-placeholder-text">Add a trigger</span>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Action/Habit - Full width row */}
+                        <div className="habit-action-section">
+                          <div className="habit-action-content">
+                            <div className={`habit-action-name ${completed ? 'done' : ''}`}>
+                              {habit.name}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Context row - Only show if custom trigger exists AND time/location exist */}
+                        {habit.customTrigger?.trim() && (habit.time || habit.location) && (
+                          <div className="habit-context-section">
+                            {habit.time && <span className="context-time">⏰ {habit.time}</span>}
+                            {habit.location && <span className="context-location">📍 {habit.location}</span>}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Details + Checkbox Row - 25% of card height */}
+                      <div className="habit-details-section">
+                        {/* Checkbox on the left */}
+                        <div className="habit-checkbox-section">
                           <button
-                            className="hc-action-btn edit"
-                            onClick={(e) => { e.stopPropagation(); openEditModal(habit); }}
-                            aria-label="Edit habit"
-                          >✏️</button>
-                          <button
-                            className="hc-action-btn delete"
-                            onClick={(e) => { e.stopPropagation(); openDeleteModal(habit); }}
-                            aria-label="Delete habit"
-                          >🗑️</button>
+                            className={`habit-check ${completed ? 'checked' : ''}`}
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              // Add haptic feedback
+                              if (navigator.vibrate) {
+                                navigator.vibrate(10);
+                              }
+                              toggleHabit(habit.id); 
+                            }}
+                            aria-label={`Mark "${habit.name}" as ${completed ? 'incomplete' : 'complete'}`}
+                            aria-pressed={completed}
+                            type="button"
+                          >
+                            {completed && <span aria-hidden="true" className="check-mark">✓</span>}
+                          </button>
+                        </div>
+
+                        {/* Streak display */}
+                        <div className="habit-streak-display">
+                          {streak > 0 ? (
+                            <span className="hc-streak">
+                              🔥 {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
+                            </span>
+                          ) : (
+                            <span className="hc-streak-start">
+                              Start streak!
+                            </span>
+                          )}
                         </div>
                       </div>
                     </>
@@ -1462,8 +1672,6 @@ const HabitTracker = () => {
                     <div
                       key={habit.id}
                       className={`habit-card ${completed ? 'completed' : ''} ${isEditing ? 'editing' : ''}`}
-                      role="button"
-                      tabIndex={0}
                     >
                       {isEditing ? (
                         /* Inline Edit Mode */
@@ -1640,7 +1848,7 @@ const HabitTracker = () => {
                             <input
                               type="text"
                               className="inline-edit-input"
-                              placeholder="e.g. After I wake up, When I feel stressed..."
+                              placeholder="e.g., After your morning coffee, When you feel stressed..."
                               value={editCustomTrigger}
                               onChange={(e) => setEditCustomTrigger(e.target.value)}
                             />
@@ -1690,51 +1898,110 @@ const HabitTracker = () => {
                         </div>
                       ) : (
                         <>
-                          {/* Cue badge — top-left, single line with · separator */}
-                          {(() => {
-                            const trigger = habit.customTrigger?.trim()
-                              || (habit.stackAfter
-                                ? `After ${data.habits.find(h => h.id === habit.stackAfter)?.name || ''}`
-                                : null);
-                            const place = (habit.time && habit.location)
-                              ? `${habit.time} · ${habit.location}`
-                              : habit.time || habit.location || null;
-                            const parts = [place, trigger].filter(Boolean);
-                            if (!parts.length) return null;
-                            return (
-                              <div className="hc-cue-badge">{parts.join(' · ')}</div>
-                            );
-                          })()}
-
-                          {/* Single compact row */}
-                          <div className="hc-row">
-                            <div
-                              className={`habit-check ${completed ? 'checked' : ''}`}
-                              onClick={(e) => { e.stopPropagation(); toggleHabit(habit.id); }}
-                              aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}
-                            >
-                              {completed && <span className="check-mark">✓</span>}
-                            </div>
-
-                            <div className="hc-body">
-                              <span className={`hc-name ${completed ? 'done' : ''}`}>{habit.name}</span>
-                            </div>
-
-                            {streak > 0 && (
-                              <span className="hc-streak">🔥{streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}</span>
+                          {/* Identity Header - 15% of card height */}
+                          <div className="habit-identity-section">
+                            {habit.identity ? (
+                              <div className="habit-identity-header">
+                                <span className="habit-identity-icon">{habit.identityIcon || '💭'}</span>
+                                <span className="habit-identity-text">{habit.identity}</span>
+                              </div>
+                            ) : (
+                              <div className="habit-identity-placeholder">
+                                <span className="identity-placeholder-icon">💭</span>
+                                <span className="identity-placeholder-text">Set your identity</span>
+                              </div>
                             )}
+                          </div>
 
-                            <div className="hc-actions">
+                          {/* Trigger + Action + Context Rows - 60% of card height */}
+                          <div className="habit-trigger-action-row">
+                            {/* Trigger - Full width row */}
+                            <div className="habit-trigger-section">
+                              {(() => {
+                                let trigger = null;
+                                // Priority: customTrigger > stackAfter > time/location
+                                if (habit.customTrigger?.trim()) {
+                                  const customTrigger = habit.customTrigger.trim();
+                                  if (customTrigger.toLowerCase().startsWith('after ') && !customTrigger.toLowerCase().includes('your')) {
+                                    trigger = customTrigger.replace(/^after /i, 'After your ');
+                                  } else {
+                                    trigger = customTrigger;
+                                  }
+                                } else if (habit.stackAfter) {
+                                  const stackedHabitName = data.habits.find(h => h.id === habit.stackAfter)?.name || '';
+                                  trigger = `After your ${stackedHabitName.toLowerCase()}`;
+                                } else if (habit.time || habit.location) {
+                                  // Show time/location as trigger if no custom trigger
+                                  const parts = [];
+                                  if (habit.time) parts.push(habit.time);
+                                  if (habit.location) parts.push(`at ${habit.location}`);
+                                  trigger = parts.join(' ');
+                                }
+                                
+                                return trigger ? (
+                                  <div className="trigger-badge">
+                                    <span className="trigger-text">{trigger}</span>
+                                  </div>
+                                ) : (
+                                  <div className="trigger-placeholder">
+                                    <span className="trigger-placeholder-icon">⚡</span>
+                                    <span className="trigger-placeholder-text">Add a trigger</span>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            {/* Action/Habit - Full width row */}
+                            <div className="habit-action-section">
+                              <div className="habit-action-content">
+                                <div className={`habit-action-name ${completed ? 'done' : ''}`}>
+                                  {habit.name}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Context row - Only show if custom trigger exists AND time/location exist */}
+                            {habit.customTrigger?.trim() && (habit.time || habit.location) && (
+                              <div className="habit-context-section">
+                                {habit.time && <span className="context-time">⏰ {habit.time}</span>}
+                                {habit.location && <span className="context-location">📍 {habit.location}</span>}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Details + Checkbox Row - 25% of card height */}
+                          <div className="habit-details-section">
+                            {/* Checkbox on the left */}
+                            <div className="habit-checkbox-section">
                               <button
-                                className="hc-action-btn edit"
-                                onClick={(e) => { e.stopPropagation(); openEditModal(habit); }}
-                                aria-label="Edit habit"
-                              >✏️</button>
-                              <button
-                                className="hc-action-btn delete"
-                                onClick={(e) => { e.stopPropagation(); openDeleteModal(habit); }}
-                                aria-label="Delete habit"
-                              >🗑️</button>
+                                className={`habit-check ${completed ? 'checked' : ''}`}
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  // Add haptic feedback
+                                  if (navigator.vibrate) {
+                                    navigator.vibrate(10);
+                                  }
+                                  toggleHabit(habit.id); 
+                                }}
+                                aria-label={`Mark "${habit.name}" as ${completed ? 'incomplete' : 'complete'}`}
+                                aria-pressed={completed}
+                                type="button"
+                              >
+                                {completed && <span aria-hidden="true" className="check-mark">✓</span>}
+                              </button>
+                            </div>
+
+                            {/* Streak display */}
+                            <div className="habit-streak-display">
+                              {streak > 0 ? (
+                                <span className="hc-streak">
+                                  🔥 {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
+                                </span>
+                              ) : (
+                                <span className="hc-streak-start">
+                                  Start streak!
+                                </span>
+                              )}
                             </div>
                           </div>
                         </>
@@ -2071,7 +2338,7 @@ const HabitTracker = () => {
                 <div className="form-card-body">
                   <input
                     type="text"
-                    placeholder="e.g. After I wake up, When I feel stressed..."
+                    placeholder="e.g., After your morning coffee, When you feel stressed..."
                     value={formCustomTrigger}
                     onChange={(e) => setFormCustomTrigger(e.target.value)}
                     className="form-card-input"
@@ -2636,7 +2903,7 @@ const HabitTracker = () => {
             <input
               type="text"
               className="custom-trigger-input"
-              placeholder="e.g. After I wake up, When I feel stressed..."
+              placeholder="e.g., After your morning coffee, When you feel stressed..."
               value={editCustomTrigger}
               onChange={(e) => setEditCustomTrigger(e.target.value)}
             />

@@ -1,3 +1,28 @@
+/* 
+ * HABIT CARD LAYOUT CONFIGURATION
+ * ================================
+ * To adjust the habit card section heights, modify the CSS variables in .habit-card:
+ * 
+ * --identity-height: Height of the identity section (default: 15%)
+ * --trigger-action-height: Height of the trigger/action row (default: 60%)
+ * --details-height: Height of the details section (default: 25%)
+ * 
+ * Note: These three values should add up to 100%
+ * 
+ * Example configurations:
+ * - More emphasis on trigger/action: 10%, 70%, 20%
+ * - Balanced layout: 20%, 55%, 25%
+ * - Minimal identity: 10%, 65%, 25%
+ * 
+ * COMPACT LAYOUT (Alternative):
+ * This layout reduces redundancy and creates clearer visual hierarchy:
+ * - Identity: 15% (with placeholder for empty state)
+ * - Trigger: 25% (shows time/location if no custom trigger)
+ * - Action: 25% (habit name only)
+ * - Context: 10% (only if custom trigger + time/location exist)
+ * - Details: 25% (checkbox + streak with "Start streak!" for 0-day)
+ */
+
 /* Mobile-first design - max-width 480px */
 .habit-tracker {
   max-width: 480px;
@@ -297,74 +322,97 @@
   transition: width var(--transition-slower) var(--ease-standard);
 }
 
-/* Habit List */
+/* Habit List - Mobile-friendly spacing */
 .habit-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
 }
 
+/* ── MODERN HABIT CARD ── */
 .habit-card {
   display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 12px;
-  border: 1.5px solid #e2e8f0;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  flex-direction: row;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1.5px solid #eef0f6;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.06);
   width: 100%;
   box-sizing: border-box;
-  cursor: pointer;
+  padding: 14px 14px 14px 16px;
+  gap: 12px;
+  cursor: default;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   position: relative;
   overflow: hidden;
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+  container-type: inline-size;
+  container-name: habit-card;
 }
 
 /* Left accent bar */
 .habit-card::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: 0; top: 0; bottom: 0;
   width: 4px;
-  background: #6366f1;
-  border-radius: 12px 0 0 12px;
+  background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
+  border-radius: 18px 0 0 18px;
 }
 
-.habit-card.completed::before {
-  background: #22c55e;
-}
-
-.habit-card.stacked::before {
-  background: #f59e0b;
+.habit-card:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 6px 20px rgba(99,102,241,0.12);
+  transform: translateY(-1px);
 }
 
 .habit-card:active {
-  transform: scale(0.98);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(15,23,42,0.06);
 }
 
 .habit-card.completed {
-  background: #f0fdf4;
+  background: #f8fffe;
   border-color: #bbf7d0;
 }
 
-/* Remove identity header bar — no longer used */
-.habit-card-header { display: none; }
-.habit-identity-header { display: none; }
-
-/* Body section — compact */
-.habit-card-body {
-  display: flex;
-  gap: 10px;
-  padding: 10px 12px;
-  align-items: center;
+.habit-card.completed::before {
+  background: linear-gradient(180deg, #34d399 0%, #10b981 100%);
 }
 
-.habit-card-content {
+.habit-card.completed:hover {
+  border-color: #6ee7b7;
+  box-shadow: 0 6px 20px rgba(16,185,129,0.12);
+}
+
+/* ── ICON BUBBLE ── */
+.habit-icon-bubble {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.habit-card.completed .habit-icon-bubble {
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+}
+
+.habit-card:hover .habit-icon-bubble {
+  transform: scale(1.06);
+}
+
+/* ── CARD BODY ── */
+.habit-card-body {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -372,41 +420,272 @@
   gap: 4px;
 }
 
-/* Check circle */
+/* Identity line */
+.habit-identity-section {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.habit-identity-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.habit-identity-icon {
+  font-size: 11px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.habit-identity-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.habit-card.completed .habit-identity-text {
+  color: #059669;
+}
+
+.habit-identity-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.35;
+}
+
+.identity-placeholder-icon { font-size: 11px; }
+.identity-placeholder-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Habit name */
+.habit-action-section { display: contents; }
+.habit-action-content { display: contents; }
+
+.habit-action-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  letter-spacing: -0.1px;
+  word-break: break-word;
+}
+
+.habit-action-name.done {
+  color: #94a3b8;
+  text-decoration: line-through;
+  text-decoration-color: #6ee7b7;
+  text-decoration-thickness: 2px;
+  font-weight: 500;
+}
+
+/* Trigger + context row */
+.habit-trigger-action-row { display: contents; }
+.habit-trigger-section { display: contents; }
+.habit-context-section { display: contents; }
+
+.habit-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+
+.trigger-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 20px;
+  padding: 2px 8px 2px 6px;
+  max-width: 160px;
+  overflow: hidden;
+}
+
+.trigger-badge::before {
+  content: '⚡';
+  font-size: 9px;
+  flex-shrink: 0;
+}
+
+.trigger-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.habit-card.completed .trigger-badge {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+.habit-card.completed .trigger-text { color: #065f46; }
+
+.trigger-placeholder { display: none; }
+.trigger-placeholder-icon { display: none; }
+.trigger-placeholder-text { display: none; }
+
+.context-time,
+.context-location {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+/* Details section — streak only, checkbox moved to right */
+.habit-details-section { display: contents; }
+.habit-checkbox-section { display: contents; }
+.habit-streak-display { display: contents; }
+
+/* ── RIGHT SIDE: streak + checkbox ── */
+.habit-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Streak pill */
+.hc-streak {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ea580c;
+  background: #fff7ed;
+  border: 1.5px solid #fed7aa;
+  border-radius: 20px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  line-height: 1;
+}
+
+.hc-streak-start {
+  font-size: 10px;
+  font-weight: 600;
+  color: #cbd5e1;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Checkbox */
 .habit-check {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
   border-radius: 50%;
-  border: 2px solid #cbd5e1;
-  background: #fff;
+  border: 2px solid #d1d5db;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
-  font-size: 13px;
+  transition: all 0.22s ease;
+  font-size: 16px;
   color: white;
   flex-shrink: 0;
   cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  padding: 0;
 }
 
-.habit-check:active { transform: scale(0.9); }
+.habit-check:hover {
+  border-color: #10b981;
+  background: #f0fdf4;
+  transform: scale(1.1);
+}
+
+.habit-check:active {
+  transform: scale(0.9);
+  transition: transform 0.1s ease;
+}
+
+.habit-check:focus-visible {
+  outline: 3px solid #10b981;
+  outline-offset: 2px;
+}
 
 .habit-check.checked {
-  background: #22c55e;
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34,197,94,0.15);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.18), 0 2px 6px rgba(16,185,129,0.28);
 }
 
 .check-mark {
-  animation: checkPop 0.2s ease-out;
+  animation: checkPop 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  font-weight: bold;
+  font-size: 15px;
 }
 
 @keyframes checkPop {
-  0%   { transform: scale(0); opacity: 0; }
-  60%  { transform: scale(1.3); }
-  100% { transform: scale(1); opacity: 1; }
+  0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+  60%  { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
+
+/* ── INLINE EDIT inside card ── */
+.habit-inline-edit {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Legacy stubs — keep so old refs don't break */
+.habit-action-context { display: none; }
+.action-time { display: none; }
+.action-location { display: none; }
+.habit-main-section { display: none; }
+.hc-row { display: none; }
+.hc-body { display: none; }
+.identity-badge { display: none; }
+.hc-name { display: none; }
+.hc-cue-info { display: none; }
+.habit-card-content { display: none; }
+.habit-card-header { display: none; }
+
+/* Habit List */
+.habit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+/* Remove old card header */
+.habit-card-header { display: none; }
 
 /* Main content area - REMOVED, using habit-card-content instead */
 
@@ -604,19 +883,21 @@
   border-color: #6ee7b7;
 }
 
-/* Cue — always visible, prominent */
-.habit-cue {
-  font-size: 12px;
+/* Cue badge — Mobile-friendly, left-aligned, no overlap */
+.hc-cue-badge {
+  font-size: 11px;
   font-weight: 500;
-  color: var(--primary);
-  background: var(--primary-bg);
+  color: #64748b;
+  background: #f8fafc;
   border-radius: 6px;
-  padding: 3px 8px;
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 6px 12px;
+  display: inline-block;
+  margin: 0 0 8px 12px;
+  border: 1px solid #e2e8f0;
+  line-height: 1.4;
+  position: relative;
+  z-index: 1;
+  max-width: calc(100% - 24px);
 }
 
 /* Bottom section */
@@ -980,72 +1261,97 @@
 
 /* Manage Section */
 .manage-section {
-  background: var(--bg-secondary);
-  padding: var(--padding-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
   width: 100%;
   box-sizing: border-box;
-}
-
-.manage-section h2 {
-  font-size: var(--text-h4);
-  font-weight: var(--weight-bold);
-  margin: 0 0 var(--space-4) 0;
-  color: var(--text-primary);
-}
-
-.empty-habits {
-  text-align: center;
-  padding: 40px var(--padding-card);
-  color: var(--text-tertiary);
-  font-size: var(--text-body-sm);
 }
 
 .habit-manage-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 10px;
 }
 
 .habit-manage-card {
-  padding: var(--space-3);
-  border: 1.5px solid var(--border-medium);
-  border-radius: var(--radius-md);
-  background: var(--bg-primary);
-  transition: all var(--transition-fast) var(--ease-standard);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border: 1.5px solid #eef0f6;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.05);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.habit-manage-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
+  border-radius: 18px 0 0 18px;
 }
 
 .habit-manage-card:hover {
-  border-color: var(--border-dark);
-  box-shadow: var(--shadow-xs);
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.1);
 }
 
-.habit-manage-header {
+.habit-manage-icon {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin-bottom: 6px;
-  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.habit-manage-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .habit-manage-name {
-  font-size: var(--text-body);
-  font-weight: var(--weight-semibold);
-  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .habit-manage-meta {
-  font-size: var(--text-caption);
-  color: var(--text-secondary);
-  margin-bottom: 10px;
-  line-height: var(--leading-normal);
+  font-size: 11px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.habit-manage-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
 }
 
 .habit-manage-actions {
   display: flex;
-  gap: var(--space-2);
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .edit-btn,
@@ -1986,12 +2292,12 @@
   border: 1px solid var(--border-light);
 }
 
-/* Completed divider */
+/* Completed divider - refined spacing */
 .completed-divider {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: var(--space-4) 0 var(--space-3);
+  margin: 20px 0 16px;
   position: relative;
 }
 
@@ -2000,16 +2306,16 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--border-light);
+  background: #e2e8f0;
 }
 
 .completed-divider-text {
-  padding: 0 var(--space-3);
-  font-size: var(--text-caption);
-  font-weight: var(--weight-semibold);
-  color: var(--text-tertiary);
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.6px;
 }
 
 /* Stack cue styling */
@@ -2834,17 +3140,18 @@
   transform: translateY(0);
 }
 
-/* ── Compact habit card row ── */
+/* ── Mobile-friendly habit card row ── */
 .hc-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 14px 11px 16px;
+  padding: 12px 14px;
+  min-height: 52px;
 }
 
-/* When cue badge is present, push row down */
+/* When cue badge is present */
 .habit-card:has(.hc-cue-badge) .hc-row {
-  padding-top: 24px;
+  padding-top: 8px;
 }
 
 .hc-body {
@@ -2852,45 +3159,43 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
-/* Habit name — sentence case, clear title weight */
+/* Habit name — Mobile-friendly sizing */
 .hc-name {
   font-size: 15px;
   font-weight: 600;
   color: #0f172a;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   line-height: 1.4;
-  letter-spacing: -0.1px;
+  letter-spacing: -0.2px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .hc-name.done {
   color: #94a3b8;
   text-decoration: line-through;
   text-decoration-color: #86efac;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .hc-cue {
   font-size: 11px;
   color: #94a3b8;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 
-/* Never miss twice alert */
+/* Never miss twice alert - Mobile-friendly */
 .hc-alert {
   font-size: 11px;
   font-weight: 700;
   color: #dc2626;
   letter-spacing: 0.1px;
+  margin-top: 2px;
 }
 
-/* Streak pill */
+/* Streak pill - Mobile-friendly touch target */
 .hc-streak {
   font-size: 11px;
   font-weight: 700;
@@ -2900,66 +3205,276 @@
   background: #fff7ed;
   border: 1px solid #fed7aa;
   border-radius: 20px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   letter-spacing: 0.2px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
 }
 
-/* ── Cue badge — top-left corner of card ── */
-.hc-cue-badge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  background: #6366f1;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  padding: 2px 10px 2px 8px;
-  border-radius: 0 0 8px 0;
-  max-width: 85%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.7;
-  z-index: 1;
-}
-
-.habit-card.completed .hc-cue-badge {
-  background: #16a34a;
-}
-
-/* ── Card action buttons (edit / delete) ── */
+/* ── Mobile-friendly action buttons ── */
 .hc-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   flex-shrink: 0;
   border-left: 1px solid #e2e8f0;
   padding-left: 8px;
-  margin-left: 4px;
+  margin-left: 6px;
 }
 
 .hc-action-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
   border: none;
   background: transparent;
   border-radius: 8px;
-  font-size: 15px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.12s ease;
+  transition: background 0.12s ease, transform 0.1s ease;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
 }
 
 .hc-action-btn:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
 .hc-action-btn.edit:active  { background: #eef2ff; }
 .hc-action-btn.delete:active { background: #fef2f2; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE TYPOGRAPHY WITH CONTAINER QUERIES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Scale down text on smaller cards */
+@container habit-card (max-width: 300px) {
+  .trigger-text {
+    font-size: 13px;
+  }
+  
+  .habit-action-name {
+    font-size: 15px;
+  }
+  
+  .habit-identity-text {
+    font-size: 12px;
+  }
+  
+  .context-time,
+  .context-location {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+}
+
+/* Scale up text on larger cards */
+@container habit-card (min-width: 400px) {
+  .trigger-text {
+    font-size: 16px;
+  }
+  
+  .habit-action-name {
+    font-size: 18px;
+  }
+  
+  .habit-identity-text {
+    font-size: 14px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOADING SKELETON STATES
+   ═══════════════════════════════════════════════════════════════ */
+
+.habit-card-skeleton {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 2px solid #f1f5f9;
+  min-height: 140px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.skeleton-identity,
+.skeleton-trigger,
+.skeleton-action,
+.skeleton-context,
+.skeleton-details {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  position: relative;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-identity {
+  flex: 0 0 15%;
+  min-height: 28px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.skeleton-trigger {
+  flex: 0 0 25%;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.skeleton-action {
+  flex: 0 0 25%;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.skeleton-context {
+  flex: 0 0 10%;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.skeleton-details {
+  flex: 0 0 25%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #fafbfc;
+}
+
+.skeleton-checkbox {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-streak {
+  width: 60px;
+  height: 32px;
+  border-radius: 24px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   IMPROVED COLOR CONTRAST (WCAG AA COMPLIANT)
+   ═══════════════════════════════════════════════════════════════ */
+
+.habit-action-name {
+  color: #1e293b;
+}
+
+.trigger-text {
+  color: #92400e;
+}
+
+.habit-identity-text {
+  color: #6366f1;
+}
+
+.context-time,
+.context-location {
+  color: #64748b;
+}
+
+.habit-card.completed .habit-action-name {
+  color: #64748b;
+}
+
+.habit-card.completed .trigger-text {
+  color: #065f46;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACCESSIBILITY ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Ensure focus states are visible for keyboard navigation */
+.habit-check:focus-visible {
+  outline: 3px solid #10b981;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.2);
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .habit-card,
+  .habit-check,
+  .check-mark,
+  .habit-card-skeleton,
+  .skeleton-identity,
+  .skeleton-trigger,
+  .skeleton-action,
+  .skeleton-details {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  .habit-check:hover {
+    transform: none;
+  }
+  
+  .habit-check:active {
+    transform: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .habit-card {
+    border-width: 3px;
+    border-color: #000;
+  }
+  
+  .habit-check {
+    border-width: 3px;
+  }
+  
+  .trigger-text,
+  .habit-action-name,
+  .habit-identity-text {
+    font-weight: 900;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRINT STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+@media print {
+  .habit-check {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .habit-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  .habit-fab,
+  .habit-date-nav,
+  .habit-tabs {
+    display: none;
+  }
+}
