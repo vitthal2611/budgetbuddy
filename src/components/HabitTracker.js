@@ -63,6 +63,7 @@ const HabitTracker = () => {
   const [activeTab, setActiveTab] = useState('today'); // Default to 'today' when Habits is opened
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
   const [viewDate, setViewDate] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -585,7 +586,18 @@ const HabitTracker = () => {
   const missedYesterday = (habitId) => {
     const habit = data.habits.find(h => h.id === habitId);
     if (!habit || habit.frequency !== 'daily') return false;
-    
+
+    // Only relevant if habit existed yesterday
+    if (habit.createdAt) {
+      const [cy, cm, cd] = habit.createdAt.split('-').map(Number);
+      const created = new Date(cy, cm - 1, cd);
+      created.setHours(0, 0, 0, 0);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      if (created > yesterday) return false; // created today, no yesterday to miss
+    }
+
     const yesterday = getYesterdayString();
     return !data.completions[yesterday]?.includes(habitId);
   };
@@ -990,7 +1002,16 @@ const HabitTracker = () => {
     return <div className="habit-loading">Loading habits...</div>;
   }
 
-  const todayHabits = sortHabitsForToday(data.habits);
+  // Only show habits that existed on viewDate (created on or before viewDate)
+  const habitsForView = data.habits.filter(habit => {
+    if (!habit.createdAt) return true;
+    const [cy, cm, cd] = habit.createdAt.split('-').map(Number);
+    const created = new Date(cy, cm - 1, cd);
+    created.setHours(0, 0, 0, 0);
+    return created <= viewDate;
+  });
+
+  const todayHabits = sortHabitsForToday(habitsForView);
   
   // Separate incomplete and completed habits
   const incompleteHabits = todayHabits.filter(h => !isCompletedToday(h.id));
@@ -1147,25 +1168,6 @@ const HabitTracker = () => {
                   role="button"
                   tabIndex={0}
                 >
-                  {/* Header: Identity + Streak */}
-                  {!isEditing && habit.identity?.trim() && (
-                    <div className="habit-card-header">
-                      <div className="habit-identity-header">
-                        <span>{habit.identityIcon || '💭'}</span>
-                        <span>{habit.identity.trim()}</span>
-                      </div>
-                      <div className={`habit-streak-pill ${
-                        streak >= 100 ? 'streak-legendary' : 
-                        streak >= 50 ? 'streak-epic' : 
-                        streak >= 30 ? 'streak-great' : 
-                        streak >= 7 ? 'streak-good' : 
-                        'streak-normal'
-                      }`}>
-                        {streak >= 100 ? '👑' : streak >= 50 ? '💎' : streak >= 30 ? '⭐' : '🔥'} {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
-                      </div>
-                    </div>
-                  )}
-
                   {isEditing ? (
                     /* Inline Edit Mode */
                     <div className="habit-inline-edit">
@@ -1391,86 +1393,52 @@ const HabitTracker = () => {
                     </div>
                   ) : (
                     <>
-                      {/* Body: Content only */}
-                      <div className="habit-card-body">
-                        <div 
-                          className="habit-card-content"
-                          onDoubleClick={() => startInlineEdit(habit)}
-                          style={{ cursor: 'text' }}
-                        >
-                          {/* Trigger + Action in single row */}
-                          <div className="habit-main-row">
-                            {(() => {
-                              let trigger = '';
-                              let triggerIcon = '';
-                              
-                              if (habit.customTrigger?.trim()) {
-                                trigger = habit.customTrigger.trim();
-                                triggerIcon = '⚡';
-                              } else if (habit.time) {
-                                trigger = habit.time;
-                                triggerIcon = '⏰';
-                              } else if (habit.location) {
-                                trigger = habit.location;
-                                triggerIcon = '📍';
-                              }
-                              
-                              return trigger ? (
-                                <div className="habit-trigger-badge">
-                                  <span>{triggerIcon}</span>
-                                  <span>{trigger}</span>
-                                </div>
-                              ) : null;
-                            })()}
-                            
-                            <div className="habit-action-text">{habit.name}</div>
-                          </div>
+                      {/* Cue badge — top-left, single line with · separator */}
+                      {(() => {
+                        const trigger = habit.customTrigger?.trim()
+                          || (habit.stackAfter
+                            ? `After ${data.habits.find(h => h.id === habit.stackAfter)?.name || ''}`
+                            : null);
+                        const place = (habit.time && habit.location)
+                          ? `${habit.time} · ${habit.location}`
+                          : habit.time || habit.location || null;
+                        const parts = [place, trigger].filter(Boolean);
+                        if (!parts.length) return null;
+                        return (
+                          <div className="hc-cue-badge">{parts.join(' · ')}</div>
+                        );
+                      })()}
 
-                          {/* Implementation */}
-                          {(() => {
-                            const implIntention = getImplementationIntention(habit);
-                            return implIntention ? (
-                              <div className="habit-implementation">{implIntention}</div>
-                            ) : null;
-                          })()}
-
-                          {/* Alerts */}
-                          {!completed && missed && (
-                            <div className="habit-alert missed">
-                              <span>⚠️</span>
-                              <span>Don't miss twice!</span>
-                            </div>
-                          )}
-                          {completed && habit.reward && (
-                            <div className="habit-alert reward">
-                              <span>🎉</span>
-                              <span>{habit.reward}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Footer: Badges + Check */}
-                      <div className="habit-card-footer">
-                        <div className="habit-badges-row">
-                          <div className="habit-badge habit-badge-frequency">
-                            {habit.frequency === 'daily' ? 'DAILY' : habit.frequency === 'weekly' ? 'WEEKLY' : 'MONTHLY'}
-                          </div>
-                          <div className="habit-badge habit-badge-difficulty">
-                            {habit.difficulty === 'easy' ? '~2M' : habit.difficulty === 'medium' ? '~10M' : '30M+'}
-                          </div>
-                        </div>
-                        
-                        <div 
+                      {/* Single compact row: check · name · streak · actions */}
+                      <div className="hc-row">
+                        <div
                           className={`habit-check ${completed ? 'checked' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleHabit(habit.id);
-                          }}
+                          onClick={(e) => { e.stopPropagation(); toggleHabit(habit.id); }}
                           aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}
-                          style={{ cursor: 'pointer' }}
                         >
                           {completed && <span className="check-mark">✓</span>}
+                        </div>
+
+                        <div className="hc-body">
+                          <span className={`hc-name ${completed ? 'done' : ''}`}>{habit.name}</span>
+                          {!completed && missed && <span className="hc-alert">⚠️ Don't miss twice!</span>}
+                        </div>
+
+                        {streak > 0 && (
+                          <span className="hc-streak">🔥{streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}</span>
+                        )}
+
+                        <div className="hc-actions">
+                          <button
+                            className="hc-action-btn edit"
+                            onClick={(e) => { e.stopPropagation(); openEditModal(habit); }}
+                            aria-label="Edit habit"
+                          >✏️</button>
+                          <button
+                            className="hc-action-btn delete"
+                            onClick={(e) => { e.stopPropagation(); openDeleteModal(habit); }}
+                            aria-label="Delete habit"
+                          >🗑️</button>
                         </div>
                       </div>
                     </>
@@ -1497,25 +1465,6 @@ const HabitTracker = () => {
                       role="button"
                       tabIndex={0}
                     >
-                      {/* Header: Identity + Streak */}
-                      {!isEditing && habit.identity?.trim() && (
-                        <div className="habit-card-header">
-                          <div className="habit-identity-header">
-                            <span>{habit.identityIcon || '💭'}</span>
-                            <span>{habit.identity.trim()}</span>
-                          </div>
-                          <div className={`habit-streak-pill ${
-                            streak >= 100 ? 'streak-legendary' : 
-                            streak >= 50 ? 'streak-epic' : 
-                            streak >= 30 ? 'streak-great' : 
-                            streak >= 7 ? 'streak-good' : 
-                            'streak-normal'
-                          }`}>
-                            {streak >= 100 ? '👑' : streak >= 50 ? '💎' : streak >= 30 ? '⭐' : '🔥'} {streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}
-                          </div>
-                        </div>
-                      )}
-
                       {isEditing ? (
                         /* Inline Edit Mode */
                         <div className="habit-inline-edit" style={{ flex: 1 }}>
@@ -1741,91 +1690,51 @@ const HabitTracker = () => {
                         </div>
                       ) : (
                         <>
-                          {/* Body: Content only */}
-                          <div className="habit-card-body">
-                            <div 
-                              className="habit-card-content"
-                              onDoubleClick={() => startInlineEdit(habit)}
-                              style={{ cursor: 'text' }}
-                            >
-                              {/* Trigger + Action in single row */}
-                              <div className="habit-main-row">
-                                {(() => {
-                                  let trigger = '';
-                                  let triggerIcon = '';
-                                  
-                                  if (habit.customTrigger?.trim()) {
-                                    trigger = habit.customTrigger.trim();
-                                    triggerIcon = '⚡';
-                                  } else if (habit.time) {
-                                    trigger = habit.time;
-                                    triggerIcon = '⏰';
-                                  } else if (habit.location) {
-                                    trigger = habit.location;
-                                    triggerIcon = '📍';
-                                  }
-                                  
-                                  return trigger ? (
-                                    <div className="habit-trigger-badge">
-                                      <span>{triggerIcon}</span>
-                                      <span>{trigger}</span>
-                                    </div>
-                                  ) : null;
-                                })()}
-                                
-                                <div className="habit-action-text">{habit.name}</div>
-                              </div>
+                          {/* Cue badge — top-left, single line with · separator */}
+                          {(() => {
+                            const trigger = habit.customTrigger?.trim()
+                              || (habit.stackAfter
+                                ? `After ${data.habits.find(h => h.id === habit.stackAfter)?.name || ''}`
+                                : null);
+                            const place = (habit.time && habit.location)
+                              ? `${habit.time} · ${habit.location}`
+                              : habit.time || habit.location || null;
+                            const parts = [place, trigger].filter(Boolean);
+                            if (!parts.length) return null;
+                            return (
+                              <div className="hc-cue-badge">{parts.join(' · ')}</div>
+                            );
+                          })()}
 
-                              {/* Implementation */}
-                              {(() => {
-                                const implIntention = getImplementationIntention(habit);
-                                return implIntention ? (
-                                  <div className="habit-implementation">{implIntention}</div>
-                                ) : null;
-                              })()}
-
-                              {/* Alerts */}
-                              {!completed && missed && (
-                                <div className="habit-alert missed">
-                                  <span>⚠️</span>
-                                  <span>Don't miss twice!</span>
-                                </div>
-                              )}
-                              {completed && habit.reward && (
-                                <div className="habit-alert reward">
-                                  <span>🎉</span>
-                                  <span>{habit.reward}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Footer: Badges + Check */}
-                          <div className="habit-card-footer">
-                            <div className="habit-badges-row">
-                              <div className="habit-badge habit-badge-frequency">
-                                {habit.frequency === 'daily' ? 'DAILY' : habit.frequency === 'weekly' ? 'WEEKLY' : 'MONTHLY'}
-                              </div>
-                              <div className="habit-badge habit-badge-difficulty">
-                                {habit.difficulty === 'easy' ? '~2M' : habit.difficulty === 'medium' ? '~10M' : '30M+'}
-                              </div>
-                            </div>
-                            {completionTimes[`${habit.id}-${viewDateStr}`] && (
-                              <div className="habit-badge habit-badge-time">
-                                ✓ {completionTimes[`${habit.id}-${viewDateStr}`]}
-                              </div>
-                            )}
-                            
-                            <div 
+                          {/* Single compact row */}
+                          <div className="hc-row">
+                            <div
                               className={`habit-check ${completed ? 'checked' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleHabit(habit.id);
-                              }}
+                              onClick={(e) => { e.stopPropagation(); toggleHabit(habit.id); }}
                               aria-label={`${completed ? 'Completed' : 'Not completed'}: ${habit.name}`}
-                              style={{ cursor: 'pointer' }}
                             >
                               {completed && <span className="check-mark">✓</span>}
+                            </div>
+
+                            <div className="hc-body">
+                              <span className={`hc-name ${completed ? 'done' : ''}`}>{habit.name}</span>
+                            </div>
+
+                            {streak > 0 && (
+                              <span className="hc-streak">🔥{streak}{habit.frequency === 'daily' ? 'd' : habit.frequency === 'weekly' ? 'w' : 'm'}</span>
+                            )}
+
+                            <div className="hc-actions">
+                              <button
+                                className="hc-action-btn edit"
+                                onClick={(e) => { e.stopPropagation(); openEditModal(habit); }}
+                                aria-label="Edit habit"
+                              >✏️</button>
+                              <button
+                                className="hc-action-btn delete"
+                                onClick={(e) => { e.stopPropagation(); openDeleteModal(habit); }}
+                                aria-label="Delete habit"
+                              >🗑️</button>
                             </div>
                           </div>
                         </>
