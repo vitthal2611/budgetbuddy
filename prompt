@@ -67,5 +67,17 @@ Ensure → Consistency
 
 11. Always keep in mind user have better experince from this application
 
+12. Alwyas remove dead code or unnecessary code, Keep minimal working code
+
+13. alywas refactore code if you found need to refactor
+
+14. Keep the code minimal in single class of file
+
 ==================================================
-How we can manage Envelopes views in better way , better design
+
+I wnat mobile app which track habit like below
+
+
+Trigger           Action                                                Result           Fri 1 May      Sat 2 May 
+
+After Wakeup      I will drink half glass of water at 6am in bedroom     5 Streak           []            []
