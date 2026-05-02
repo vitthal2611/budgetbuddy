@@ -30,6 +30,8 @@ const HabitTracker = () => {
   const [review, setReview] = useState('');
   
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [activeTab, setActiveTab] = useState('today');
+  const [todayOffset, setTodayOffset] = useState(0);
 
   const getWeek = (offset) => {
     const today = new Date();
@@ -51,6 +53,15 @@ const HabitTracker = () => {
   const currentWeek = getWeek(weekOffset);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  
+  const getTodayDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + todayOffset);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  };
+  
+  const currentTodayDate = getTodayDate();
 
   useEffect(() => {
     const unsubscribe = habitService.subscribeToHabits((habitData) => {
@@ -548,6 +559,70 @@ const HabitTracker = () => {
     setOpenMenuId(openMenuId === habitId ? null : habitId);
   };
 
+  const goToPreviousDay = () => setTodayOffset(prev => prev - 1);
+  const goToNextDay = () => setTodayOffset(prev => prev + 1);
+  const goToToday = () => setTodayOffset(0);
+  const isToday = todayOffset === 0;
+
+  const getTodayLabel = () => {
+    if (todayOffset === 0) return 'Today';
+    if (todayOffset === -1) return 'Yesterday';
+    if (todayOffset === 1) return 'Tomorrow';
+    
+    const date = currentTodayDate;
+    return date.toLocaleDateString('default', { month: 'short', day: 'numeric' });
+  };
+
+  const getIncompleteTodayHabits = () => {
+    return getSortedHabits().filter(habit => {
+      // Check if habit has started
+      if (!habit.startDate) return false;
+      
+      const [year, month, day] = habit.startDate.split('-').map(Number);
+      const startDate = new Date(year, month - 1, day);
+      startDate.setHours(0, 0, 0, 0);
+      
+      // Only show if habit has started by current viewing date
+      if (startDate > currentTodayDate) return false;
+      
+      // Check if not completed today
+      return !isCompleted(habit.id, currentTodayDate);
+    });
+  };
+
+  const getTodayInsights = () => {
+    const allHabits = getSortedHabits().filter(habit => {
+      if (!habit.startDate) return false;
+      const [year, month, day] = habit.startDate.split('-').map(Number);
+      const startDate = new Date(year, month - 1, day);
+      startDate.setHours(0, 0, 0, 0);
+      return startDate <= currentTodayDate;
+    });
+
+    const totalHabits = allHabits.length;
+    const completedHabits = allHabits.filter(h => isCompleted(h.id, currentTodayDate)).length;
+    const remainingHabits = totalHabits - completedHabits;
+    const completionRate = totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : 0;
+
+    // Calculate current streaks
+    const activeStreaks = allHabits.filter(h => getCurrentStreak(h.id) > 0).length;
+    
+    // Find longest streak today
+    const longestStreak = allHabits.reduce((max, h) => {
+      const streak = getCurrentStreak(h.id);
+      return streak > max ? streak : max;
+    }, 0);
+
+    return {
+      totalHabits,
+      completedHabits,
+      remainingHabits,
+      completionRate,
+      activeStreaks,
+      longestStreak
+    };
+  };
+
   const handleSaveReview = async () => {
     if (!reviewingHabit) return;
 
@@ -600,6 +675,8 @@ const HabitTracker = () => {
 
   const sortedHabits = getSortedHabits();
   const insights = getOverallInsights();
+  const incompleteTodayHabits = getIncompleteTodayHabits();
+  const todayInsights = getTodayInsights();
 
   return (
     <div className="habit-tracker">
@@ -610,43 +687,154 @@ const HabitTracker = () => {
         </button>
       </div>
 
-      <div className="habit-week-nav">
-        <button className="habit-week-arrow" onClick={goToPreviousWeek}>‹</button>
-        <div className="habit-week-label">
-          <span>{getWeekLabel()}</span>
-          {!isCurrentWeek && (
-            <button className="habit-today-btn" onClick={goToCurrentWeek}>Today</button>
-          )}
-        </div>
-        <button className="habit-week-arrow" onClick={goToNextWeek}>›</button>
+      <div className="habit-tabs">
+        <button 
+          className={`habit-tab ${activeTab === 'today' ? 'active' : ''}`}
+          onClick={() => setActiveTab('today')}
+        >
+          Today
+        </button>
+        <button 
+          className={`habit-tab ${activeTab === 'week' ? 'active' : ''}`}
+          onClick={() => setActiveTab('week')}
+        >
+          Week
+        </button>
       </div>
 
-      {insights && (
-        <div className="habit-insights-card">
-          <div className="habit-insights-row">
-            <div className="habit-insight-item">
-              <span className="habit-insight-label">Total Habits</span>
-              <span className="habit-insight-value">{insights.totalHabits}</span>
+      {activeTab === 'today' ? (
+        <>
+          <div className="habit-week-nav">
+            <button className="habit-week-arrow" onClick={goToPreviousDay}>‹</button>
+            <div className="habit-week-label">
+              <span>{getTodayLabel()}</span>
+              {!isToday && (
+                <button className="habit-today-btn" onClick={goToToday}>Today</button>
+              )}
             </div>
-            <div className="habit-insight-item">
-              <span className="habit-insight-label">Completion Rate</span>
-              <span className="habit-insight-value">{insights.overallRate}%</span>
-            </div>
+            <button className="habit-week-arrow" onClick={goToNextDay}>›</button>
           </div>
-          <div className="habit-insights-row">
-            <div className="habit-insight-item">
-              <span className="habit-insight-label">Most Consistent</span>
-              <span className="habit-insight-value-small">{insights.mostConsistent}</span>
-            </div>
-            <div className="habit-insight-item">
-              <span className="habit-insight-label">At Risk</span>
-              <span className="habit-insight-value-small">{insights.atRisk.join(', ')}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
-      <div className="habit-list">
+          <div className="habit-today-insights">
+            <div className="habit-today-progress-circle">
+              <svg viewBox="0 0 120 120" className="progress-ring">
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#e0e0e0"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="54"
+                  fill="none"
+                  stroke="#4CAF50"
+                  strokeWidth="8"
+                  strokeDasharray={`${2 * Math.PI * 54}`}
+                  strokeDashoffset={`${2 * Math.PI * 54 * (1 - todayInsights.completionRate / 100)}`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 60 60)"
+                />
+              </svg>
+              <div className="progress-text">
+                <div className="progress-percentage">{todayInsights.completionRate}%</div>
+                <div className="progress-label">Complete</div>
+              </div>
+            </div>
+            
+            <div className="habit-today-stats">
+              <div className="habit-today-stat">
+                <div className="stat-icon">✅</div>
+                <div className="stat-content">
+                  <div className="stat-value">{todayInsights.completedHabits}/{todayInsights.totalHabits}</div>
+                  <div className="stat-label">Completed</div>
+                </div>
+              </div>
+              <div className="habit-today-stat">
+                <div className="stat-icon">🔥</div>
+                <div className="stat-content">
+                  <div className="stat-value">{todayInsights.activeStreaks}</div>
+                  <div className="stat-label">Active Streaks</div>
+                </div>
+              </div>
+              <div className="habit-today-stat">
+                <div className="stat-icon">🏆</div>
+                <div className="stat-content">
+                  <div className="stat-value">{todayInsights.longestStreak}</div>
+                  <div className="stat-label">Best Streak</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="habit-list">
+            {incompleteTodayHabits.length === 0 ? (
+              <div className="habit-empty">
+                <p>🎉 All habits completed for {getTodayLabel().toLowerCase()}!</p>
+              </div>
+            ) : (
+              incompleteTodayHabits.map(habit => (
+                <div key={habit.id} className="habit-today-card">
+                  <div className="habit-today-content">
+                    <span className="habit-today-time">{habit.time}</span>
+                    <span className="habit-today-identity">{habit.identity}</span>
+                  </div>
+                  <label className="habit-checkbox-wrapper">
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={() => toggleCompletion(habit.id, currentTodayDate)}
+                      className="habit-checkbox-input"
+                    />
+                    <span className="habit-checkbox-custom"></span>
+                  </label>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="habit-week-nav">
+            <button className="habit-week-arrow" onClick={goToPreviousWeek}>‹</button>
+            <div className="habit-week-label">
+              <span>{getWeekLabel()}</span>
+              {!isCurrentWeek && (
+                <button className="habit-today-btn" onClick={goToCurrentWeek}>Today</button>
+              )}
+            </div>
+            <button className="habit-week-arrow" onClick={goToNextWeek}>›</button>
+          </div>
+
+          {insights && (
+            <div className="habit-insights-card">
+              <div className="habit-insights-row">
+                <div className="habit-insight-item">
+                  <span className="habit-insight-label">Total Habits</span>
+                  <span className="habit-insight-value">{insights.totalHabits}</span>
+                </div>
+                <div className="habit-insight-item">
+                  <span className="habit-insight-label">Completion Rate</span>
+                  <span className="habit-insight-value">{insights.overallRate}%</span>
+                </div>
+              </div>
+              <div className="habit-insights-row">
+                <div className="habit-insight-item">
+                  <span className="habit-insight-label">Most Consistent</span>
+                  <span className="habit-insight-value-small">{insights.mostConsistent}</span>
+                </div>
+                <div className="habit-insight-item">
+                  <span className="habit-insight-label">At Risk</span>
+                  <span className="habit-insight-value-small">{insights.atRisk.join(', ')}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="habit-list">
         {sortedHabits.length === 0 ? (
           <div className="habit-empty">
             <p>No habits yet. Tap "+ Add" to start tracking!</p>
@@ -671,56 +859,68 @@ const HabitTracker = () => {
                 </div>
               )}
               
+              <div className="habit-streak-header">
+                <div className="habit-streak-badge">
+                  🔥 {getCurrentStreak(habit.id)} Day Streak
+                </div>
+              </div>
+              
               <div className="habit-info">
                 <div className="habit-row">
-                  <span className="habit-label">Identity</span>
+                  <span className="habit-icon">🎯</span>
                   <span className="habit-value identity-value">{habit.identity}</span>
                 </div>
                 <div className="habit-row">
+                  <span className="habit-icon">⚡</span>
                   <span className="habit-label">Trigger</span>
                   <span className="habit-value">{habit.trigger}</span>
                 </div>
                 <div className="habit-row">
+                  <span className="habit-icon">✅</span>
                   <span className="habit-label">Action</span>
                   <span className="habit-value">{habit.action}</span>
                 </div>
                 {habit.twoMinVersion && (
                   <div className="habit-row">
+                    <span className="habit-icon">⏱️</span>
                     <span className="habit-label">2-Min Start</span>
                     <span className="habit-value">{habit.twoMinVersion}</span>
                   </div>
                 )}
                 <div className="habit-row">
+                  <span className="habit-icon">📍</span>
                   <span className="habit-label">Time & Place</span>
                   <span className="habit-value">{habit.time} at {habit.location}</span>
                 </div>
                 {habit.makeObvious && (
                   <div className="habit-row">
+                    <span className="habit-icon">👁️</span>
                     <span className="habit-label">Make Obvious</span>
                     <span className="habit-value">{habit.makeObvious}</span>
                   </div>
                 )}
                 {habit.reward && (
                   <div className="habit-row">
+                    <span className="habit-icon">🎁</span>
                     <span className="habit-label">Reward</span>
                     <span className="habit-value">{habit.reward}</span>
                   </div>
                 )}
               </div>
 
+              <div className="habit-progress-section">
+                <div className="habit-progress-bar-container">
+                  <div 
+                    className="habit-progress-bar" 
+                    style={{ width: `${getWeekPercentage(habit.id)}%` }}
+                  ></div>
+                </div>
+                <div className="habit-progress-text">
+                  {getWeekCompletions(habit.id)}/7 this week ({getWeekPercentage(habit.id)}%)
+                </div>
+              </div>
+
               <div className="habit-stats">
-                <div className="habit-stat">
-                  <span className="habit-stat-label">Streak</span>
-                  <span className="habit-stat-value">{getCurrentStreak(habit.id)}</span>
-                </div>
-                <div className="habit-stat">
-                  <span className="habit-stat-label">This Week</span>
-                  <span className="habit-stat-value">{getWeekCompletions(habit.id)}/7</span>
-                </div>
-                <div className="habit-stat">
-                  <span className="habit-stat-label">Rate</span>
-                  <span className="habit-stat-value">{getWeekPercentage(habit.id)}%</span>
-                </div>
                 <div className="habit-stat">
                   <span className="habit-stat-label">Best</span>
                   <span className="habit-stat-value">{getBestStreak(habit.id)}</span>
@@ -768,7 +968,9 @@ const HabitTracker = () => {
             </div>
           ))
         )}
-      </div>
+          </div>
+        </>
+      )}
 
       {showAddModal && (
         <div className="habit-modal-overlay" onClick={() => setShowAddModal(false)}>
