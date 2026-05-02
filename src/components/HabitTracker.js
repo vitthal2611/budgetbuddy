@@ -703,7 +703,7 @@ const HabitTracker = () => {
       </div>
 
       {activeTab === 'today' ? (
-        <>
+        <div className="habit-today-view">
           <div className="habit-week-nav">
             <button className="habit-week-arrow" onClick={goToPreviousDay}>‹</button>
             <div className="habit-week-label">
@@ -717,26 +717,26 @@ const HabitTracker = () => {
 
           <div className="habit-today-insights">
             <div className="habit-today-progress-circle">
-              <svg viewBox="0 0 120 120" className="progress-ring">
+              <svg viewBox="0 0 100 100" className="progress-ring">
                 <circle
-                  cx="60"
-                  cy="60"
-                  r="54"
+                  cx="50"
+                  cy="50"
+                  r="45"
                   fill="none"
                   stroke="#e0e0e0"
-                  strokeWidth="8"
+                  strokeWidth="6"
                 />
                 <circle
-                  cx="60"
-                  cy="60"
-                  r="54"
+                  cx="50"
+                  cy="50"
+                  r="45"
                   fill="none"
                   stroke="#4CAF50"
-                  strokeWidth="8"
-                  strokeDasharray={`${2 * Math.PI * 54}`}
-                  strokeDashoffset={`${2 * Math.PI * 54 * (1 - todayInsights.completionRate / 100)}`}
+                  strokeWidth="6"
+                  strokeDasharray={`${2 * Math.PI * 45}`}
+                  strokeDashoffset={`${2 * Math.PI * 45 * (1 - todayInsights.completionRate / 100)}`}
                   strokeLinecap="round"
-                  transform="rotate(-90 60 60)"
+                  transform="rotate(-90 50 50)"
                 />
               </svg>
               <div className="progress-text">
@@ -795,7 +795,7 @@ const HabitTracker = () => {
               ))
             )}
           </div>
-        </>
+        </div>
       ) : (
         <>
           <div className="habit-week-nav">
@@ -1287,10 +1287,6 @@ const HabitTracker = () => {
                   required
                 />
               </div>
-            </div>
-            <div className="habit-modal-actions">
-              <button className="habit-modal-cancel" onClick={() => setShowEditModal(false)}>Cancel</button>
-              <button className="habit-modal-save" onClick={handleEditHabit}>Save Changes</button>
             </div>
             <div className="habit-modal-actions">
               <button className="habit-modal-cancel" onClick={() => setShowEditModal(false)}>Cancel</button>
