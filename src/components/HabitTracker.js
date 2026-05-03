@@ -721,20 +721,20 @@ const HabitTracker = () => {
                 <circle
                   cx="50"
                   cy="50"
-                  r="45"
+                  r="42"
                   fill="none"
                   stroke="#e0e0e0"
-                  strokeWidth="6"
+                  strokeWidth="8"
                 />
                 <circle
                   cx="50"
                   cy="50"
-                  r="45"
+                  r="42"
                   fill="none"
                   stroke="#4CAF50"
-                  strokeWidth="6"
-                  strokeDasharray={`${2 * Math.PI * 45}`}
-                  strokeDashoffset={`${2 * Math.PI * 45 * (1 - todayInsights.completionRate / 100)}`}
+                  strokeWidth="8"
+                  strokeDasharray={`${2 * Math.PI * 42}`}
+                  strokeDashoffset={`${2 * Math.PI * 42 * (1 - todayInsights.completionRate / 100)}`}
                   strokeLinecap="round"
                   transform="rotate(-90 50 50)"
                 />
