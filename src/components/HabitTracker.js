@@ -32,6 +32,38 @@ const HabitTracker = () => {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [activeTab, setActiveTab] = useState('today');
   const [todayOffset, setTodayOffset] = useState(0);
+  const [dailyQuote, setDailyQuote] = useState('');
+
+  // Motivational quotes inspired by Atomic Habits principles
+  const motivationalQuotes = [
+    "Small changes create remarkable results",
+    "You don't rise to your goals, you fall to your systems",
+    "Every action is a vote for the person you want to become",
+    "Focus on getting 1% better every day",
+    "The most effective way to change is to change your identity",
+    "Make it obvious. Make it attractive. Make it easy. Make it satisfying.",
+    "Habits are the compound interest of self-improvement",
+    "You do not rise to the level of your goals, you fall to the level of your systems",
+    "Success is the product of daily habits, not once-in-a-lifetime transformations",
+    "The purpose of setting goals is to win the game. The purpose of building systems is to continue playing the game",
+    "Your outcomes are a lagging measure of your habits",
+    "Time magnifies the margin between success and failure",
+    "The most powerful outcomes are delayed",
+    "Be patient. Stick with it. Results will come",
+    "Fall in love with the process rather than the product",
+    "The secret to getting results is to never stop making improvements",
+    "Standardize before you optimize",
+    "Environment is the invisible hand that shapes behavior",
+    "Motivation is overrated. Environment often matters more",
+    "Make the cues of good habits obvious in your environment"
+  ];
+
+  useEffect(() => {
+    // Select a quote based on the day of the year for consistency
+    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    const quoteIndex = dayOfYear % motivationalQuotes.length;
+    setDailyQuote(motivationalQuotes[quoteIndex]);
+  }, []);
 
   const getWeek = (offset) => {
     const today = new Date();
@@ -1320,6 +1352,11 @@ const HabitTracker = () => {
           </div>
         </div>
       )}
+      
+      <div className="habit-footer">
+        <div className="habit-quote-icon">💡</div>
+        <div className="habit-quote-text">{dailyQuote}</div>
+      </div>
     </div>
   );
 };
