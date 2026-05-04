@@ -622,6 +622,23 @@ const HabitTracker = () => {
     });
   };
 
+  const getCompletedTodayHabits = () => {
+    return getSortedHabits().filter(habit => {
+      // Check if habit has started
+      if (!habit.startDate) return false;
+      
+      const [year, month, day] = habit.startDate.split('-').map(Number);
+      const startDate = new Date(year, month - 1, day);
+      startDate.setHours(0, 0, 0, 0);
+      
+      // Only show if habit has started by current viewing date
+      if (startDate > currentTodayDate) return false;
+      
+      // Check if completed today
+      return isCompleted(habit.id, currentTodayDate);
+    });
+  };
+
   const getTodayInsights = () => {
     const allHabits = getSortedHabits().filter(habit => {
       if (!habit.startDate) return false;
@@ -708,6 +725,7 @@ const HabitTracker = () => {
   const sortedHabits = getSortedHabits();
   const insights = getOverallInsights();
   const incompleteTodayHabits = getIncompleteTodayHabits();
+  const completedTodayHabits = getCompletedTodayHabits();
   const todayInsights = getTodayInsights();
 
   return (
@@ -803,28 +821,78 @@ const HabitTracker = () => {
           </div>
 
           <div className="habit-list">
-            {incompleteTodayHabits.length === 0 ? (
+            {incompleteTodayHabits.length === 0 && completedTodayHabits.length === 0 ? (
               <div className="habit-empty">
-                <p>🎉 All habits completed for {getTodayLabel().toLowerCase()}!</p>
+                <p>No habits scheduled for {getTodayLabel().toLowerCase()}!</p>
               </div>
             ) : (
-              incompleteTodayHabits.map(habit => (
-                <div key={habit.id} className="habit-today-card">
-                  <div className="habit-today-content">
-                    <span className="habit-today-time">{habit.time}</span>
-                    <span className="habit-today-identity">{habit.identity}</span>
+              <>
+                {/* Incomplete Habits */}
+                {incompleteTodayHabits.length > 0 && (
+                  <>
+                    {incompleteTodayHabits.map(habit => (
+                      <div key={habit.id} className="habit-today-card">
+                        <label className="habit-checkbox-wrapper">
+                          <input
+                            type="checkbox"
+                            checked={false}
+                            onChange={() => toggleCompletion(habit.id, currentTodayDate)}
+                            className="habit-checkbox-input"
+                          />
+                          <span className="habit-checkbox-custom"></span>
+                        </label>
+                        <div className="habit-today-content">
+                          <span className="habit-today-time">{habit.time}</span>
+                          <span className="habit-today-identity">{habit.identity}</span>
+                        </div>
+                        <div className="habit-today-streak">
+                          <span className="habit-today-streak-icon">🔥</span>
+                          <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Completed Habits */}
+                {completedTodayHabits.length > 0 && (
+                  <>
+                    {incompleteTodayHabits.length > 0 && (
+                      <div className="habit-section-divider">
+                        <span className="habit-section-label">Completed ({completedTodayHabits.length})</span>
+                      </div>
+                    )}
+                    {completedTodayHabits.map(habit => (
+                      <div key={habit.id} className="habit-today-card habit-today-card-completed">
+                        <label className="habit-checkbox-wrapper">
+                          <input
+                            type="checkbox"
+                            checked={true}
+                            onChange={() => toggleCompletion(habit.id, currentTodayDate)}
+                            className="habit-checkbox-input"
+                          />
+                          <span className="habit-checkbox-custom"></span>
+                        </label>
+                        <div className="habit-today-content">
+                          <span className="habit-today-time">{habit.time}</span>
+                          <span className="habit-today-identity">{habit.identity}</span>
+                        </div>
+                        <div className="habit-today-streak">
+                          <span className="habit-today-streak-icon">🔥</span>
+                          <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* All Complete Message */}
+                {incompleteTodayHabits.length === 0 && completedTodayHabits.length > 0 && (
+                  <div className="habit-all-complete">
+                    <p>🎉 All habits completed for {getTodayLabel().toLowerCase()}!</p>
                   </div>
-                  <label className="habit-checkbox-wrapper">
-                    <input
-                      type="checkbox"
-                      checked={false}
-                      onChange={() => toggleCompletion(habit.id, currentTodayDate)}
-                      className="habit-checkbox-input"
-                    />
-                    <span className="habit-checkbox-custom"></span>
-                  </label>
-                </div>
-              ))
+                )}
+              </>
             )}
           </div>
         </div>

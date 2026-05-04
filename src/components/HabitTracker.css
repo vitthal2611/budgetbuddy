@@ -322,6 +322,85 @@
   margin: 0;
 }
 
+/* All Complete Message */
+.habit-all-complete {
+  text-align: center;
+  padding: 20px;
+  margin-top: 20px;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(102, 187, 106, 0.1) 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.habit-all-complete p {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary, #4CAF50);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Section Divider */
+.habit-section-divider {
+  display: flex;
+  align-items: center;
+  margin: 24px 0 16px 0;
+  position: relative;
+}
+
+.habit-section-divider::before {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-light, #e0e0e0);
+  margin-right: 12px;
+}
+
+.habit-section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-light, #e0e0e0);
+  margin-left: 12px;
+}
+
+.habit-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* Completed Habit Card */
+.habit-today-card-completed {
+  opacity: 0.7;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+}
+
+.habit-today-card-completed::before {
+  background: linear-gradient(180deg, #9E9E9E 0%, #BDBDBD 100%);
+}
+
+.habit-today-card-completed .habit-today-identity {
+  text-decoration: line-through;
+  color: var(--text-secondary, #666);
+}
+
+.habit-today-card-completed .habit-today-time {
+  color: var(--text-secondary, #666);
+  background: rgba(158, 158, 158, 0.1);
+}
+
+.habit-today-card-completed .habit-today-streak {
+  background: rgba(158, 158, 158, 0.1);
+}
+
+.habit-today-card-completed .habit-today-streak-count {
+  color: var(--text-secondary, #666);
+}
+
 /* Habit List */
 .habit-list {
   padding: 16px;
@@ -344,7 +423,6 @@
   padding: 16px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: all 0.2s ease;
@@ -375,7 +453,6 @@
   gap: 6px;
   flex: 1;
   min-width: 0;
-  padding-left: 8px;
 }
 
 .habit-today-time {
@@ -406,7 +483,7 @@
 
 .habit-today-card .habit-checkbox-wrapper {
   flex-shrink: 0;
-  margin-left: auto;
+  margin-right: 4px;
 }
 
 .habit-today-card .habit-checkbox-custom {
@@ -434,6 +511,30 @@
   color: white;
   font-size: 16px;
   font-weight: bold;
+}
+
+.habit-today-streak {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.1) 0%, rgba(255, 142, 83, 0.1) 100%);
+  border-radius: 8px;
+  min-width: 50px;
+}
+
+.habit-today-streak-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.habit-today-streak-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: #FF6B6B;
+  line-height: 1;
 }
 
 /* Habit Card */
