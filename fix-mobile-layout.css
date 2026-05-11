@@ -1,0 +1,464 @@
+/* Fix Mobile Layout Issues - Replace existing mobile styles */
+
+/* Mobile-specific fixes for Today and Weekly views */
+@media (max-width: 480px) {
+  /* Fix Today's view card layout */
+  .habit-today-card {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 14px 12px;
+    gap: 10px;
+    min-height: auto;
+  }
+  
+  .habit-today-card .habit-checkbox-wrapper {
+    flex-shrink: 0;
+    margin-right: 0;
+    margin-top: 2px;
+  }
+  
+  .habit-today-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .habit-today-time {
+    font-size: 11px;
+    padding: 4px 8px;
+    width: fit-content;
+    max-width: 100%;
+  }
+  
+  .habit-today-action {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  .habit-today-identity-small {
+    font-size: 12px;
+    line-height: 1.3;
+    color: var(--text-secondary, #666);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .habit-today-streak {
+    flex-shrink: 0;
+    padding: 6px 8px;
+    min-width: 45px;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+  
+  .habit-today-streak-icon {
+    font-size: 16px;
+  }
+  
+  .habit-today-streak-count {
+    font-size: 13px;
+  }
+  
+  /* Fix Week view card layout */
+  .habit-card {
+    margin-bottom: 0;
+  }
+  
+  .habit-info {
+    padding: 12px;
+  }
+  
+  .habit-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  
+  .habit-row:last-child {
+    margin-bottom: 0;
+  }
+  
+  .habit-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    width: 20px;
+    margin-top: 2px;
+  }
+  
+  .habit-value {
+    font-size: 14px;
+    line-height: 1.5;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    flex: 1;
+  }
+  
+  .habit-value.identity-value {
+    font-size: 15px;
+  }
+  
+  .habit-combined-row {
+    padding: 10px;
+  }
+  
+  .habit-combined-row .habit-value {
+    font-size: 13px;
+  }
+  
+  /* Fix week horizontal view */
+  .habit-week-horizontal {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 8px;
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .habit-day-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    min-width: 40px;
+  }
+  
+  .habit-day-name {
+    font-size: 10px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  
+  .habit-day-date {
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  
+  .habit-checkbox-custom {
+    width: 24px;
+    height: 24px;
+  }
+  
+  /* Fix progress section */
+  .habit-progress-section {
+    padding: 10px 12px;
+    margin: 0 12px 10px 12px;
+  }
+  
+  .habit-progress-bar-container {
+    height: 6px;
+    margin-bottom: 6px;
+  }
+  
+  .habit-progress-text {
+    font-size: 12px;
+  }
+  
+  /* Fix stats section */
+  .habit-stats {
+    padding: 0 12px 10px 12px;
+    gap: 6px;
+  }
+  
+  .habit-stat {
+    padding: 8px 6px;
+  }
+  
+  .habit-stat-label {
+    font-size: 9px;
+  }
+  
+  .habit-stat-value {
+    font-size: 15px;
+  }
+  
+  /* Fix streak header */
+  .habit-streak-header {
+    padding: 10px 12px;
+  }
+  
+  .habit-streak-badge {
+    font-size: 16px;
+  }
+  
+  /* Fix insights card */
+  .habit-insights-card {
+    margin: 12px;
+    padding: 14px 12px;
+  }
+  
+  .habit-insights-row {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .habit-insights-row:last-child {
+    margin-bottom: 0;
+  }
+  
+  .habit-insight-label {
+    font-size: 10px;
+  }
+  
+  .habit-insight-value {
+    font-size: 20px;
+  }
+  
+  .habit-insight-value-small {
+    font-size: 13px;
+  }
+  
+  /* Fix today insights */
+  .habit-today-insights {
+    padding: 14px 12px;
+    margin: 10px 12px 0 12px;
+    gap: 10px;
+  }
+  
+  .habit-today-progress-circle {
+    width: 75px;
+    height: 75px;
+  }
+  
+  .progress-percentage {
+    font-size: 20px;
+  }
+  
+  .progress-label {
+    font-size: 9px;
+  }
+  
+  .habit-today-stats {
+    gap: 6px;
+  }
+  
+  .habit-today-stat {
+    padding: 8px 6px;
+    gap: 4px;
+  }
+  
+  .stat-icon {
+    font-size: 20px;
+  }
+  
+  .stat-value {
+    font-size: 15px;
+  }
+  
+  .stat-label {
+    font-size: 9px;
+  }
+  
+  /* Fix navigation */
+  .habit-week-nav {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  
+  .habit-week-arrow {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+  }
+  
+  .habit-week-label {
+    font-size: 15px;
+    gap: 3px;
+  }
+  
+  .habit-today-btn {
+    font-size: 12px;
+    padding: 5px 12px;
+  }
+  
+  /* Fix list container */
+  .habit-list {
+    padding: 12px;
+    gap: 12px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Fix empty state */
+  .habit-empty {
+    padding: 40px 16px;
+  }
+  
+  .habit-empty p {
+    font-size: 15px;
+  }
+  
+  /* Fix all complete message */
+  .habit-all-complete {
+    padding: 16px;
+    margin-top: 16px;
+  }
+  
+  .habit-all-complete p {
+    font-size: 15px;
+  }
+  
+  /* Fix section divider */
+  .habit-section-divider {
+    margin: 20px 0 14px 0;
+  }
+  
+  .habit-section-label {
+    font-size: 11px;
+  }
+  
+  /* Fix menu */
+  .habit-menu-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+    top: 8px;
+    right: 8px;
+  }
+  
+  .habit-menu-dropdown {
+    top: 40px;
+    right: 6px;
+    min-width: 130px;
+  }
+  
+  .habit-menu-item {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+}
+
+/* Extra small screens - more aggressive fixes */
+@media (max-width: 360px) {
+  .habit-today-card {
+    padding: 12px 10px;
+    gap: 8px;
+  }
+  
+  .habit-today-action {
+    font-size: 14px;
+  }
+  
+  .habit-today-identity-small {
+    font-size: 11px;
+  }
+  
+  .habit-today-time {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+  
+  .habit-today-streak {
+    padding: 5px 6px;
+    min-width: 40px;
+  }
+  
+  .habit-today-streak-icon {
+    font-size: 14px;
+  }
+  
+  .habit-today-streak-count {
+    font-size: 12px;
+  }
+  
+  .habit-card {
+    font-size: 13px;
+  }
+  
+  .habit-info {
+    padding: 10px;
+  }
+  
+  .habit-value {
+    font-size: 13px;
+  }
+  
+  .habit-combined-row .habit-value {
+    font-size: 12px;
+  }
+  
+  .habit-week-horizontal {
+    padding: 8px 6px;
+    gap: 3px;
+  }
+  
+  .habit-day-col {
+    min-width: 36px;
+  }
+  
+  .habit-day-name,
+  .habit-day-date {
+    font-size: 9px;
+  }
+  
+  .habit-checkbox-custom {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .habit-today-insights {
+    padding: 12px 10px;
+    margin: 8px 10px 0 10px;
+  }
+  
+  .habit-today-progress-circle {
+    width: 65px;
+    height: 65px;
+  }
+  
+  .progress-percentage {
+    font-size: 18px;
+  }
+  
+  .habit-today-stat {
+    padding: 6px 4px;
+  }
+  
+  .stat-icon {
+    font-size: 18px;
+  }
+  
+  .stat-value {
+    font-size: 14px;
+  }
+  
+  .habit-list {
+    padding: 10px;
+    gap: 10px;
+  }
+}
+
+/* Landscape fixes */
+@media (max-height: 500px) and (orientation: landscape) {
+  .habit-today-insights {
+    flex-direction: row;
+    padding: 10px 12px;
+    gap: 12px;
+  }
+  
+  .habit-today-progress-circle {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .habit-today-stats {
+    flex: 1;
+  }
+  
+  .habit-card {
+    margin-bottom: 8px;
+  }
+  
+  .habit-info {
+    padding: 10px;
+  }
+}

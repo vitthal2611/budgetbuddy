@@ -4,6 +4,15 @@
 /* Import Modern Design System Variables */
 @import './styles/modern-variables.css';
 
+/* Import Mobile-First Global Styles */
+@import './styles/mobile-first.css';
+
+/* Import Accessibility Styles */
+@import './styles/accessibility.css';
+
+/* Import Animations */
+@import './styles/animations.css';
+
 * {
   margin: 0;
   padding: 0;

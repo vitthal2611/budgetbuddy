@@ -16,9 +16,11 @@
     height: 100vh;
     position: sticky;
     top: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
     /* Subtle right border instead of harsh edge */
     border-right: 1px solid rgba(255,255,255,0.06);
+    z-index: 100;
   }
 
   /* ── Brand ── */
@@ -73,6 +75,7 @@
     padding: 4px 8px;
     overflow-y: visible;
     flex-shrink: 0;
+    margin-bottom: 8px;
   }
 
   .sidebar-nav-item {
@@ -140,7 +143,7 @@
     min-height: 0;
     overflow: hidden;
     border-top: 1px solid rgba(255,255,255,0.07);
-    margin-top: 8px;
+    margin-top: 0;
   }
 
   .sidebar-accounts-header {
