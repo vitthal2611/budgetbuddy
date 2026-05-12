@@ -83,6 +83,123 @@ const HabitTracker = () => {
 
     const input = actionInput.toLowerCase().trim();
     
+    // Extract key action verbs and nouns for context-aware suggestions
+    const extractContext = (text) => {
+      const verbs = text.match(/\b(do|make|write|read|practice|exercise|meditate|study|learn|cook|prepare|clean|organize|call|text|play|work|review|plan|create|build|develop|design|run|walk|swim|bike|stretch|lift|journal|reflect|pray|code|program|save|budget|invest|teach|help|listen|talk|spend|bond|connect)\b/gi) || [];
+      const nouns = text.match(/\b(book|page|chapter|workout|exercise|pushup|squat|run|walk|meditation|journal|code|program|meal|recipe|water|glass|bottle|music|instrument|guitar|piano|language|word|phrase|child|kid|homework|story|bedtime|dinner|breakfast|lunch|snack|project|task|goal|plan|budget|expense|savings|investment)\b/gi) || [];
+      return { verbs: verbs.map(v => v.toLowerCase()), nouns: nouns.map(n => n.toLowerCase()) };
+    };
+    
+    const context = extractContext(input);
+    
+    // Generate contextual suggestions based on extracted verbs and nouns
+    const generateContextualSuggestions = () => {
+      const suggestions = [];
+      
+      // If specific action verb is found, create targeted suggestions
+      if (context.verbs.includes('read') || context.nouns.includes('book') || context.nouns.includes('page')) {
+        suggestions.push('Open book to current page');
+        suggestions.push('Read just one paragraph');
+        suggestions.push('Find a comfortable reading spot');
+        suggestions.push('Turn off distractions');
+        suggestions.push('Set 2-minute reading timer');
+      } else if (context.verbs.includes('write') || context.verbs.includes('journal')) {
+        suggestions.push('Open journal and write date');
+        suggestions.push('Write just one sentence');
+        suggestions.push('Put pen to paper');
+        suggestions.push('Write down one thought');
+        suggestions.push('Set up writing space');
+      } else if (context.verbs.includes('exercise') || context.verbs.includes('workout') || context.nouns.includes('workout')) {
+        suggestions.push('Put on workout clothes');
+        suggestions.push('Do just 1 rep');
+        suggestions.push('Walk to workout area');
+        suggestions.push('Put on athletic shoes');
+        suggestions.push('Do 5 jumping jacks');
+      } else if (context.verbs.includes('meditate') || context.nouns.includes('meditation')) {
+        suggestions.push('Sit in meditation spot');
+        suggestions.push('Take 3 deep breaths');
+        suggestions.push('Close eyes for 30 seconds');
+        suggestions.push('Open meditation app');
+        suggestions.push('Set 2-minute timer');
+      } else if (context.verbs.includes('run') || context.verbs.includes('walk')) {
+        suggestions.push('Put on running shoes');
+        suggestions.push('Step outside the door');
+        suggestions.push('Walk for 1 minute');
+        suggestions.push('Do light warm-up stretch');
+        suggestions.push('Put on workout playlist');
+      } else if (context.verbs.includes('cook') || context.verbs.includes('prepare') || context.nouns.includes('meal')) {
+        suggestions.push('Wash one ingredient');
+        suggestions.push('Get out cooking utensils');
+        suggestions.push('Chop one vegetable');
+        suggestions.push('Read recipe once');
+        suggestions.push('Preheat oven or stove');
+      } else if (context.verbs.includes('practice') && (context.nouns.includes('guitar') || context.nouns.includes('piano') || context.nouns.includes('instrument'))) {
+        suggestions.push('Pick up instrument');
+        suggestions.push('Tune instrument');
+        suggestions.push('Play one scale');
+        suggestions.push('Practice for 2 minutes');
+        suggestions.push('Play one favorite song');
+      } else if (context.verbs.includes('study') || context.verbs.includes('learn')) {
+        suggestions.push('Open study materials');
+        suggestions.push('Review one concept');
+        suggestions.push('Read one page of notes');
+        suggestions.push('Watch 2-minute video');
+        suggestions.push('Write one key point');
+      } else if (context.verbs.includes('clean') || context.verbs.includes('organize')) {
+        suggestions.push('Clear one surface');
+        suggestions.push('Put away one item');
+        suggestions.push('Wipe down one area');
+        suggestions.push('Sort one pile');
+        suggestions.push('Make the bed');
+      } else if (context.verbs.includes('code') || context.verbs.includes('program')) {
+        suggestions.push('Open code editor');
+        suggestions.push('Write one line of code');
+        suggestions.push('Read one function');
+        suggestions.push('Fix one small bug');
+        suggestions.push('Review one file');
+      } else if (context.verbs.includes('call') || context.verbs.includes('text') || context.verbs.includes('connect')) {
+        suggestions.push('Open contact list');
+        suggestions.push('Send one message');
+        suggestions.push('Write greeting text');
+        suggestions.push('Schedule call time');
+        suggestions.push('Reply to one message');
+      } else if (context.verbs.includes('play') || context.verbs.includes('spend') || context.verbs.includes('bond')) {
+        if (context.nouns.includes('child') || context.nouns.includes('kid')) {
+          suggestions.push('Sit down with child');
+          suggestions.push('Ask one question');
+          suggestions.push('Give one hug');
+          suggestions.push('Play for 2 minutes');
+          suggestions.push('Put phone away first');
+        } else {
+          suggestions.push('Start the activity');
+          suggestions.push('Prepare materials');
+          suggestions.push('Set up space');
+          suggestions.push('Begin with 2 minutes');
+          suggestions.push('Take first step');
+        }
+      } else if (context.verbs.includes('plan') || context.nouns.includes('plan') || context.nouns.includes('goal')) {
+        suggestions.push('Write tomorrow\'s top task');
+        suggestions.push('Open planner');
+        suggestions.push('List one priority');
+        suggestions.push('Set one reminder');
+        suggestions.push('Review today\'s goals');
+      } else if (context.verbs.includes('budget') || context.verbs.includes('save') || context.nouns.includes('budget')) {
+        suggestions.push('Open budgeting app');
+        suggestions.push('Log one expense');
+        suggestions.push('Review one transaction');
+        suggestions.push('Transfer $1 to savings');
+        suggestions.push('Check account balance');
+      }
+      
+      return suggestions;
+    };
+    
+    const contextualSuggestions = generateContextualSuggestions();
+    if (contextualSuggestions.length > 0) {
+      return contextualSuggestions;
+    }
+    
+    // Fallback to pattern matching for comprehensive coverage
     // TOP 20 HABITS OF SUCCESSFUL PEOPLE
     
     // 1. WAKE UP EARLY / MORNING ROUTINE
@@ -687,26 +804,39 @@ const HabitTracker = () => {
     
     // Generic fallback based on action verbs
     if (input.match(/^(do|complete|finish|work on|start|begin)/)) {
+      const activity = input.replace(/^(do|complete|finish|work on|start|begin)\s+/i, '');
       return [
-        'Set up workspace',
-        'Gather needed materials',
-        'Do the first step',
-        'Work for 2 minutes only',
-        'Start with easiest part'
+        `Set up space for ${activity}`,
+        `Gather materials for ${activity}`,
+        `Do first step of ${activity}`,
+        `Work on ${activity} for 2 minutes`,
+        `Start easiest part of ${activity}`
       ];
     }
     
-    // Universal suggestions based on any input
-    // Extract the main noun/activity from input
-    const words = input.split(' ');
-    const mainActivity = words[words.length - 1]; // Last word often the key activity
+    // Smart universal suggestions based on input analysis
+    const words = input.split(/\s+/).filter(w => w.length > 2);
+    const actionVerb = words.find(w => ['read', 'write', 'do', 'make', 'practice', 'study', 'learn', 'exercise', 'work', 'play', 'create', 'build', 'cook', 'prepare', 'clean', 'organize'].includes(w.toLowerCase()));
+    const mainNoun = words.find(w => !['the', 'a', 'an', 'my', 'for', 'with', 'and', 'or'].includes(w.toLowerCase()));
     
+    if (actionVerb && mainNoun) {
+      return [
+        `${actionVerb.charAt(0).toUpperCase() + actionVerb.slice(1)} ${mainNoun} for 2 minutes`,
+        `Prepare to ${actionVerb} ${mainNoun}`,
+        `Set up ${mainNoun} materials`,
+        `Take first step with ${mainNoun}`,
+        `Start ${actionVerb}ing ${mainNoun} now`
+      ];
+    }
+    
+    // Final fallback with the full action
+    const cleanAction = input.replace(/^(i will|i'll|i want to|i need to|i should)\s+/i, '');
     return [
-      `Start ${mainActivity}`,
-      `Prepare for ${mainActivity}`,
-      `Do 2 minutes of ${mainActivity}`,
-      `Take first step toward ${mainActivity}`,
-      `Set up for ${mainActivity}`
+      `Start: ${cleanAction}`,
+      `Prepare for: ${cleanAction}`,
+      `Do 2 minutes of: ${cleanAction}`,
+      `Take first step toward: ${cleanAction}`,
+      `Begin with easiest part of: ${cleanAction}`
     ];
   };
 
