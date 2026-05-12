@@ -2832,7 +2832,7 @@ const HabitTracker = () => {
                         <div className="habit-today-content">
                           <span className="habit-today-time">{habit.time}</span>
                           <span className="habit-today-action">{habit.action}</span>
-                          <span className="habit-today-identity-small">{habit.identity}</span>
+                          <span className="habit-today-identity">{habit.identity}</span>
                         </div>
                         <div className="habit-today-right">
                           <div className="habit-today-streak">
@@ -2874,7 +2874,7 @@ const HabitTracker = () => {
                         <div className="habit-today-content">
                           <span className="habit-today-time">{habit.time}</span>
                           <span className="habit-today-action">{habit.action}</span>
-                          <span className="habit-today-identity-small">{habit.identity}</span>
+                          <span className="habit-today-identity">{habit.identity}</span>
                         </div>
                         <div className="habit-today-streak">
                           <span className="habit-today-streak-icon">🔥</span>
@@ -2907,7 +2907,7 @@ const HabitTracker = () => {
                         <div className="habit-today-content">
                           <span className="habit-today-time">{habit.time}</span>
                           <span className="habit-today-action">{habit.action}</span>
-                          <span className="habit-today-identity-small">{habit.identity}</span>
+                          <span className="habit-today-identity">{habit.identity}</span>
                         </div>
                         <div className="habit-today-right">
                           <div className="habit-today-streak">
