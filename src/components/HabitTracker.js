@@ -2293,14 +2293,33 @@ const HabitTracker = () => {
     let streak = 0;
     let checkDate = new Date(today);
     
-    while (checkDate >= startDate) {
-      const dateStr = formatDate(checkDate);
-      if (data.completions[dateStr]?.includes(habitId)) {
-        streak++;
-      } else {
-        break;
+    // Check if today is completed
+    const todayStr = formatDate(today);
+    const todayCompleted = data.completions[todayStr]?.includes(habitId);
+    
+    if (todayCompleted) {
+      // If today is completed, count from today backwards
+      while (checkDate >= startDate) {
+        const dateStr = formatDate(checkDate);
+        if (data.completions[dateStr]?.includes(habitId)) {
+          streak++;
+        } else {
+          break;
+        }
+        checkDate.setDate(checkDate.getDate() - 1);
       }
+    } else {
+      // If today is NOT completed, count from yesterday backwards
       checkDate.setDate(checkDate.getDate() - 1);
+      while (checkDate >= startDate) {
+        const dateStr = formatDate(checkDate);
+        if (data.completions[dateStr]?.includes(habitId)) {
+          streak++;
+        } else {
+          break;
+        }
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
     }
     
     return streak;
@@ -2950,31 +2969,36 @@ const HabitTracker = () => {
                   <>
                     {incompleteTodayHabits.map(habit => (
                       <div key={habit.id} className="habit-today-card">
-                        <label className="habit-checkbox-wrapper">
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            onChange={() => toggleCompletion(habit.id, currentTodayDate)}
-                            className="habit-checkbox-input"
-                          />
-                          <span className="habit-checkbox-custom"></span>
-                        </label>
-                        <div className="habit-today-content">
-                          <span className="habit-today-time">{habit.time}</span>
-                          <span className="habit-today-action">{habit.action}</span>
+                        <div className="habit-today-header">
                           <span className="habit-today-identity">{habit.identity}</span>
-                        </div>
-                        <div className="habit-today-right">
                           <div className="habit-today-streak">
                             <span className="habit-today-streak-icon">🔥</span>
                             <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
                           </div>
+                        </div>
+                        <div className="habit-today-body">
                           <button 
-                            className="habit-miss-btn"
+                            className="habit-action-icon habit-complete-icon"
+                            onClick={() => toggleCompletion(habit.id, currentTodayDate)}
+                            title="Mark as complete"
+                            aria-label="Mark habit as complete"
+                          >
+                            ✓
+                          </button>
+                          <div className="habit-today-content">
+                            <div className="habit-today-time-row">
+                              <span className="habit-today-time">{habit.time}</span>
+                              {habit.trigger && <><span className="habit-today-separator"> • </span><span className="habit-today-trigger">{habit.trigger}</span></>}
+                            </div>
+                            <span className="habit-today-action">{habit.action}</span>
+                          </div>
+                          <button 
+                            className="habit-action-icon habit-miss-icon"
                             onClick={() => toggleMissed(habit.id, currentTodayDate)}
                             title="Mark as missed"
+                            aria-label="Mark habit as missed"
                           >
-                            Miss
+                            ✗
                           </button>
                         </div>
                       </div>
@@ -2992,23 +3016,30 @@ const HabitTracker = () => {
                     )}
                     {completedTodayHabits.map(habit => (
                       <div key={habit.id} className="habit-today-card habit-today-card-completed">
-                        <label className="habit-checkbox-wrapper">
-                          <input
-                            type="checkbox"
-                            checked={true}
-                            onChange={() => toggleCompletion(habit.id, currentTodayDate)}
-                            className="habit-checkbox-input"
-                          />
-                          <span className="habit-checkbox-custom"></span>
-                        </label>
-                        <div className="habit-today-content">
-                          <span className="habit-today-time">{habit.time}</span>
-                          <span className="habit-today-action">{habit.action}</span>
+                        <div className="habit-today-header">
                           <span className="habit-today-identity">{habit.identity}</span>
+                          <div className="habit-today-streak">
+                            <span className="habit-today-streak-icon">🔥</span>
+                            <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                          </div>
                         </div>
-                        <div className="habit-today-streak">
-                          <span className="habit-today-streak-icon">🔥</span>
-                          <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                        <div className="habit-today-body">
+                          <button 
+                            className="habit-action-icon habit-complete-icon habit-undo-icon"
+                            onClick={() => toggleCompletion(habit.id, currentTodayDate)}
+                            title="Undo completion"
+                            aria-label="Undo habit completion"
+                          >
+                            ↶
+                          </button>
+                          <div className="habit-today-content">
+                            <div className="habit-today-time-row">
+                              <span className="habit-today-time">{habit.time}</span>
+                              {habit.trigger && <><span className="habit-today-separator"> • </span><span className="habit-today-trigger">{habit.trigger}</span></>}
+                            </div>
+                            <span className="habit-today-action">{habit.action}</span>
+                          </div>
+                          <div className="habit-action-icon-placeholder"></div>
                         </div>
                       </div>
                     ))}
@@ -3025,31 +3056,36 @@ const HabitTracker = () => {
                     )}
                     {missedTodayHabits.map(habit => (
                       <div key={habit.id} className="habit-today-card habit-today-card-missed">
-                        <label className="habit-checkbox-wrapper">
-                          <input
-                            type="checkbox"
-                            checked={false}
-                            onChange={() => toggleCompletion(habit.id, currentTodayDate)}
-                            className="habit-checkbox-input"
-                          />
-                          <span className="habit-checkbox-custom"></span>
-                        </label>
-                        <div className="habit-today-content">
-                          <span className="habit-today-time">{habit.time}</span>
-                          <span className="habit-today-action">{habit.action}</span>
+                        <div className="habit-today-header">
                           <span className="habit-today-identity">{habit.identity}</span>
-                        </div>
-                        <div className="habit-today-right">
                           <div className="habit-today-streak">
                             <span className="habit-today-streak-icon">🔥</span>
                             <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
                           </div>
+                        </div>
+                        <div className="habit-today-body">
                           <button 
-                            className="habit-unmiss-btn"
+                            className="habit-action-icon habit-complete-icon"
+                            onClick={() => toggleCompletion(habit.id, currentTodayDate)}
+                            title="Mark as complete"
+                            aria-label="Mark habit as complete"
+                          >
+                            ✓
+                          </button>
+                          <div className="habit-today-content">
+                            <div className="habit-today-time-row">
+                              <span className="habit-today-time">{habit.time}</span>
+                              {habit.trigger && <><span className="habit-today-separator"> • </span><span className="habit-today-trigger">{habit.trigger}</span></>}
+                            </div>
+                            <span className="habit-today-action">{habit.action}</span>
+                          </div>
+                          <button 
+                            className="habit-action-icon habit-unmiss-icon"
                             onClick={() => toggleMissed(habit.id, currentTodayDate)}
                             title="Undo missed"
+                            aria-label="Undo missed status"
                           >
-                            Undo
+                            ↶
                           </button>
                         </div>
                       </div>
