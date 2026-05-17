@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker - AI Insights & Suggestions Report</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .header p {
+            font-size: 20px;
+            opacity: 0.95;
+            font-weight: 500;
+        }
+        
+        .content {
+            padding: 60px 40px;
+        }
+        
+        .intro {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 5px solid #667eea;
+            padding: 30px;
+            margin-bottom: 50px;
+            border-radius: 10px;
+        }
+        
+        .intro h2 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .intro p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #555;
+        }
+        
+        .section {
+            margin-bottom: 50px;
+            page-break-inside: avoid;
+        }
+        
+        .section-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .habit-category {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .habit-category:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.15);
+        }
+        
+        .habit-category h3 {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .habit-icon {
+            font-size: 28px;
+        }
+        
+        .habit-keywords {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .suggestions-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .suggestions-list li {
+            background: white;
+            padding: 15px 20px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            border-left: 4px solid #4CAF50;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        
+        .suggestions-list li:before {
+            content: "✓";
+            color: #4CAF50;
+            font-weight: bold;
+            margin-right: 10px;
+            font-size: 18px;
+        }
+        
+        .law-section {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(102, 187, 106, 0.1) 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .law-title {
+            font-size: 26px;
+            color: #4CAF50;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 40px;
+            text-align: center;
+            border-top: 3px solid #667eea;
+        }
+        
+        .footer p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .footer strong {
+            color: #667eea;
+            font-size: 16px;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+                border-radius: 0;
+            }
+            
+            .habit-category {
+                page-break-inside: avoid;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 32px;
+            }
+            
+            .header p {
+                font-size: 16px;
+            }
+            
+            .content {
+                padding: 30px 20px;
+            }
+            
+            .section-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Habit Tracker</h1>
+            <p>AI-Powered Insights & 2-Minute Rule Suggestions</p>
+        </div>
+        
+        <div class="content">
+            <div class="intro">
+                <h2>About This Report</h2>
+                <p>This comprehensive guide showcases the AI-powered suggestions built into the Habit Tracker application. Based on James Clear's "Atomic Habits" principles, our intelligent system provides context-aware recommendations to help you build lasting habits through the 2-minute rule and the Four Laws of Behavior Change.</p>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📋 Top 20 Habits of Successful People</h2>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🌅</span> 1. Wake Up Early / Morning Routine</h3>
+                    <div class="habit-keywords">Keywords: wake, early, morning, rise, 5am, 6am, sunrise</div>
+                    <ul class="suggestions-list">
+                        <li>Set alarm across the room</li>
+                        <li>Open curtains immediately</li>
+                        <li>Sit up in bed</li>
+                        <li>Put feet on floor</li>
+                        <li>Splash cold water on face</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">💪</span> 2. Exercise / Physical Fitness</h3>
+                    <div class="habit-keywords">Keywords: exercise, workout, gym, fitness, train, run, jog, walk, cardio, sport</div>
+                    <ul class="suggestions-list">
+                        <li>Put on workout clothes</li>
+                        <li>Do 1 pushup or squat</li>
+                        <li>Walk to the gym door</li>
+                        <li>Put on running shoes</li>
+                        <li>Do 5 jumping jacks</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🧘</span> 3. Meditation / Mindfulness</h3>
+                    <div class="habit-keywords">Keywords: meditate, mindful, breathe, calm, relax, zen, peace</div>
+                    <ul class="suggestions-list">
+                        <li>Sit on meditation cushion</li>
+                        <li>Take 3 deep breaths</li>
+                        <li>Close eyes for 30 seconds</li>
+                        <li>Open meditation app</li>
+                        <li>Set timer for 2 minutes</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">📚</span> 4. Reading / Continuous Learning</h3>
+                    <div class="habit-keywords">Keywords: read, book, novel, article, study, literature, learn</div>
+                    <ul class="suggestions-list">
+                        <li>Open book to bookmark</li>
+                        <li>Read one page</li>
+                        <li>Read one paragraph</li>
+                        <li>Sit in reading chair</li>
+                        <li>Turn off TV and pick up book</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🎯</span> 5. Goal Setting / Planning</h3>
+                    <div class="habit-keywords">Keywords: goal, plan, schedule, task, todo, list, agenda, prioritize</div>
+                    <ul class="suggestions-list">
+                        <li>Write tomorrow's top task</li>
+                        <li>Open planner or calendar</li>
+                        <li>Write down one priority</li>
+                        <li>Review today's tasks</li>
+                        <li>Set one reminder</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">📝</span> 6. Journaling / Reflection</h3>
+                    <div class="habit-keywords">Keywords: journal, reflect, diary, gratitude, write thoughts</div>
+                    <ul class="suggestions-list">
+                        <li>Open journal and date page</li>
+                        <li>Write one sentence</li>
+                        <li>Write 3 things grateful for</li>
+                        <li>Reflect on one moment</li>
+                        <li>Write down one lesson learned</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🥗</span> 7. Healthy Eating / Nutrition</h3>
+                    <div class="habit-keywords">Keywords: eat, meal, cook, food, healthy, nutrition, prepare, recipe</div>
+                    <ul class="suggestions-list">
+                        <li>Wash one vegetable</li>
+                        <li>Chop one ingredient</li>
+                        <li>Open healthy cookbook</li>
+                        <li>Put fruit in visible spot</li>
+                        <li>Prepare one healthy snack</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">💧</span> 8. Hydration / Drinking Water</h3>
+                    <div class="habit-keywords">Keywords: water, hydrate, drink, beverage, fluid</div>
+                    <ul class="suggestions-list">
+                        <li>Fill glass with water</li>
+                        <li>Take one sip of water</li>
+                        <li>Place water bottle on desk</li>
+                        <li>Add ice to water bottle</li>
+                        <li>Drink half a glass</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">⏰</span> 9. Time Management / Productivity</h3>
+                    <div class="habit-keywords">Keywords: time, manage, productive, efficient, focus, concentrate</div>
+                    <ul class="suggestions-list">
+                        <li>Set timer for 25 minutes</li>
+                        <li>Close unnecessary tabs</li>
+                        <li>Turn off notifications</li>
+                        <li>Clear desk workspace</li>
+                        <li>Write one priority task</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🤝</span> 10. Networking / Relationship Building</h3>
+                    <div class="habit-keywords">Keywords: network, connect, relationship, reach out, call, text, message</div>
+                    <ul class="suggestions-list">
+                        <li>Open contact list</li>
+                        <li>Send one text message</li>
+                        <li>Write one sentence to send</li>
+                        <li>Schedule call for later</li>
+                        <li>Reply to one message</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🎓</span> 11. Learning New Skills / Self-Improvement</h3>
+                    <div class="habit-keywords">Keywords: learn, skill, course, tutorial, practice, training, education</div>
+                    <ul class="suggestions-list">
+                        <li>Open learning app</li>
+                        <li>Watch 2-minute tutorial</li>
+                        <li>Read one lesson intro</li>
+                        <li>Write down one thing to learn</li>
+                        <li>Review one flashcard</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">💰</span> 12. Financial Management / Saving Money</h3>
+                    <div class="habit-keywords">Keywords: budget, save, invest, money, finance, expense, bill, wealth</div>
+                    <ul class="suggestions-list">
+                        <li>Open budgeting app</li>
+                        <li>Log one expense</li>
+                        <li>Review one transaction</li>
+                        <li>Transfer $1 to savings</li>
+                        <li>Check account balance</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">✨</span> 13. Positive Thinking / Affirmations</h3>
+                    <div class="habit-keywords">Keywords: affirm, positive, mindset, visualize, manifest, believe</div>
+                    <ul class="suggestions-list">
+                        <li>Say one affirmation out loud</li>
+                        <li>Write one positive statement</li>
+                        <li>Look in mirror and smile</li>
+                        <li>Think of one success</li>
+                        <li>Visualize goal for 30 seconds</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">☕</span> 14. Taking Breaks / Rest</h3>
+                    <div class="habit-keywords">Keywords: break, rest, pause, recharge, relax, unwind</div>
+                    <ul class="suggestions-list">
+                        <li>Stand up and stretch</li>
+                        <li>Walk for 2 minutes</li>
+                        <li>Close eyes for 30 seconds</li>
+                        <li>Step away from screen</li>
+                        <li>Take 3 deep breaths</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🧹</span> 15. Organization / Decluttering</h3>
+                    <div class="habit-keywords">Keywords: organize, clean, tidy, declutter, sort, arrange</div>
+                    <ul class="suggestions-list">
+                        <li>Clear one item from desk</li>
+                        <li>Put away one thing</li>
+                        <li>File one document</li>
+                        <li>Wipe down one surface</li>
+                        <li>Make bed</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🚫</span> 16. Saying No / Setting Boundaries</h3>
+                    <div class="habit-keywords">Keywords: no, boundary, limit, decline, refuse, prioritize</div>
+                    <ul class="suggestions-list">
+                        <li>Review one commitment</li>
+                        <li>Identify one thing to decline</li>
+                        <li>Write down your priorities</li>
+                        <li>Practice saying "no" once</li>
+                        <li>Evaluate one request</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">📊</span> 17. Continuous Feedback / Self-Assessment</h3>
+                    <div class="habit-keywords">Keywords: review, assess, evaluate, feedback, improve, analyze</div>
+                    <ul class="suggestions-list">
+                        <li>Review one completed task</li>
+                        <li>Write one lesson learned</li>
+                        <li>Identify one improvement</li>
+                        <li>Ask for one piece of feedback</li>
+                        <li>Reflect on one decision</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">💡</span> 18. Creative Thinking / Innovation</h3>
+                    <div class="habit-keywords">Keywords: create, innovate, idea, brainstorm, think, imagine, design</div>
+                    <ul class="suggestions-list">
+                        <li>Write down one idea</li>
+                        <li>Sketch one concept</li>
+                        <li>Ask "what if" question</li>
+                        <li>Combine two ideas</li>
+                        <li>Think of one solution</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🙏</span> 19. Gratitude Practice</h3>
+                    <div class="habit-keywords">Keywords: gratitude, grateful, thankful, appreciate, blessing</div>
+                    <ul class="suggestions-list">
+                        <li>Write one thing grateful for</li>
+                        <li>Thank one person</li>
+                        <li>Appreciate one moment</li>
+                        <li>Notice one blessing</li>
+                        <li>Express gratitude to someone</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">😴</span> 20. Quality Sleep / Bedtime Routine</h3>
+                    <div class="habit-keywords">Keywords: sleep, bed, rest, night, bedtime, nap, wind down</div>
+                    <ul class="suggestions-list">
+                        <li>Put phone in another room</li>
+                        <li>Dim bedroom lights</li>
+                        <li>Put on pajamas</li>
+                        <li>Set alarm for tomorrow</li>
+                        <li>Close bedroom curtains</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🎨 Additional Habit Categories</h2>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🎸</span> Music & Instruments</h3>
+                    <div class="habit-keywords">Keywords: music, guitar, piano, instrument, practice, play</div>
+                    <ul class="suggestions-list">
+                        <li>Pick up instrument</li>
+                        <li>Play one scale</li>
+                        <li>Tune instrument</li>
+                        <li>Practice for 2 minutes</li>
+                        <li>Play one song intro</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🌍</span> Language Learning</h3>
+                    <div class="habit-keywords">Keywords: language, spanish, french, german, chinese, speak</div>
+                    <ul class="suggestions-list">
+                        <li>Review 5 vocabulary words</li>
+                        <li>Say one phrase out loud</li>
+                        <li>Open language app</li>
+                        <li>Listen to 2 minutes of audio</li>
+                        <li>Write one sentence</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">💻</span> Coding & Programming</h3>
+                    <div class="habit-keywords">Keywords: code, program, develop, debug, software</div>
+                    <ul class="suggestions-list">
+                        <li>Open code editor</li>
+                        <li>Write one line of code</li>
+                        <li>Read one function</li>
+                        <li>Fix one small bug</li>
+                        <li>Review one file</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">👨‍👩‍👧‍👦</span> Parenting & Family Time</h3>
+                    <div class="habit-keywords">Keywords: parent, child, kid, family time, play with, read to</div>
+                    <ul class="suggestions-list">
+                        <li>Sit down with child</li>
+                        <li>Ask one question about their day</li>
+                        <li>Give one hug</li>
+                        <li>Read one page together</li>
+                        <li>Play for 2 minutes</li>
+                    </ul>
+                </div>
+                
+                <div class="habit-category">
+                    <h3><span class="habit-icon">🏃</span> Specific Exercise Types</h3>
+                    <div class="habit-keywords">Keywords: yoga, stretch, pushup, swim, bike, cycle</div>
+                    <ul class="suggestions-list">
+                        <li>Unroll yoga mat</li>
+                        <li>Do one sun salutation</li>
+                        <li>Stretch for 30 seconds</li>
+                        <li>Put on swimsuit</li>
+                        <li>Get bike from garage</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🎯 Context-Aware AI Intelligence</h2>
+                
+                <div class="law-section">
+                    <h3 class="law-title">Smart Action Analysis</h3>
+                    <p style="margin-bottom: 20px; font-size: 16px; line-height: 1.8;">Our AI system intelligently extracts verbs and nouns from your habit action to provide highly personalized suggestions:</p>
+                    <ul class="suggestions-list">
+                        <li><strong>Verb Detection:</strong> Identifies action words like "read", "write", "exercise", "meditate", "cook", "practice"</li>
+                        <li><strong>Noun Extraction:</strong> Recognizes objects like "book", "workout", "meditation", "meal", "guitar", "code"</li>
+                        <li><strong>Context Matching:</strong> Combines verbs and nouns to generate specific, actionable suggestions</li>
+                        <li><strong>Dynamic Fallback:</strong> Uses your exact action text when no pattern matches</li>
+                    </ul>
+                </div>
+                
+                <div class="law-section">
+                    <h3 class="law-title">Example Transformations</h3>
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-top: 15px;">
+                        <p style="margin-bottom: 15px;"><strong>Input:</strong> "Read a book about history"</p>
+                        <p style="margin-bottom: 15px; color: #4CAF50;"><strong>AI Generates:</strong></p>
+                        <ul class="suggestions-list">
+                            <li>Open book to current page</li>
+                            <li>Read just one paragraph</li>
+                            <li>Find a comfortable reading spot</li>
+                            <li>Turn off distractions</li>
+                            <li>Set 2-minute reading timer</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-top: 15px;">
+                        <p style="margin-bottom: 15px;"><strong>Input:</strong> "Practice guitar for 30 minutes"</p>
+                        <p style="margin-bottom: 15px; color: #4CAF50;"><strong>AI Generates:</strong></p>
+                        <ul class="suggestions-list">
+                            <li>Pick up instrument</li>
+                            <li>Tune instrument</li>
+                            <li>Play one scale</li>
+                            <li>Practice for 2 minutes</li>
+                            <li>Play one favorite song</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📖 The Four Laws of Behavior Change</h2>
+                
+                <div class="law-section">
+                    <h3 class="law-title">1st Law: Make It Obvious</h3>
+                    <p style="margin-bottom: 15px; font-size: 16px;">Design your environment to make good habits obvious and bad habits invisible.</p>
+                    <ul class="suggestions-list">
+                        <li>Place items in visible locations</li>
+                        <li>Set out materials the night before</li>
+                        <li>Use visual cues and reminders</li>
+                        <li>Create obvious triggers</li>
+                        <li>Design environment for success</li>
+                    </ul>
+                </div>
+                
+                <div class="law-section">
+                    <h3 class="law-title">2nd Law: Make It Attractive</h3>
+                    <p style="margin-bottom: 15px; font-size: 16px;">Bundle habits you need to do with habits you want to do.</p>
+                    <ul class="suggestions-list">
+                        <li>Pair habit with something enjoyable</li>
+                        <li>Join a culture where desired behavior is normal</li>
+                        <li>Create a motivation ritual</li>
+                        <li>Reframe mindset to highlight benefits</li>
+                        <li>Make the habit appealing</li>
+                    </ul>
+                </div>
+                
+                <div class="law-section">
+                    <h3 class="law-title">3rd Law: Make It Easy (2-Minute Rule)</h3>
+                    <p style="margin-bottom: 15px; font-size: 16px;">When you start a new habit, it should take less than two minutes to do.</p>
+                    <ul class="suggestions-list">
+                        <li>Reduce friction for good habits</li>
+                        <li>Prepare environment to make future actions easier</li>
+                        <li>Master the habit of showing up</li>
+                        <li>Standardize before you optimize</li>
+                        <li>Start with the gateway habit</li>
+                    </ul>
+                </div>
+                
+                <div class="law-section">
+                    <h3 class="law-title">4th Law: Make It Satisfying</h3>
+                    <p style="margin-bottom: 15px; font-size: 16px;">What is immediately rewarded is repeated. What is immediately punished is avoided.</p>
+                    <ul class="suggestions-list">
+                        <li>Use immediate rewards</li>
+                        <li>Track your habit streak</li>
+                        <li>Never miss twice</li>
+                        <li>Celebrate small wins</li>
+                        <li>Make the ending of your habit satisfying</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Habit Tracker Application</strong></p>
+            <p>Built with AI-powered insights based on "Atomic Habits" by James Clear</p>
+            <p>Generated on: <script>document.write(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));</script></p>
+            <p style="margin-top: 20px; font-size: 12px; color: #999;">To save as PDF: File → Print → Save as PDF</p>
+        </div>
+    </div>
+</body>
+</html>
