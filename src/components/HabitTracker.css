@@ -2,7 +2,7 @@
 .habit-tracker {
   max-width: 480px;
   margin: 0 auto;
-  background: var(--bg-primary, #ffffff);
+  background: #F8F7FF;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -21,8 +21,8 @@
 /* Header */
 .habit-header {
   padding: 14px 16px;
-  background: var(--bg-primary, #ffffff);
-  border-bottom: 1px solid var(--border-light, #e0e0e0);
+  background: #F8F7FF;
+  border-bottom: 1px solid #E5E3F7;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -32,12 +32,12 @@
 .habit-title {
   font-size: 20px;
   font-weight: 700;
-  color: var(--text-primary, #000);
+  color: #2D2A3D;
   margin: 0;
 }
 
 .habit-add-btn {
-  background: var(--primary, #4CAF50);
+  background: #10B981;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -59,8 +59,8 @@
   display: flex;
   gap: 0;
   padding: 0 16px;
-  background: var(--bg-primary, #ffffff);
-  border-bottom: 2px solid var(--border-light, #e0e0e0);
+  background: #F8F7FF;
+  border-bottom: 2px solid #E5E3F7;
 }
 
 .habit-tab {
@@ -70,7 +70,7 @@
   background: transparent;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary, #666);
+  color: #9CA3AF;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -79,7 +79,7 @@
 }
 
 .habit-tab.active {
-  color: var(--primary, #4CAF50);
+  color: #10B981;
 }
 
 .habit-tab.active::after {
@@ -89,7 +89,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--primary, #4CAF50);
+  background: #10B981;
 }
 
 .habit-tab:active {
@@ -342,45 +342,45 @@
 
 /* Completed Habit Card */
 .habit-today-card-completed {
-  opacity: 0.75;
+  opacity: 0.70;
 }
 
 .habit-today-card-completed::before {
-  background: linear-gradient(180deg, #9E9E9E 0%, #BDBDBD 100%);
+  background: linear-gradient(180deg, #9CA3AF 0%, #D1D5DB 100%);
 }
 
 .habit-today-card-completed .habit-today-header {
-  background: linear-gradient(135deg, #f5f5f5 0%, #ececec 100%);
-  border-bottom: 1px solid rgba(158, 158, 158, 0.2);
+  background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+  border-bottom: 1px solid rgba(156, 163, 175, 0.15);
 }
 
 .habit-today-card-completed .habit-today-action {
   text-decoration: line-through;
-  color: var(--text-secondary, #666);
+  color: #6B7280;
 }
 
 .habit-today-card-completed .habit-today-identity {
   text-decoration: line-through;
-  color: #999;
+  color: #9CA3AF;
 }
 
 .habit-today-card-completed .habit-today-time {
-  color: var(--text-secondary, #666);
-  background: rgba(158, 158, 158, 0.1);
+  color: #6B7280;
+  background: rgba(156, 163, 175, 0.10);
 }
 
 .habit-today-card-completed .habit-today-trigger {
-  color: var(--text-secondary, #666);
-  background: rgba(158, 158, 158, 0.1);
+  color: #6B7280;
+  background: rgba(156, 163, 175, 0.10);
 }
 
 .habit-today-card-completed .habit-today-streak {
-  background: rgba(158, 158, 158, 0.15);
-  border-color: rgba(158, 158, 158, 0.3);
+  background: rgba(156, 163, 175, 0.12);
+  border-color: rgba(156, 163, 175, 0.25);
 }
 
 .habit-today-card-completed .habit-today-streak-count {
-  color: var(--text-secondary, #666);
+  color: #6B7280;
 }
 
 /* Responsive - Small Screens (320px - 360px) */
@@ -542,45 +542,45 @@
 
 /* Missed Habit Card */
 .habit-today-card-missed {
-  opacity: 0.8;
+  opacity: 0.75;
 }
 
 .habit-today-card-missed::before {
-  background: linear-gradient(180deg, #F44336 0%, #EF5350 100%);
+  background: linear-gradient(180deg, #F87171 0%, #FCA5A5 100%);
 }
 
 .habit-today-card-missed .habit-today-header {
-  background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
-  border-bottom: 1px solid rgba(244, 67, 54, 0.2);
+  background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
+  border-bottom: 1px solid rgba(248, 113, 113, 0.15);
 }
 
 .habit-today-card-missed .habit-today-time {
-  color: #C62828;
-  background: rgba(244, 67, 54, 0.2);
+  color: #DC2626;
+  background: rgba(248, 113, 113, 0.15);
 }
 
 .habit-today-card-missed .habit-today-trigger {
-  color: #C62828;
-  background: rgba(244, 67, 54, 0.2);
+  color: #DC2626;
+  background: rgba(248, 113, 113, 0.15);
 }
 
 .habit-today-card-missed .habit-today-action {
-  color: #C62828;
+  color: #DC2626;
   text-decoration: line-through;
 }
 
 .habit-today-card-missed .habit-today-identity {
-  color: #D32F2F;
+  color: #EF4444;
   text-decoration: line-through;
 }
 
 .habit-today-card-missed .habit-today-streak {
-  background: rgba(244, 67, 54, 0.15);
-  border-color: rgba(244, 67, 54, 0.3);
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.25);
 }
 
 .habit-today-card-missed .habit-today-streak-count {
-  color: #C62828;
+  color: #DC2626;
 }
 
 /* Habit List */
@@ -599,14 +599,14 @@
 
 /* Today View - Mobile-First Redesigned Cards */
 .habit-today-card {
-  background: #ffffff;
+  background: #FFFFFF;
   border: none;
   border-radius: 16px;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.08);
   transition: all 0.2s ease;
   position: relative;
   flex-shrink: 0;
@@ -623,7 +623,7 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #4CAF50 0%, #66BB6A 100%);
+  background: linear-gradient(180deg, #10B981 0%, #34D399 100%);
   border-radius: 16px 0 0 16px;
 }
 
@@ -638,8 +638,8 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 16px 16px 12px 20px;
-  background: linear-gradient(135deg, #f8f9ff 0%, #f3f4ff 100%);
-  border-bottom: 1px solid rgba(102, 126, 234, 0.12);
+  background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.10);
   gap: 12px;
   min-height: 56px;
   width: 100%;
@@ -653,7 +653,7 @@
   align-items: stretch;
   gap: 0;
   padding: 0;
-  background: #ffffff;
+  background: #FFFFFF;
   width: 100%;
   box-sizing: border-box;
   min-height: 80px;
@@ -718,8 +718,8 @@
 .habit-today-time {
   font-size: 13px;
   font-weight: 700;
-  color: #4CAF50;
-  background: rgba(76, 175, 80, 0.12);
+  color: #0891B2;
+  background: rgba(8, 145, 178, 0.12);
   padding: 5px 10px;
   border-radius: 8px;
   flex-shrink: 0;
@@ -733,7 +733,7 @@
 
 .habit-today-separator {
   font-size: 13px;
-  color: #bbb;
+  color: #D1D5DB;
   padding: 0 2px;
   display: inline;
   line-height: 1.4;
@@ -743,8 +743,8 @@
 .habit-today-trigger {
   font-size: 13px;
   font-weight: 500;
-  color: #7c8db5;
-  background: rgba(102, 126, 234, 0.08);
+  color: #9CA3AF;
+  background: rgba(156, 163, 175, 0.10);
   padding: 5px 10px;
   border-radius: 8px;
   display: inline-block;
@@ -765,7 +765,7 @@
 .habit-today-action {
   font-size: 16px;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #1F2937;
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -783,7 +783,7 @@
 .habit-today-identity {
   font-size: 15px;
   font-weight: 700;
-  color: #667eea;
+  color: #6366F1;
   line-height: 1.5;
   flex: 1;
   word-break: break-word;
@@ -802,11 +802,11 @@
   gap: 5px;
   flex-shrink: 0;
   padding: 7px 11px;
-  background: linear-gradient(135deg, rgba(255, 107, 107, 0.18) 0%, rgba(255, 142, 83, 0.18) 100%);
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.15) 0%, rgba(249, 115, 22, 0.15) 100%);
   border-radius: 10px;
-  border: 1px solid rgba(255, 107, 107, 0.25);
+  border: 1px solid rgba(251, 146, 60, 0.25);
   min-width: fit-content;
-  box-shadow: 0 1px 3px rgba(255, 107, 107, 0.1);
+  box-shadow: 0 1px 3px rgba(251, 146, 60, 0.10);
 }
 
 .habit-today-streak-icon {
@@ -817,7 +817,7 @@
 .habit-today-streak-count {
   font-size: 15px;
   font-weight: 800;
-  color: #FF6B6B;
+  color: #EA580C;
   line-height: 1;
   letter-spacing: -0.02em;
 }
@@ -843,42 +843,42 @@
 }
 
 .habit-complete-icon {
-  background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+  background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
   color: white;
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.10);
 }
 
 .habit-complete-icon:active {
   transform: scale(0.96);
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.10);
 }
 
 .habit-miss-icon {
-  background: rgba(244, 67, 54, 0.08);
-  color: #F44336;
+  background: rgba(248, 113, 113, 0.10);
+  color: #EF4444;
   border: none;
 }
 
 .habit-miss-icon:active {
   transform: scale(0.96);
-  background: rgba(244, 67, 54, 0.15);
+  background: rgba(248, 113, 113, 0.15);
 }
 
 .habit-undo-icon {
-  background: rgba(158, 158, 158, 0.12);
-  color: #757575;
+  background: rgba(156, 163, 175, 0.12);
+  color: #6B7280;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .habit-unmiss-icon {
-  background: rgba(76, 175, 80, 0.08);
-  color: #4CAF50;
+  background: rgba(16, 185, 129, 0.10);
+  color: #10B981;
   border: none;
 }
 
 .habit-unmiss-icon:active {
   transform: scale(0.96);
-  background: rgba(76, 175, 80, 0.15);
+  background: rgba(16, 185, 129, 0.15);
 }
 
 /* Habit Card */
