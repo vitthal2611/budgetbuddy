@@ -9,13 +9,13 @@ const HabitTracker = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [formError, setFormError] = useState('');
+  const [savingHabit, setSavingHabit] = useState(false);
   
+  const getTodayDateString = () => new Date().toISOString().split('T')[0];
   const [formTrigger, setFormTrigger] = useState('');
   const [formAction, setFormAction] = useState('');
-  const [formStartDate, setFormStartDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [formStartDate, setFormStartDate] = useState(getTodayDateString);
   const [formTime, setFormTime] = useState('');
   const [formLocation, setFormLocation] = useState('');
   const [formIdentity, setFormIdentity] = useState('');
@@ -2127,6 +2127,101 @@ const HabitTracker = () => {
     return ['Bedroom', 'Kitchen', 'Living Room', 'Office', 'Bathroom'];
   };
 
+  const getHabitIntent = (actionInput) => {
+    const input = (actionInput || '').toLowerCase().trim();
+    if (input.length < 2) {
+      return {
+        label: 'Starter habit',
+        confidence: 'Waiting for action',
+        tone: 'Type an action to generate complete setup ideas.'
+      };
+    }
+
+    const categories = [
+      { label: 'Parenting + connection', pattern: /parent|child|kid|baby|toddler|son|daughter|family|play with|read to|homework|bedtime|story|quality time|tuck in/, tone: 'Make it warm, specific, and easy to repeat.' },
+      { label: 'Fitness + energy', pattern: /exercise|workout|gym|fitness|train|run|jog|walk|yoga|stretch|pushup|squat|bike|cycle|swim/, tone: 'Keep the start tiny and remove physical friction.' },
+      { label: 'Reading + learning', pattern: /read|book|article|study|learn|course|tutorial|language|lesson|flashcard/, tone: 'Create a clear cue and make the material visible.' },
+      { label: 'Mindfulness + calm', pattern: /meditate|mindful|breathe|calm|relax|zen|prayer|pray|reflect|gratitude/, tone: 'Choose a quiet cue and reward the feeling of settling.' },
+      { label: 'Planning + productivity', pattern: /plan|schedule|task|todo|list|focus|deep work|work|project|review|priority/, tone: 'Anchor the habit to an existing work rhythm.' },
+      { label: 'Health + nutrition', pattern: /cook|meal|eat|food|healthy|nutrition|water|hydrate|vitamin|supplement/, tone: 'Put the healthy choice in the path of normal life.' },
+      { label: 'Money + budget', pattern: /budget|save|invest|money|finance|expense|bill|transaction/, tone: 'Make the financial action quick and visible.' },
+      { label: 'Home + order', pattern: /clean|organize|tidy|declutter|sort|laundry|dishes|room/, tone: 'Define one small visible finish line.' },
+      { label: 'Creative practice', pattern: /write|journal|draw|paint|sketch|music|guitar|piano|instrument|create|design|code|program/, tone: 'Lower the start cost and protect a tiny practice window.' }
+    ];
+
+    const match = categories.find(category => category.pattern.test(input));
+    return match
+      ? { ...match, confidence: 'Best match' }
+      : {
+        label: 'Custom routine',
+        confidence: 'General match',
+        tone: 'Use the smallest repeatable version of this action.'
+      };
+  };
+
+  const buildHabitFlowSuggestions = (actionInput) => {
+    const action = (actionInput || '').trim();
+    if (action.length < 2) return [];
+
+    const actions = getTwoMinuteSuggestions(action);
+    const identities = getIdentitySuggestions(action);
+    const triggers = getTriggerSuggestions(action);
+    const times = getTimeSuggestions(action);
+    const locations = getLocationSuggestions(action);
+    const obvious = getMakeObviousSuggestions(action);
+    const rewards = getRewardSuggestions(action);
+    const plans = [
+      {
+        title: 'Make it Easy',
+        principle: '2-minute version',
+        description: 'Start so small that showing up is the win.',
+        index: 0
+      },
+      {
+        title: 'Make it Obvious',
+        principle: 'clear cue',
+        description: 'Attach the habit to something already in your day.',
+        index: 1
+      },
+      {
+        title: 'Make it Satisfying',
+        principle: 'quick reward',
+        description: 'Give the habit a tiny finish that feels good.',
+        index: 3
+      }
+    ];
+
+    return plans.map(plan => ({
+      ...plan,
+      originalGoal: action,
+      action: actions[plan.index] || actions[0] || action,
+      identity: identities[plan.index] || identities[0],
+      trigger: triggers[plan.index] || triggers[0],
+      time: times[plan.index] || times[0],
+      location: locations[plan.index] || locations[0],
+      makeObvious: obvious[plan.index] || obvious[0],
+      reward: rewards[plan.index] || rewards[0]
+    }));
+  };
+
+  const applyHabitFlowSuggestion = (suggestion) => {
+    setFormAction(suggestion.action);
+    setFormIdentity(suggestion.identity);
+    setFormTrigger(suggestion.trigger);
+    setFormTime(suggestion.time);
+    setFormLocation(suggestion.location);
+    setFormMakeObvious(suggestion.makeObvious);
+    setFormReward(suggestion.reward);
+    setFormError('');
+    setShowActionSuggestions(false);
+    setShowIdentitySuggestions(false);
+    setShowTriggerSuggestions(false);
+    setShowTimeSuggestions(false);
+    setShowLocationSuggestions(false);
+    setShowMakeObviousSuggestions(false);
+    setShowRewardSuggestions(false);
+  };
+
   const getWeek = (offset) => {
     const today = new Date();
     const day = today.getDay();
@@ -2557,34 +2652,24 @@ const HabitTracker = () => {
   };
 
   const handleAddHabit = async () => {
-    if (!formTrigger.trim() || !formAction.trim()) {
-      alert('Please fill in Trigger and Action fields');
+    const missingFields = [];
+    if (!formAction.trim()) missingFields.push('action');
+    if (!formTrigger.trim()) missingFields.push('trigger');
+    if (!formIdentity.trim()) missingFields.push('identity');
+    if (!formTime) missingFields.push('time');
+    if (!formLocation.trim()) missingFields.push('location');
+    if (!formStartDate) missingFields.push('start date');
+
+    if (missingFields.length > 0) {
+      setFormError(`Complete ${missingFields.join(', ')} before adding the habit.`);
       return;
     }
 
-    if (!formIdentity.trim()) {
-      alert('Please fill in Identity Statement');
-      return;
-    }
-
-    if (!formStartDate) {
-      alert('Please select a start date');
-      return;
-    }
-
-    if (!formTime) {
-      alert('Please select a time');
-      return;
-    }
-
+    setFormError('');
+    setSavingHabit(true);
     const finalLocation = formLocation.trim();
-    if (!finalLocation) {
-      alert('Please select a location');
-      return;
-    }
-
     const newHabit = {
-      id: `h_${Date.now()}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `h_${Date.now()}`,
       trigger: formTrigger.trim(),
       action: formAction.trim(),
       identity: formIdentity.trim(),
@@ -2602,28 +2687,35 @@ const HabitTracker = () => {
       habits: [...data.habits, newHabit]
     };
     
-    setData(newData);
-    await habitService.saveHabits(newData);
-    
-    setFormTrigger('');
-    setFormAction('');
-    setFormIdentity('');
-    setFormStartDate('');
-    setFormTime('');
-    setFormLocation('');
-    setFormReward('');
-    setFormMakeObvious('');
-    setShowCustomIdentity(false);
-    setCustomIdentity('');
-    
-    setShowActionSuggestions(false);
-    setShowMakeObviousSuggestions(false);
-    setShowRewardSuggestions(false);
-    setShowIdentitySuggestions(false);
-    setShowTriggerSuggestions(false);
-    setShowTimeSuggestions(false);
-    setShowLocationSuggestions(false);
-    setShowAddModal(false);
+    try {
+      setData(newData);
+      await habitService.saveHabits(newData);
+      
+      setFormTrigger('');
+      setFormAction('');
+      setFormIdentity('');
+      setFormStartDate(getTodayDateString());
+      setFormTime('');
+      setFormLocation('');
+      setFormReward('');
+      setFormMakeObvious('');
+      setShowCustomIdentity(false);
+      setCustomIdentity('');
+      
+      setShowActionSuggestions(false);
+      setShowMakeObviousSuggestions(false);
+      setShowRewardSuggestions(false);
+      setShowIdentitySuggestions(false);
+      setShowTriggerSuggestions(false);
+      setShowTimeSuggestions(false);
+      setShowLocationSuggestions(false);
+      setShowAddModal(false);
+    } catch (error) {
+      setData(data);
+      setFormError('Could not save this habit. Please try again.');
+    } finally {
+      setSavingHabit(false);
+    }
   };
 
   const handleEditHabit = async () => {
@@ -2893,12 +2985,28 @@ const HabitTracker = () => {
   const completedTodayHabits = getCompletedTodayHabits();
   const missedTodayHabits = getMissedTodayHabits();
   const todayInsights = getTodayInsights();
+  const requiredHabitFields = [
+    { label: 'Action', complete: Boolean(formAction.trim()) },
+    { label: 'Trigger', complete: Boolean(formTrigger.trim()) },
+    { label: 'Identity', complete: Boolean(formIdentity.trim()) },
+    { label: 'Time', complete: Boolean(formTime) },
+    { label: 'Location', complete: Boolean(formLocation.trim()) },
+    { label: 'Start date', complete: Boolean(formStartDate) }
+  ];
+  const completedHabitFields = requiredHabitFields.filter(field => field.complete).length;
+  const addHabitProgress = Math.round((completedHabitFields / requiredHabitFields.length) * 100);
+  const canSaveHabit = completedHabitFields === requiredHabitFields.length && !savingHabit;
+  const habitIntent = getHabitIntent(formAction);
+  const habitFlowSuggestions = buildHabitFlowSuggestions(formAction);
 
   return (
     <div className="habit-tracker">
       <div className="habit-header">
         <h1 className="habit-title">Habit Tracker</h1>
-        <button className="habit-add-btn" onClick={() => setShowAddModal(true)}>
+        <button className="habit-add-btn" onClick={() => {
+          setFormError('');
+          setShowAddModal(true);
+        }}>
           + Add
         </button>
       </div>
@@ -3269,37 +3377,74 @@ const HabitTracker = () => {
       {showAddModal && (
         <div className="habit-modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="habit-modal" onClick={(e) => e.stopPropagation()}>
-            <h2 className="habit-modal-title">Add New Habit</h2>
+            <div className="habit-modal-header">
+              <div>
+                <h2 className="habit-modal-title">Add New Habit</h2>
+                <p className="habit-modal-subtitle">Build a tiny, trackable routine with a clear cue and place.</p>
+              </div>
+              <button
+                type="button"
+                className="habit-modal-close"
+                onClick={() => setShowAddModal(false)}
+                aria-label="Close add habit"
+              >
+                x
+              </button>
+            </div>
+
+            <div className="habit-setup-panel">
+              <div className="habit-setup-header">
+                <span>Setup progress</span>
+                <strong>{completedHabitFields}/{requiredHabitFields.length}</strong>
+              </div>
+              <div className="habit-setup-progress" aria-hidden="true">
+                <span style={{ width: `${addHabitProgress}%` }} />
+              </div>
+              <div className="habit-setup-checks">
+                {requiredHabitFields.map(field => (
+                  <span
+                    key={field.label}
+                    className={`habit-setup-chip ${field.complete ? 'complete' : ''}`}
+                  >
+                    {field.complete ? 'Done' : 'Need'} {field.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {formError && (
+              <div className="habit-form-error" role="alert">
+                {formError}
+              </div>
+            )}
+
             <div className="habit-form">
-              <div className="habit-form-group">
-                <label className="habit-form-label">Identity Statement *</label>
+              <div className="habit-form-group habit-goal-group">
+                <label className="habit-form-label">What habit do you want to build? *</label>
                 <div className="habit-form-action-wrapper">
                   <input
                     type="text"
                     className="habit-form-input"
-                    placeholder="I am a person who..."
-                    value={formIdentity}
-                    onChange={(e) => setFormIdentity(e.target.value)}
-                    onFocus={() => setShowIdentitySuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowIdentitySuggestions(false), 200)}
+                    placeholder="e.g., I want to read to my child before bed"
+                    value={formAction}
+                    onChange={(e) => setFormAction(e.target.value)}
+                    onFocus={() => setShowActionSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowActionSuggestions(false), 200)}
                     required
                   />
-                  {showIdentitySuggestions && (
+                  {showActionSuggestions && (
                     <div className="habit-suggestions-dropdown">
                       <div className="habit-suggestions-header">
-                        ?? Identity-Based Suggestions
+                        Tiny starting actions
                       </div>
-                      {getIdentitySuggestions(formAction).map((suggestion, index) => (
+                      {getTwoMinuteSuggestions(formAction).map((suggestion, index) => (
                         <button
                           key={index}
                           type="button"
                           className="habit-suggestion-item"
                           onClick={() => {
-                            setFormIdentity(suggestion);
-                            setShowIdentitySuggestions(false);
-    setShowTriggerSuggestions(false);
-    setShowTimeSuggestions(false);
-    setShowLocationSuggestions(false);
+                            setFormAction(suggestion);
+                            setShowActionSuggestions(false);
                           }}
                         >
                           {suggestion}
@@ -3308,7 +3453,7 @@ const HabitTracker = () => {
                       <button
                         type="button"
                         className="habit-suggestions-close"
-                        onClick={() => setShowIdentitySuggestions(false)}
+                        onClick={() => setShowActionSuggestions(false)}
                       >
                         Close suggestions
                       </button>
@@ -3316,12 +3461,12 @@ const HabitTracker = () => {
                   )}
                 </div>
                 <div className="habit-form-hint">
-                  ?? Suggestions based on your Action above.
+                  Describe it naturally. The assistant will turn it into a tiny action, cue, place, identity, and reward.
                 </div>
               </div>
               
               <div className="habit-form-section">
-                <div className="habit-form-section-title">📍 When & Where (Implementation Intention)</div>
+                <div className="habit-form-section-title">When & Where (Implementation Intention)</div>
                 <div className="habit-form-preview">
                   After <strong> {formTrigger || '[trigger]'} </strong>, I will <strong> {formAction || '[action]'} </strong> at <strong> {formTime || '[time]'} </strong> in <strong> {formLocation || '[location]'} </strong>
                 </div>
@@ -3342,7 +3487,7 @@ const HabitTracker = () => {
                     {showTriggerSuggestions && (
                       <div className="habit-suggestions-dropdown">
                         <div className="habit-suggestions-header">
-                          ⚡ Trigger Suggestions
+                          Trigger suggestions
                         </div>
                         {getTriggerSuggestions(formAction).map((suggestion, index) => (
                           <button
@@ -3368,35 +3513,35 @@ const HabitTracker = () => {
                     )}
                   </div>
                   <div className="habit-form-hint">
-                    ⚡ Suggestions based on your Action above.
+                    Choose the cue that will remind you naturally.
                   </div>
                 </div>
                 <div className="habit-form-group">
-                  <label className="habit-form-label">Action (2-Minute Version) *</label>
+                  <label className="habit-form-label">Identity Statement *</label>
                   <div className="habit-form-action-wrapper">
                     <input
                       type="text"
                       className="habit-form-input"
-                      placeholder="e.g., exercise, read, meditate, write..."
-                      value={formAction}
-                      onChange={(e) => setFormAction(e.target.value)}
-                      onFocus={() => setShowActionSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowActionSuggestions(false), 200)}
+                      placeholder="I am a person who..."
+                      value={formIdentity}
+                      onChange={(e) => setFormIdentity(e.target.value)}
+                      onFocus={() => setShowIdentitySuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowIdentitySuggestions(false), 200)}
                       required
                     />
-                    {showActionSuggestions && (
+                    {showIdentitySuggestions && (
                       <div className="habit-suggestions-dropdown">
                         <div className="habit-suggestions-header">
-                          💡 2-Minute Rule Suggestions
+                          Identity suggestions
                         </div>
-                        {getTwoMinuteSuggestions(formAction).map((suggestion, index) => (
+                        {getIdentitySuggestions(formAction).map((suggestion, index) => (
                           <button
                             key={index}
                             type="button"
                             className="habit-suggestion-item"
                             onClick={() => {
-                              setFormAction(suggestion);
-                              setShowActionSuggestions(false);
+                              setFormIdentity(suggestion);
+                              setShowIdentitySuggestions(false);
                             }}
                           >
                             {suggestion}
@@ -3405,7 +3550,7 @@ const HabitTracker = () => {
                         <button
                           type="button"
                           className="habit-suggestions-close"
-                          onClick={() => setShowActionSuggestions(false)}
+                          onClick={() => setShowIdentitySuggestions(false)}
                         >
                           Close suggestions
                         </button>
@@ -3413,8 +3558,42 @@ const HabitTracker = () => {
                     )}
                   </div>
                   <div className="habit-form-hint">
-                    💡 Make it so easy you can't say no. Start with just 2 minutes.
+                    Identity is the person this habit helps you become.
                   </div>
+                </div>
+                <div className="habit-ai-flow">
+                  <div className="habit-ai-flow-header">
+                    <div>
+                      <span className="habit-ai-kicker">AI Flow</span>
+                      <h3>{habitIntent.label}</h3>
+                      <p>{habitIntent.tone}</p>
+                    </div>
+                    <span className="habit-ai-confidence">{habitIntent.confidence}</span>
+                  </div>
+                  {habitFlowSuggestions.length > 0 ? (
+                    <div className="habit-ai-cards">
+                      {habitFlowSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.title}
+                          type="button"
+                          className="habit-ai-card"
+                          onClick={() => applyHabitFlowSuggestion(suggestion)}
+                        >
+                          <span className="habit-ai-card-title">{suggestion.title}</span>
+                          <span className="habit-ai-card-principle">{suggestion.principle}</span>
+                          <span className="habit-ai-card-plan">
+                            After {suggestion.trigger.replace(/^after\s+/i, '')}, I will {suggestion.action} at {suggestion.time} in {suggestion.location}.
+                          </span>
+                          <span className="habit-ai-card-identity">{suggestion.identity}</span>
+                          <span className="habit-ai-card-meta">{suggestion.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="habit-ai-empty">
+                      Answer the habit question first. Then choose a complete setup inspired by cue, craving, response, and reward.
+                    </div>
+                  )}
                 </div>
                 <div className="habit-form-row">
                   <div className="habit-form-group habit-form-half">
@@ -3432,7 +3611,7 @@ const HabitTracker = () => {
                       {showTimeSuggestions && (
                         <div className="habit-suggestions-dropdown">
                           <div className="habit-suggestions-header">
-                            🕐 Time Suggestions
+                            Time suggestions
                           </div>
                           {getTimeSuggestions(formAction).map((suggestion, index) => (
                             <button
@@ -3474,7 +3653,7 @@ const HabitTracker = () => {
                       {showLocationSuggestions && (
                         <div className="habit-suggestions-dropdown">
                           <div className="habit-suggestions-header">
-                            📍 Location Suggestions
+                            Location suggestions
                           </div>
                           {getLocationSuggestions(formAction).map((suggestion, index) => (
                             <button
@@ -3518,7 +3697,7 @@ const HabitTracker = () => {
                   {showMakeObviousSuggestions && (
                     <div className="habit-suggestions-dropdown">
                       <div className="habit-suggestions-header">
-                        👁️ Make It Obvious Suggestions
+                        Make it obvious suggestions
                       </div>
                       {getMakeObviousSuggestions(formAction).map((suggestion, index) => (
                         <button
@@ -3544,7 +3723,7 @@ const HabitTracker = () => {
                   )}
                 </div>
                 <div className="habit-form-hint">
-                  👁️ Suggestions based on your Action above.
+                  Shape your environment so the habit is easy to notice.
                 </div>
               </div>
               <div className="habit-form-group">
@@ -3562,7 +3741,7 @@ const HabitTracker = () => {
                   {showRewardSuggestions && (
                     <div className="habit-suggestions-dropdown">
                       <div className="habit-suggestions-header">
-                        🎁 Reward Suggestions
+                        Reward suggestions
                       </div>
                       {getRewardSuggestions(formAction).map((suggestion, index) => (
                         <button
@@ -3588,7 +3767,7 @@ const HabitTracker = () => {
                   )}
                 </div>
                 <div className="habit-form-hint">
-                  🎁 Suggestions based on your Action above.
+                  Add a small satisfying finish so the habit feels complete.
                 </div>
               </div>
               <div className="habit-form-group">
@@ -3604,7 +3783,13 @@ const HabitTracker = () => {
             </div>
             <div className="habit-modal-actions">
               <button className="habit-modal-cancel" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="habit-modal-save" onClick={handleAddHabit}>Add Habit</button>
+              <button
+                className="habit-modal-save"
+                onClick={handleAddHabit}
+                disabled={!canSaveHabit}
+              >
+                {savingHabit ? 'Saving...' : 'Add Habit'}
+              </button>
             </div>
           </div>
         </div>
