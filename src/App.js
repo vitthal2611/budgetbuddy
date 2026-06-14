@@ -588,7 +588,6 @@ function App() {
             <BottomNav
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              onOpenMenu={() => setShowMenu(true)}
             />
             </div>{/* end app-main */}
 

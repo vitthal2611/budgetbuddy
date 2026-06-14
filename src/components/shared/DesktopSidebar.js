@@ -2,12 +2,8 @@ import React, { useState } from 'react';
 import './DesktopSidebar.css';
 
 const NAV_ITEMS = [
-  { id: 'envelopes',    icon: '📦', label: 'Budget'       },
-  { id: 'habits',       icon: '🎯', label: 'Habits'       },
-  { id: 'todos',        icon: '✅', label: 'To-Do'        },
-  { id: 'transactions', icon: '💳', label: 'Transactions' },
-  { id: 'reports',      icon: '📊', label: 'Reports'      },
-  { id: 'settings',     icon: '⚙️', label: 'Settings'     },
+  { id: 'habits', icon: 'H', label: 'Habits' },
+  { id: 'todos', icon: 'T', label: 'To-Do' },
 ];
 
 const fmt = (n) => Math.abs(n).toLocaleString('en-IN');
@@ -22,23 +18,20 @@ const DesktopSidebar = ({
 
   const accounts = Object.entries(accountBalances)
     .filter(([, bal]) => bal !== 0)
-    .sort((a, b) => b[1] - a[1]); // highest balance first
+    .sort((a, b) => b[1] - a[1]);
 
   const totalBalance = accounts.reduce((s, [, b]) => s + b, 0);
 
   return (
     <aside className="desktop-sidebar">
-
-      {/* ── Brand ── */}
       <div className="sidebar-brand">
-        <div className="sidebar-brand-logo">💰</div>
+        <div className="sidebar-brand-logo">BB</div>
         <div className="sidebar-brand-text">
           <span className="sidebar-brand-good">Budget</span>
           <span className="sidebar-brand-buddy">Buddy</span>
         </div>
       </div>
 
-      {/* ── Nav ── */}
       <div className="sidebar-section-label">Navigate</div>
       <nav className="sidebar-nav">
         {NAV_ITEMS.map(item => (
@@ -47,28 +40,25 @@ const DesktopSidebar = ({
             className={`sidebar-nav-item ${activeTab === item.id ? 'active' : ''}`}
             onClick={() => onTabChange(item.id)}
           >
-            <span className="sidebar-nav-icon">{item.icon}</span>
+            <span className="sidebar-nav-icon" aria-hidden="true">{item.icon}</span>
             <span className="sidebar-nav-label">{item.label}</span>
           </button>
         ))}
       </nav>
 
-      {/* ── Accounts ── */}
       {accounts.length > 0 && (
         <div className="sidebar-accounts">
-          {/* Section header */}
           <button
             className="sidebar-accounts-header"
             onClick={() => setAccountsOpen(v => !v)}
           >
             <span className="sidebar-accounts-title">Accounts</span>
             <span className={`sidebar-accounts-total ${totalBalance >= 0 ? 'pos' : 'neg'}`}>
-              {totalBalance < 0 ? '-' : ''}₹{fmt(totalBalance)}
+              {totalBalance < 0 ? '-' : ''}Rs {fmt(totalBalance)}
             </span>
-            <span className="sidebar-accounts-chevron">{accountsOpen ? '▾' : '▸'}</span>
+            <span className="sidebar-accounts-chevron">{accountsOpen ? 'v' : '>'}</span>
           </button>
 
-          {/* Account rows */}
           {accountsOpen && (
             <div className="sidebar-account-list">
               {accounts.map(([name, bal]) => (
@@ -83,7 +73,7 @@ const DesktopSidebar = ({
                   }} />
                   <span className="sidebar-account-name">{name}</span>
                   <span className={`sidebar-account-bal ${bal >= 0 ? 'pos' : 'neg'}`}>
-                    {bal < 0 ? '-' : ''}₹{fmt(bal)}
+                    {bal < 0 ? '-' : ''}Rs {fmt(bal)}
                   </span>
                 </button>
               ))}
@@ -92,24 +82,21 @@ const DesktopSidebar = ({
         </div>
       )}
 
-      {/* ── Status ── */}
       <div className="sidebar-status">
-        {syncing   && <div className="sidebar-status-pill syncing">🔄 Syncing…</div>}
-        {!isOnline && <div className="sidebar-status-pill offline">📡 Offline</div>}
+        {syncing && <div className="sidebar-status-pill syncing">Syncing</div>}
+        {!isOnline && <div className="sidebar-status-pill offline">Offline</div>}
       </div>
 
-      {/* ── Footer ── */}
       <div className="sidebar-footer">
         <div className="sidebar-user">
-          <div className="sidebar-user-avatar">👤</div>
+          <div className="sidebar-user-avatar">U</div>
           <div className="sidebar-user-email" title={user?.email}>{user?.email}</div>
         </div>
         <div className="sidebar-footer-actions">
-          <button className="sidebar-footer-btn" onClick={onExport} title="Export data">📥</button>
-          <button className="sidebar-footer-btn danger" onClick={onSignOut} title="Sign out">🚪</button>
+          <button className="sidebar-footer-btn" onClick={onExport} title="Export data">Export</button>
+          <button className="sidebar-footer-btn danger" onClick={onSignOut} title="Sign out">Out</button>
         </div>
       </div>
-
     </aside>
   );
 };

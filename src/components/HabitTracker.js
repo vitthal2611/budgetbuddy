@@ -2,6 +2,45 @@ import React, { useState, useEffect } from 'react';
 import habitService from '../services/habitService';
 import './HabitTracker.css';
 
+const IST_TIME_ZONE = 'Asia/Kolkata';
+const HABIT_NOTIFICATION_LEAD_MINUTES = 10;
+
+const getIstParts = (date = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: IST_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+    minutes: Number(parts.hour) * 60 + Number(parts.minute)
+  };
+};
+
+const timeToMinutes = (time) => {
+  if (!time || !time.includes(':')) return null;
+  const [hour, minute] = time.split(':').map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  return hour * 60 + minute;
+};
+
+const formatMinutesUntil = (minutes) => {
+  if (minutes <= 0) return 'Due now';
+  if (minutes < 60) return `In ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remaining = minutes % 60;
+  return remaining ? `In ${hours}h ${remaining}m` : `In ${hours}h`;
+};
+
 const HabitTracker = () => {
   const [data, setData] = useState({ habits: [], completions: {}, missed: {} });
   const [loading, setLoading] = useState(true);
@@ -43,6 +82,10 @@ const HabitTracker = () => {
   const [activeTab, setActiveTab] = useState('today');
   const [todayOffset, setTodayOffset] = useState(0);
   const [dailyQuote, setDailyQuote] = useState('');
+  const [istNow, setIstNow] = useState(getIstParts);
+  const [notificationPermission, setNotificationPermission] = useState(
+    typeof Notification === 'undefined' ? 'unsupported' : Notification.permission
+  );
 
   // Motivational quotes inspired by Atomic Habits principles
   const motivationalQuotes = [
@@ -2350,6 +2393,77 @@ const HabitTracker = () => {
     return data.missed?.[dateStr]?.includes(habitId) || false;
   };
 
+  const selectedDateStr = formatDate(currentTodayDate);
+  const isSelectedIstToday = selectedDateStr === istNow.date;
+
+  const getHabitReminderInfo = (habit, state = 'pending') => {
+    const scheduledMinutes = timeToMinutes(habit.time);
+    if (scheduledMinutes === null) {
+      return { label: 'Set a time', tone: 'muted' };
+    }
+
+    if (!isSelectedIstToday) {
+      return { label: `Scheduled IST ${habit.time}`, tone: 'muted' };
+    }
+
+    if (state === 'completed') {
+      return { label: 'Completed', tone: 'complete' };
+    }
+
+    if (state === 'missed') {
+      return { label: 'Marked missed', tone: 'missed' };
+    }
+
+    const minutesUntil = scheduledMinutes - istNow.minutes;
+    if (minutesUntil <= 0) {
+      return { label: 'Due now', tone: 'due' };
+    }
+
+    if (minutesUntil <= HABIT_NOTIFICATION_LEAD_MINUTES) {
+      return { label: formatMinutesUntil(minutesUntil), tone: 'soon' };
+    }
+
+    return { label: formatMinutesUntil(minutesUntil), tone: 'upcoming' };
+  };
+
+  const requestHabitNotifications = async () => {
+    if (typeof Notification === 'undefined') return;
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+  };
+
+  useEffect(() => {
+    const tick = () => setIstNow(getIstParts());
+    tick();
+    const timer = setInterval(tick, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (notificationPermission !== 'granted' || loading) return;
+
+    const todayCompletions = data.completions?.[istNow.date] || [];
+    const todayMissed = data.missed?.[istNow.date] || [];
+
+    data.habits.forEach((habit) => {
+      const scheduledMinutes = timeToMinutes(habit.time);
+      if (scheduledMinutes === null) return;
+      if (todayCompletions.includes(habit.id) || todayMissed.includes(habit.id)) return;
+
+      const minutesUntil = scheduledMinutes - istNow.minutes;
+      if (minutesUntil > 0 || minutesUntil < -1) return;
+
+      const notificationKey = `habit-notified-${habit.id}-${istNow.date}-${habit.time}`;
+      if (localStorage.getItem(notificationKey)) return;
+
+      new Notification('Habit reminder', {
+        body: `${habit.action} at ${habit.time} IST`,
+        tag: notificationKey
+      });
+      localStorage.setItem(notificationKey, 'sent');
+    });
+  }, [data, istNow, loading, notificationPermission]);
+
   const toggleMissed = async (habitId, date) => {
     const dateStr = formatDate(date);
     const newMissed = { ...data.missed };
@@ -2913,7 +3027,8 @@ const HabitTracker = () => {
 
     const totalHabits = allHabits.length;
     const completedHabits = allHabits.filter(h => isCompleted(h.id, currentTodayDate)).length;
-    const remainingHabits = totalHabits - completedHabits;
+    const missedHabits = allHabits.filter(h => isMissed(h.id, currentTodayDate)).length;
+    const remainingHabits = Math.max(totalHabits - completedHabits - missedHabits, 0);
     const completionRate = totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : 0;
 
     // Calculate current streaks
@@ -2928,6 +3043,7 @@ const HabitTracker = () => {
     return {
       totalHabits,
       completedHabits,
+      missedHabits,
       remainingHabits,
       completionRate,
       activeStreaks,
@@ -2985,6 +3101,22 @@ const HabitTracker = () => {
   const completedTodayHabits = getCompletedTodayHabits();
   const missedTodayHabits = getMissedTodayHabits();
   const todayInsights = getTodayInsights();
+  const nextHabit = incompleteTodayHabits
+    .filter(habit => timeToMinutes(habit.time) !== null)
+    .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time))[0] || incompleteTodayHabits[0];
+  const dashboardStatus = todayInsights.totalHabits === 0
+    ? 'No habits scheduled'
+    : todayInsights.completedHabits === todayInsights.totalHabits
+      ? 'All done'
+      : todayInsights.remainingHabits > 0
+        ? `${todayInsights.remainingHabits} left`
+        : `${todayInsights.missedHabits} missed`;
+  const dashboardMomentum = todayInsights.totalHabits === 0
+    ? 'Add one tiny habit to start.'
+    : todayInsights.completedHabits === todayInsights.totalHabits
+      ? `Clean sweep. Best streak ${todayInsights.longestStreak}d.`
+      : `${todayInsights.completedHabits}/${todayInsights.totalHabits} done - Best ${todayInsights.longestStreak}d`;
+  const nextHabitReminder = nextHabit ? getHabitReminderInfo(nextHabit, 'pending') : null;
   const requiredHabitFields = [
     { label: 'Action', complete: Boolean(formAction.trim()) },
     { label: 'Trigger', complete: Boolean(formTrigger.trim()) },
@@ -3040,29 +3172,49 @@ const HabitTracker = () => {
           </div>
 
           <div className="habit-today-insights">
-            <div className="habit-today-stats">
-              <div className="habit-today-stat">
-                <div className="stat-icon">✅</div>
-                <div className="stat-content">
-                  <div className="stat-value">{todayInsights.completedHabits}/{todayInsights.totalHabits}</div>
-                  <div className="stat-label">Completed</div>
-                </div>
+            <div className="habit-dashboard-main">
+              <div className="habit-progress-ring" style={{ '--progress': `${todayInsights.completionRate * 3.6}deg` }}>
+                <span>{todayInsights.completionRate}%</span>
               </div>
-              <div className="habit-today-stat">
-                <div className="stat-icon">🔥</div>
-                <div className="stat-content">
-                  <div className="stat-value">{todayInsights.activeStreaks}</div>
-                  <div className="stat-label">Active Streaks</div>
-                </div>
-              </div>
-              <div className="habit-today-stat">
-                <div className="stat-icon">🏆</div>
-                <div className="stat-content">
-                  <div className="stat-value">{todayInsights.longestStreak}</div>
-                  <div className="stat-label">Best Streak</div>
+              <div className="habit-dashboard-copy">
+                <div className="habit-dashboard-kicker">{getTodayLabel()}</div>
+                <div className="habit-dashboard-title">{dashboardStatus}</div>
+                <div className="habit-dashboard-subtitle">
+                  {dashboardMomentum}
                 </div>
               </div>
             </div>
+
+            {nextHabit && (
+              <div className="habit-next-focus">
+                <span className="habit-next-label">Next</span>
+                <span className="habit-next-title">{nextHabit.action}</span>
+                <span className={`habit-next-time habit-reminder-${nextHabitReminder.tone}`}>
+                  {nextHabit.time} IST - {nextHabitReminder.label}
+                </span>
+              </div>
+            )}
+
+          </div>
+
+          <div className="habit-reminder-panel">
+            <div>
+              <div className="habit-reminder-title">IST reminders</div>
+              <div className="habit-reminder-copy">
+                Current IST time: {istNow.time}. Habit alerts use Indian Standard Time.
+              </div>
+            </div>
+            {notificationPermission === 'default' && (
+              <button className="habit-reminder-enable" onClick={requestHabitNotifications}>
+                Enable
+              </button>
+            )}
+            {notificationPermission === 'granted' && (
+              <span className="habit-reminder-enabled">On</span>
+            )}
+            {notificationPermission === 'denied' && (
+              <span className="habit-reminder-blocked">Blocked</span>
+            )}
           </div>
 
           <div className="habit-list">

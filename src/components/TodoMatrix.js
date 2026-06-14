@@ -1,374 +1,446 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import todoService from '../services/todoService';
+import './HabitTracker.css';
 import './TodoMatrix.css';
 
-const QUADRANTS = [
-  { id: 'urgent-important', title: 'Do First', subtitle: 'Urgent & Important', color: '#EF4444', icon: '🔥' },
-  { id: 'not-urgent-important', title: 'Schedule', subtitle: 'Not Urgent & Important', color: '#3B82F6', icon: '📅' },
-  { id: 'urgent-not-important', title: 'Delegate', subtitle: 'Urgent & Not Important', color: '#F59E0B', icon: '👥' },
-  { id: 'not-urgent-not-important', title: 'Eliminate', subtitle: 'Not Urgent & Not Important', color: '#6B7280', icon: '🗑️' }
+const PRIORITIES = [
+  { id: 'high',   label: 'High',   icon: '🔴', color: '#EF4444' },
+  { id: 'medium', label: 'Medium', icon: '🟡', color: '#F59E0B' },
+  { id: 'low',    label: 'Low',    icon: '🟢', color: '#10B981' },
 ];
 
-const TodoMatrix = () => {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedQuadrants, setExpandedQuadrants] = useState({
-    'urgent-important': true,
-    'not-urgent-important': true,
-    'urgent-not-important': false,
-    'not-urgent-not-important': false
-  });
+const CATEGORIES = ['Work', 'Personal', 'Health', 'Finance', 'Learning', 'Home', 'Other'];
+const PRIORITY_COLOR = { high: '#EF4444', medium: '#F59E0B', low: '#10B981' };
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+const FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'today', label: 'Today' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'high', label: 'High' },
+  { id: 'completed', label: 'Done' },
+];
 
-  // Modal states
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
-  // Form states
-  const [selectedQuadrant, setSelectedQuadrant] = useState('urgent-important');
-  const [taskTitle, setTaskTitle] = useState('');
-  const [editingTask, setEditingTask] = useState(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editQuadrant, setEditQuadrant] = useState('');
-  const [deletingTask, setDeletingTask] = useState(null);
-  const [titleError, setTitleError] = useState(false);
+const todayStr = () => new Date().toISOString().split('T')[0];
+
+const dueDateLabel = (dueDate) => {
+  if (!dueDate) return null;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due   = new Date(dueDate + 'T00:00:00'); due.setHours(0, 0, 0, 0);
+  const diff  = Math.round((due - today) / 86400000);
+  if (diff < 0)   return { text: 'Overdue',  cls: 'overdue'  };
+  if (diff === 0) return { text: 'Today',    cls: 'today'    };
+  if (diff === 1) return { text: 'Tomorrow', cls: 'tomorrow' };
+  return { text: due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), cls: 'future' };
+};
+
+const getDueClass = (dueDate) => dueDateLabel(dueDate)?.cls || 'none';
+
+const sortTasks = (items) => [...items].sort((a, b) => {
+  const dueA = getDueClass(a.dueDate);
+  const dueB = getDueClass(b.dueDate);
+  const dueRank = { overdue: 0, today: 1, tomorrow: 2, future: 3, none: 4 };
+  if (dueRank[dueA] !== dueRank[dueB]) return dueRank[dueA] - dueRank[dueB];
+
+  const pa = PRIORITY_ORDER[a.priority] ?? 1;
+  const pb = PRIORITY_ORDER[b.priority] ?? 1;
+  if (pa !== pb) return pa - pb;
+
+  if (!a.dueDate && !b.dueDate) return 0;
+  if (!a.dueDate) return 1;
+  if (!b.dueDate) return -1;
+  return a.dueDate.localeCompare(b.dueDate);
+});
+
+const TodoMatrix = () => {
+  const [tasks,      setTasks]      = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [undoState,  setUndoState]  = useState(null);
+  const [filter,     setFilter]     = useState('all');
+
+  const [showAdd,     setShowAdd]     = useState(false);
+  const [addTitle,    setAddTitle]    = useState('');
+  const [addPriority, setAddPriority] = useState('medium');
+  const [addCategory, setAddCategory] = useState('');
+  const [addDueDate,  setAddDueDate]  = useState('');
+  const [addTitleErr, setAddTitleErr] = useState(false);
+
+  const [showEdit,     setShowEdit]     = useState(false);
+  const [editTask,     setEditTask]     = useState(null);
+  const [editTitle,    setEditTitle]    = useState('');
+  const [editPriority, setEditPriority] = useState('medium');
+  const [editCategory, setEditCategory] = useState('');
+  const [editDueDate,  setEditDueDate]  = useState('');
+  const [editTitleErr, setEditTitleErr] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = todoService.subscribeToTasks((taskData) => {
-      setTasks(taskData || []);
+    const unsub = todoService.subscribeToTasks(data => {
+      setTasks(data || []);
       setLoading(false);
     });
-
-    return () => {
-      unsubscribe();
-      // Reset states on unmount
-      setShowAddModal(false);
-      setShowEditModal(false);
-      setShowDeleteModal(false);
-    };
+    return () => unsub();
   }, []);
 
-  const toggleQuadrant = (quadrantId) => {
-    setExpandedQuadrants(prev => ({ ...prev, [quadrantId]: !prev[quadrantId] }));
+  useEffect(() => {
+    if (!openMenuId) return;
+    const close = () => setOpenMenuId(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openMenuId]);
+
+  const save = useCallback(async (next) => {
+    setTasks(next);
+    await todoService.saveTasks(next);
+  }, []);
+
+  const updateField = useCallback(async (id, fields) => {
+    await save(tasks.map(t => t.id === id ? { ...t, ...fields } : t));
+  }, [tasks, save]);
+
+  const activeTasks = sortTasks(tasks.filter(t => !t.completed));
+  const completedTasks = sortTasks(tasks.filter(t => t.completed));
+  const taskStats = {
+    total: tasks.length,
+    active: activeTasks.length,
+    dueToday: tasks.filter(t => !t.completed && getDueClass(t.dueDate) === 'today').length,
+    overdue: tasks.filter(t => !t.completed && getDueClass(t.dueDate) === 'overdue').length,
+    completed: completedTasks.length,
   };
 
-  const getTasksByQuadrant = (quadrantId) => {
-    return tasks.filter(task => task.quadrant === quadrantId && !task.completed);
-  };
+  const visibleTasks = activeTasks.filter(task => {
+    const dueClass = getDueClass(task.dueDate);
+    if (filter === 'today') return dueClass === 'today' || dueClass === 'overdue';
+    if (filter === 'upcoming') return dueClass === 'tomorrow' || dueClass === 'future';
+    if (filter === 'high') return (task.priority || 'medium') === 'high';
+    return filter === 'all';
+  });
 
-  const getCompletedTasksByQuadrant = (quadrantId) => {
-    return tasks.filter(task => task.quadrant === quadrantId && task.completed);
-  };
-
-  const addTask = async () => {
-    if (!taskTitle.trim()) {
-      setTitleError(true);
-      setTimeout(() => setTitleError(false), 500);
-      return;
-    }
-
-    const newTask = {
+  const handleAdd = async () => {
+    if (!addTitle.trim()) { setAddTitleErr(true); setTimeout(() => setAddTitleErr(false), 500); return; }
+    await save([...tasks, {
       id: `task_${Date.now()}`,
-      title: taskTitle.trim(),
-      description: '',
-      dueDate: '',
-      quadrant: selectedQuadrant,
+      title: addTitle.trim(),
+      priority: addPriority,
+      category: addCategory,
+      dueDate: addDueDate,
       completed: false,
-      createdAt: new Date().toISOString()
-    };
-
-    setTasks([...tasks, newTask]);
-    await todoService.saveTasks([...tasks, newTask]);
-    setShowAddModal(false);
-    setTaskTitle('');
+      createdAt: new Date().toISOString(),
+    }]);
+    setShowAdd(false);
+    setAddTitle(''); setAddDueDate(''); setAddCategory(''); setAddPriority('medium');
   };
 
-  const toggleTaskComplete = async (taskId) => {
-    const updatedTasks = tasks.map(task =>
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    );
-    setTasks(updatedTasks);
-    await todoService.saveTasks(updatedTasks);
-  };
+  const toggleComplete = useCallback(async (id) => {
+    await save(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  }, [tasks, save]);
 
-  const openEditModal = (task) => {
-    setEditingTask(task);
+  const openEdit = useCallback((task) => {
+    setEditTask(task);
     setEditTitle(task.title);
-    setEditQuadrant(task.quadrant);
-    setShowEditModal(true);
+    setEditPriority(task.priority || 'medium');
+    setEditCategory(task.category || '');
+    setEditDueDate(task.dueDate || '');
+    setShowEdit(true);
+    setOpenMenuId(null);
+  }, []);
+
+  const handleSaveEdit = async () => {
+    if (!editTitle.trim()) { setEditTitleErr(true); setTimeout(() => setEditTitleErr(false), 500); return; }
+    await save(tasks.map(t => t.id === editTask.id
+      ? { ...t, title: editTitle.trim(), priority: editPriority, category: editCategory, dueDate: editDueDate }
+      : t
+    ));
+    setShowEdit(false);
   };
 
-  const saveEdit = async () => {
-    if (!editTitle.trim()) {
-      setTitleError(true);
-      setTimeout(() => setTitleError(false), 500);
-      return;
-    }
+  const handleDelete = useCallback((task) => {
+    const remaining = tasks.filter(t => t.id !== task.id);
+    setTasks(remaining);
+    if (undoState) clearTimeout(undoState.timer);
+    const timer = setTimeout(async () => {
+      await todoService.saveTasks(remaining);
+      setUndoState(null);
+    }, 4000);
+    setUndoState({ task, timer });
+  }, [tasks, undoState]);
 
-    const updatedTasks = tasks.map(task =>
-      task.id === editingTask.id
-        ? { ...task, title: editTitle.trim(), quadrant: editQuadrant }
-        : task
-    );
-
-    setTasks(updatedTasks);
-    await todoService.saveTasks(updatedTasks);
-    setShowEditModal(false);
+  const handleUndo = () => {
+    if (!undoState) return;
+    clearTimeout(undoState.timer);
+    setTasks(prev => prev.find(t => t.id === undoState.task.id) ? prev : [...prev, undoState.task]);
+    setUndoState(null);
   };
 
-  const confirmDelete = async () => {
-    const updatedTasks = tasks.filter(task => task.id !== deletingTask.id);
-    setTasks(updatedTasks);
-    await todoService.saveTasks(updatedTasks);
-    setShowDeleteModal(false);
-  };
-
-  const formatDueDate = (dueDate) => {
-    if (!dueDate) return null;
-    const date = new Date(dueDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (date.toDateString() === today.toDateString()) return 'Today';
-    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
-    if (date < today) return 'Overdue';
-
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const isOverdue = (dueDate) => {
-    if (!dueDate) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return new Date(dueDate) < today;
-  };
-
-  if (loading) {
-    return <div className="matrix-loading">Loading tasks...</div>;
-  }
-
-  const totalTasks = tasks.filter(t => !t.completed).length;
-  const completedTasks = tasks.filter(t => t.completed).length;
+  if (loading) return <div className="habit-loading">Loading tasks…</div>;
 
   return (
-    <div className="matrix-container">
-      {/* Header */}
-      <div className="matrix-header">
-        <div className="matrix-header-row">
-          <h1>Eisenhower Matrix</h1>
-          <button className="btn-add-task" onClick={() => setShowAddModal(true)}>
-            + Add
+    <div className="habit-tracker">
+      <div className="habit-header">
+        <h1 className="habit-title">To-Do</h1>
+        <button className="habit-add-btn" onClick={() => setShowAdd(true)}>+ Add</button>
+      </div>
+
+      <div className="todo-dashboard">
+        <div className="todo-stat-card todo-stat-focus">
+          <span className="todo-stat-value">{taskStats.active}</span>
+          <span className="todo-stat-label">Open</span>
+        </div>
+        <div className="todo-stat-card">
+          <span className="todo-stat-value">{taskStats.dueToday + taskStats.overdue}</span>
+          <span className="todo-stat-label">Due now</span>
+        </div>
+        <div className="todo-stat-card">
+          <span className="todo-stat-value">{taskStats.completed}</span>
+          <span className="todo-stat-label">Done</span>
+        </div>
+      </div>
+
+      <div className="todo-filter-bar" role="tablist" aria-label="Task filters">
+        {FILTERS.map(item => (
+          <button
+            key={item.id}
+            className={`todo-filter-chip${filter === item.id ? ' active' : ''}`}
+            onClick={() => setFilter(item.id)}
+            role="tab"
+            aria-selected={filter === item.id}
+          >
+            {item.label}
           </button>
-        </div>
-        <div className="matrix-stats">
-          <span>{totalTasks} active</span>
-          <span>•</span>
-          <span>{completedTasks} done</span>
-        </div>
+        ))}
       </div>
 
-      {/* Quadrants */}
-      <div className="matrix-content">
-        {QUADRANTS.map(quadrant => {
-          const quadrantTasks = getTasksByQuadrant(quadrant.id);
-          const completedQuadrantTasks = getCompletedTasksByQuadrant(quadrant.id);
-          const isExpanded = expandedQuadrants[quadrant.id];
-
-          return (
-            <div key={quadrant.id} className="quadrant">
-              <div className="quadrant-header" style={{ borderLeftColor: quadrant.color }}>
-                <div className="quadrant-info" onClick={() => toggleQuadrant(quadrant.id)}>
-                  <span className="quadrant-icon">{quadrant.icon}</span>
-                  <div>
-                    <h2>{quadrant.title}</h2>
-                    <p>{quadrant.subtitle}</p>
-                  </div>
-                </div>
-                <div className="quadrant-actions">
-                  <span className="task-count">{quadrantTasks.length}</span>
-                  <button className="btn-expand" onClick={() => toggleQuadrant(quadrant.id)}>
-                    <span className={isExpanded ? 'expanded' : ''}>▼</span>
-                  </button>
-                </div>
-              </div>
-
-              {isExpanded && (
-                <div className="quadrant-tasks">
-                  {quadrantTasks.length === 0 && completedQuadrantTasks.length === 0 ? (
-                    <div className="empty-state">
-                      <p className="empty-title">No tasks yet</p>
-                      <p className="empty-hint">
-                        {quadrant.id === 'urgent-important' && 'Add critical tasks with deadlines'}
-                        {quadrant.id === 'not-urgent-important' && 'Plan long-term goals'}
-                        {quadrant.id === 'urgent-not-important' && 'Tasks to delegate'}
-                        {quadrant.id === 'not-urgent-not-important' && 'Time-wasters to eliminate'}
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      {quadrantTasks.map(task => (
-                        <div key={task.id} className="task" style={{ borderLeftColor: quadrant.color }}>
-                          <div className="task-main">
-                            <div className="task-checkbox" onClick={() => toggleTaskComplete(task.id)}>
-                              {task.completed && <span>✓</span>}
-                            </div>
-                            <div className="task-info">
-                              <div className="task-title">{task.title}</div>
-                              {task.description && <div className="task-desc">{task.description}</div>}
-                              {task.dueDate && (
-                                <div className={`task-date ${isOverdue(task.dueDate) ? 'overdue' : ''}`}>
-                                  📅 {formatDueDate(task.dueDate)}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div className="task-actions">
-                            <button className="btn-icon" onClick={() => openEditModal(task)}>✏️</button>
-                            <button className="btn-icon" onClick={() => { setDeletingTask(task); setShowDeleteModal(true); }}>🗑️</button>
-                          </div>
-                        </div>
-                      ))}
-
-                      {completedQuadrantTasks.length > 0 && (
-                        <div className="completed-section">
-                          <div className="completed-header">Completed ({completedQuadrantTasks.length})</div>
-                          {completedQuadrantTasks.map(task => (
-                            <div key={task.id} className="task completed">
-                              <div className="task-main">
-                                <div className="task-checkbox checked" onClick={() => toggleTaskComplete(task.id)}>
-                                  <span>✓</span>
-                                </div>
-                                <div className="task-info">
-                                  <div className="task-title">{task.title}</div>
-                                </div>
-                              </div>
-                              <div className="task-actions">
-                                <button className="btn-icon" onClick={() => { setDeletingTask(task); setShowDeleteModal(true); }}>🗑️</button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
+      <div className="habit-list">
+        {filter === 'completed' ? (
+          completedTasks.length === 0 ? (
+            <div className="habit-empty">
+              <p>No completed tasks yet.</p>
             </div>
-          );
-        })}
+          ) : (
+            <>
+              <div className="todo-list-section">Completed ({completedTasks.length})</div>
+              {completedTasks.map(task => (
+                <TaskCard key={task.id} task={task}
+                  onToggle={toggleComplete} onEdit={openEdit} onDelete={handleDelete}
+                  onUpdateField={updateField}
+                  openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} />
+              ))}
+            </>
+          )
+        ) : visibleTasks.length === 0 ? (
+          <div className="habit-empty">
+            <p>No tasks match this view.</p>
+          </div>
+        ) : (
+          <>
+            {(taskStats.overdue > 0 || taskStats.dueToday > 0) && filter === 'all' && (
+              <div className="todo-list-section">Needs attention</div>
+            )}
+            {visibleTasks.map(task => (
+              <TaskCard key={task.id} task={task}
+                onToggle={toggleComplete} onEdit={openEdit} onDelete={handleDelete}
+                onUpdateField={updateField}
+                openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} />
+            ))}
+          </>
+        )}
       </div>
 
-      {/* Add Task Modal */}
-      {showAddModal && (
-        <>
-          <div className="modal-overlay" onClick={() => setShowAddModal(false)} />
-          <div className="modal">
-            <div className="modal-handle" />
-            <h3>Add New Task</h3>
-            
-            <label>Task Title *</label>
-            <input
-              type="text"
-              placeholder="What needs to be done?"
-              value={taskTitle}
-              onChange={(e) => setTaskTitle(e.target.value)}
-              className={titleError ? 'error' : ''}
-              autoFocus
-            />
-            
-            <label>Select Quadrant *</label>
-            <div className="quadrant-chips">
-              {QUADRANTS.map(q => (
-                <button
-                  key={q.id}
-                  className={`chip ${selectedQuadrant === q.id ? 'active' : ''}`}
-                  style={selectedQuadrant === q.id ? { 
-                    backgroundColor: q.color + '15',
-                    borderColor: q.color,
-                    color: q.color
-                  } : {}}
-                  onClick={() => setSelectedQuadrant(q.id)}
-                >
-                  <span>{q.icon}</span>
-                  <span>{q.title}</span>
-                </button>
-              ))}
-            </div>
-            
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="btn-save" onClick={addTask}>Add Task</button>
-            </div>
-          </div>
-        </>
+      {undoState && (
+        <div className="todo-undo-toast">
+          <span>Task deleted</span>
+          <button className="todo-undo-btn" onClick={handleUndo}>Undo</button>
+        </div>
       )}
 
-      {/* Edit Task Modal */}
-      {showEditModal && (
-        <>
-          <div className="modal-overlay" onClick={() => setShowEditModal(false)} />
-          <div className="modal">
-            <div className="modal-handle" />
-            <h3>Edit Task</h3>
-            
-            <label>Task Title *</label>
-            <input
-              type="text"
-              placeholder="What needs to be done?"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              className={titleError ? 'error' : ''}
-              autoFocus
-            />
-            
-            <label>Move to Quadrant</label>
-            <div className="quadrant-chips">
-              {QUADRANTS.map(q => (
-                <button
-                  key={q.id}
-                  className={`chip ${editQuadrant === q.id ? 'active' : ''}`}
-                  style={editQuadrant === q.id ? { 
-                    backgroundColor: q.color + '15',
-                    borderColor: q.color,
-                    color: q.color
-                  } : {}}
-                  onClick={() => setEditQuadrant(q.id)}
-                >
-                  <span>{q.icon}</span>
-                  <span>{q.title}</span>
-                </button>
-              ))}
-            </div>
-            
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowEditModal(false)}>Cancel</button>
-              <button className="btn-save" onClick={saveEdit}>Save</button>
-            </div>
-          </div>
-        </>
+      {showAdd && (
+        <TaskFormModal title="New Task"
+          taskTitle={addTitle}    onTitleChange={setAddTitle}    titleError={addTitleErr}
+          priority={addPriority}  onPriorityChange={setAddPriority}
+          category={addCategory}  onCategoryChange={setAddCategory}
+          dueDate={addDueDate}    onDueDateChange={setAddDueDate}
+          onSave={handleAdd}
+          onClose={() => { setShowAdd(false); setAddTitle(''); setAddDueDate(''); setAddCategory(''); setAddPriority('medium'); }}
+        />
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <>
-          <div className="modal-overlay" onClick={() => setShowDeleteModal(false)} />
-          <div className="modal modal-delete">
-            <div className="modal-handle" />
-            <h3>Delete Task?</h3>
-            <p className="delete-warning">
-              Are you sure you want to delete "{deletingTask?.title}"? This cannot be undone.
-            </p>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-              <button className="btn-delete" onClick={confirmDelete}>Delete</button>
-            </div>
-          </div>
-        </>
+      {showEdit && (
+        <TaskFormModal title="Edit Task"
+          taskTitle={editTitle}    onTitleChange={setEditTitle}    titleError={editTitleErr}
+          priority={editPriority}  onPriorityChange={setEditPriority}
+          category={editCategory}  onCategoryChange={setEditCategory}
+          dueDate={editDueDate}    onDueDateChange={setEditDueDate}
+          onSave={handleSaveEdit}
+          onClose={() => setShowEdit(false)}
+        />
       )}
     </div>
   );
 };
+
+/* ── TaskCard ── Redesigned for task focus */
+const TaskCard = ({ task, onToggle, onEdit, onDelete, onUpdateField, openMenuId, setOpenMenuId }) => {
+  const menuOpen  = openMenuId === task.id;
+  const touchRef  = useRef(null);
+  const [swipeX,  setSwipeX]  = useState(0);
+  const [swiping, setSwiping] = useState(false);
+
+  const onTouchStart = (e) => {
+    touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    setSwiping(false); setSwipeX(0);
+  };
+  const onTouchMove = (e) => {
+    if (!touchRef.current) return;
+    const dx = e.touches[0].clientX - touchRef.current.x;
+    const dy = Math.abs(e.touches[0].clientY - touchRef.current.y);
+    if (dy > 10 && Math.abs(dx) < dy) return;
+    setSwiping(true); setSwipeX(dx);
+  };
+  const onTouchEnd = () => {
+    if (swiping) {
+      if (swipeX >  80) onToggle(task.id);
+      if (swipeX < -80) onDelete(task);
+    }
+    setSwipeX(0); setSwiping(false); touchRef.current = null;
+  };
+
+  const dueInfo      = dueDateLabel(task.dueDate);
+  const detailText   = dueInfo
+    ? `${dueInfo.text}${task.category ? ` in ${task.category}` : ''}`
+    : (task.category ? task.category : 'No due date');
+  const priorityMeta = PRIORITIES.find(p => p.id === (task.priority || 'medium')) || PRIORITIES[1];
+  const barColor     = PRIORITY_COLOR[task.priority] || '#F59E0B';
+
+  const innerStyle = swiping
+    ? { transform: `translateX(${swipeX}px)`, transition: 'none', opacity: Math.max(0.5, 1 - Math.abs(swipeX) / 200) }
+    : { transform: 'translateX(0)', transition: 'transform 0.22s ease' };
+  const bgHint = swipeX > 40 ? 'rgba(16,185,129,0.1)' : swipeX < -40 ? 'rgba(239,68,68,0.1)' : 'transparent';
+
+  return (
+    <div className={`habit-today-card todo-task-card${task.completed ? ' todo-task-card-completed' : ''}`}
+      style={{ '--priority-color': barColor, background: bgHint }}
+      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+    >
+      {swiping && swipeX >  40 && <span className="todo-swipe-hint todo-swipe-hint-complete">✓</span>}
+      {swiping && swipeX < -40 && <span className="todo-swipe-hint todo-swipe-hint-delete">🗑️</span>}
+
+      <div style={innerStyle}>
+        {/* Header */}
+        <div className="habit-today-header" style={{ background: `${barColor}12`, borderBottom: `1px solid ${barColor}22` }}>
+          <span className="habit-today-identity" style={{ color: barColor }}>
+            {task.title}
+            {task.category && <span className="todo-category-tag"> · {task.category}</span>}
+          </span>
+          <div className="todo-card-meta">
+            <span className="todo-priority-tag">{priorityMeta.icon} {priorityMeta.label}</span>
+            {dueInfo && <span className={`todo-due-badge todo-due-${dueInfo.cls}`}>{dueInfo.text}</span>}
+            <div style={{ position: 'relative' }}>
+              <button className="todo-menu-btn-inner"
+                onClick={e => { e.stopPropagation(); setOpenMenuId(menuOpen ? null : task.id); }}
+                aria-label="Options">⋯</button>
+              {menuOpen && (
+                <div className="habit-menu-dropdown" onClick={e => e.stopPropagation()}>
+                  <button className="habit-menu-item" onClick={() => onEdit(task)}>✏️ Edit</button>
+                  <button className="habit-menu-item habit-menu-delete" onClick={() => onDelete(task)}>🗑️ Delete</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="habit-today-body">
+          <button className="habit-action-icon habit-complete-icon"
+            onClick={() => onToggle(task.id)}
+            aria-label={task.completed ? 'Mark active' : 'Mark complete'}>
+            {task.completed ? 'Undo' : 'OK'}
+          </button>
+
+          <div className="habit-today-content">
+            {task.category && <span className="todo-category-tag">{task.category}</span>}
+            {task.description && <span className="todo-task-description">{task.description}</span>}
+            <div className="todo-card-status-line">
+              <span className={`todo-status-dot todo-status-${dueInfo?.cls || 'none'}`} />
+              <span>{detailText}</span>
+            </div>
+            
+            {/* Priority selector */}
+            <div className="todo-priority-row">
+              {PRIORITIES.map(p => (
+                <button key={p.id}
+                  className={`todo-priority-btn${(task.priority || 'medium') === p.id ? ' active' : ''}`}
+                  style={(task.priority || 'medium') === p.id ? { background: p.color + '20', borderColor: p.color } : {}}
+                  onClick={() => onUpdateField(task.id, { priority: p.id })}
+                  title={p.label}>{p.label}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="habit-action-icon-placeholder" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ── Form Modal ── */
+const TaskFormModal = ({
+  title, onClose, onSave,
+  taskTitle, onTitleChange, titleError,
+  priority, onPriorityChange,
+  category, onCategoryChange,
+  dueDate, onDueDateChange,
+}) => (
+  <>
+    <div className="habit-modal-overlay" onClick={onClose} />
+    <div className="todo-modal">
+      <div className="todo-modal-handle" />
+      <div className="habit-modal-header">
+        <h3 className="habit-modal-title">{title}</h3>
+        <button className="habit-modal-close" onClick={onClose}>✕</button>
+      </div>
+
+      <label className="todo-form-label">Task *</label>
+      <input className={`todo-form-input${titleError ? ' error' : ''}`}
+        placeholder="What needs to be done?"
+        value={taskTitle} onChange={e => onTitleChange(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && onSave()}
+        autoFocus />
+
+      <label className="todo-form-label">Priority</label>
+      <div className="todo-priority-chips">
+        {PRIORITIES.map(p => (
+          <button key={p.id}
+            className={`todo-priority-chip${priority === p.id ? ' active' : ''}`}
+            style={priority === p.id ? { background: p.color + '20', borderColor: p.color, color: p.color } : {}}
+            onClick={() => onPriorityChange(p.id)}>
+            {p.icon} {p.label}
+          </button>
+        ))}
+      </div>
+
+      <label className="todo-form-label">Category</label>
+      <div className="todo-category-chips">
+        {CATEGORIES.map(c => (
+          <button key={c}
+            className={`todo-category-chip${category === c ? ' active' : ''}`}
+            onClick={() => onCategoryChange(category === c ? '' : c)}>
+            {c}
+          </button>
+        ))}
+      </div>
+
+      <label className="todo-form-label">Due date (optional)</label>
+      <input type="date" className="todo-form-input"
+        value={dueDate} min={todayStr()}
+        onChange={e => onDueDateChange(e.target.value)}
+        onFocus={e => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })} />
+
+      <div className="todo-modal-actions">
+        <button className="todo-btn-cancel" onClick={onClose}>Cancel</button>
+        <button className="todo-btn-save" onClick={onSave}>Save</button>
+      </div>
+    </div>
+  </>
+);
 
 export default TodoMatrix;

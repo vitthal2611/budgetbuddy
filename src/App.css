@@ -760,3 +760,89 @@
 
 /* stat-item credit color */
 .stat-item.credit .stat-value { color: #1d4ed8; }
+
+/* ===== Modern App Polish ===== */
+.App {
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.10), transparent 30%),
+    linear-gradient(180deg, #F8FAFC 0%, #EEF2F6 100%);
+}
+
+.content {
+  background: transparent;
+}
+
+.bottom-nav {
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  max-width: 456px;
+  height: 66px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(16px);
+  padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+}
+
+.bottom-nav button {
+  border-radius: 15px;
+  gap: 5px;
+  color: #64748B;
+  font-weight: 800;
+}
+
+.bottom-nav button .nav-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: #F1F5F9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.bottom-nav button.active {
+  background: #ECFDF5;
+  color: #047857;
+}
+
+.bottom-nav button.active .nav-icon {
+  background: #10B981;
+  color: #FFFFFF;
+}
+
+.bottom-nav button.active::before {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .bottom-nav {
+    left: 10px;
+    right: 10px;
+    bottom: 8px;
+    width: auto;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav button {
+    font-size: 11px;
+  }
+
+  .bottom-nav button .nav-icon {
+    font-size: 12px;
+  }
+}
+
+@media (min-width: 768px) {
+  .App,
+  .app-main,
+  .content {
+    background:
+      radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 32%),
+      linear-gradient(180deg, #F8FAFC 0%, #EEF2F6 100%);
+  }
+}
