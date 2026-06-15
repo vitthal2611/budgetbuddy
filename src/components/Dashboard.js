@@ -11,7 +11,10 @@ const PRIORITIES = [
   { id: 'low', label: 'Low', color: '#639922' },
 ];
 const CATEGORIES = ['Work', 'Personal', 'Health', 'Finance', 'Learning', 'Home', 'Other'];
-const TODO_FILTERS = ['All', 'Today', 'Upcoming', 'High', 'Done'];
+const CONTEXTS = ['@home', '@work', '@phone', '@computer', '@outside', '@errands'];
+const ENERGY_LEVELS = [{ id: 'high', label: '⚡ High energy' }, { id: 'low', label: '🌿 Low energy' }];
+const DIFFICULTIES = [{ id: 'easy', label: 'Easy', color: '#16A34A' }, { id: 'medium', label: 'Medium', color: '#F59E0B' }, { id: 'hard', label: 'Hard', color: '#E24B4A' }];
+const TODO_FILTERS = ['All', 'Today', 'Quick', 'High', 'Done'];
 
 const getIstParts = () => {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -138,7 +141,7 @@ const Confetti = ({ active }) => {
 };
 
 // Swipeable habit row
-const SwipeHabitRow = ({ children, onSwipeRight, onSwipeLeft, className }) => {
+const SwipeHabitRow = ({ children, onSwipeRight, onSwipeLeft, className, rightLabel = '✓ Done', leftLabel = '✗ Miss' }) => {
   const startX = useRef(null);
   const el = useRef(null);
   const [offset, setOffset] = useState(0);
@@ -159,8 +162,8 @@ const SwipeHabitRow = ({ children, onSwipeRight, onSwipeLeft, className }) => {
   return (
     <div className={`db-swipe-wrap ${className || ''}`} ref={el}
       onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <div className="db-swipe-hint-left" style={{ opacity: offset > 30 ? (offset - 30) / 50 : 0 }}>✓ Done</div>
-      <div className="db-swipe-hint-right" style={{ opacity: offset < -30 ? (-offset - 30) / 50 : 0 }}>✗ Miss</div>
+      <div className="db-swipe-hint-left" style={{ opacity: offset > 30 ? (offset - 30) / 50 : 0 }}>{rightLabel}</div>
+      <div className="db-swipe-hint-right" style={{ opacity: offset < -30 ? (-offset - 30) / 50 : 0 }}>{leftLabel}</div>
       <div className="db-swipe-inner" style={{ transform: `translateX(${offset}px)`, transition: swiping ? 'none' : 'transform .2s ease' }}>
         {children}
       </div>
@@ -185,34 +188,44 @@ const Dashboard = ({ user, onSignOut }) => {
 
   // Add habit modal
   const [showAddHabit, setShowAddHabit] = useState(false);
-  const [hAction, setHAction]     = useState('');
-  const [hTime, setHTime]         = useState('');
-  const [hTrigger, setHTrigger]   = useState('');
-  const [hIdentity, setHIdentity] = useState('');
-  const [hErr, setHErr]           = useState('');
+  const [hAction, setHAction]       = useState('');
+  const [hTime, setHTime]           = useState('');
+  const [hTrigger, setHTrigger]     = useState('');
+  const [hLocation, setHLocation]   = useState('');
+  const [hIdentity, setHIdentity]   = useState('');
+  const [hDifficulty, setHDifficulty] = useState('medium');
+  const [hReward, setHReward]       = useState('');
+  const [hErr, setHErr]             = useState('');
   const [savingHabit, setSavingHabit] = useState(false);
 
   // Edit habit modal
   const [editingHabit, setEditingHabit] = useState(null);
-  const [eHAction, setEHAction]   = useState('');
-  const [eHTime, setEHTime]       = useState('');
-  const [eHTrigger, setEHTrigger] = useState('');
-  const [eHIdentity, setEHIdentity] = useState('');
-  const [eHErr, setEHErr]         = useState('');
+  const [eHAction, setEHAction]       = useState('');
+  const [eHTime, setEHTime]           = useState('');
+  const [eHTrigger, setEHTrigger]     = useState('');
+  const [eHLocation, setEHLocation]   = useState('');
+  const [eHIdentity, setEHIdentity]   = useState('');
+  const [eHDifficulty, setEHDifficulty] = useState('medium');
+  const [eHReward, setEHReward]       = useState('');
+  const [eHErr, setEHErr]             = useState('');
 
   // Add todo modal
   const [showAddTodo, setShowAddTodo] = useState(false);
-  const [tTitle, setTTitle]   = useState('');
-  const [tPri, setTPri]       = useState('medium');
-  const [tCat, setTCat]       = useState('');
-  const [tDue, setTDue]       = useState('');
-  const [tErr, setTErr]       = useState(false);
+  const [tTitle, setTTitle]     = useState('');
+  const [tPri, setTPri]         = useState('medium');
+  const [tCat, setTCat]         = useState('');
+  const [tContext, setTContext]  = useState('');
+  const [tEnergy, setTEnergy]   = useState('');
+  const [tDue, setTDue]         = useState('');
+  const [tErr, setTErr]         = useState(false);
 
   // Edit todo modal
   const [editingTask, setEditingTask] = useState(null);
-  const [eTitle, setETitle] = useState('');
-  const [ePri, setEPri]   = useState('medium');
-  const [eDue, setEDue]   = useState('');
+  const [eTitle, setETitle]     = useState('');
+  const [ePri, setEPri]         = useState('medium');
+  const [eDue, setEDue]         = useState('');
+  const [eContext, setEContext]  = useState('');
+  const [eEnergy, setEEnergy]   = useState('');
 
   useEffect(() => {
     const unsub = habitService.subscribeToHabits((d) => {
@@ -275,9 +288,10 @@ const Dashboard = ({ user, onSignOut }) => {
     return currentDate >= new Date(y, m - 1, d);
   });
 
-  const incomplete = scheduledHabits.filter((h) => !completions.includes(h.id) && !missed.includes(h.id));
-  const done       = scheduledHabits.filter((h) => completions.includes(h.id));
-  const missedList = scheduledHabits.filter((h) => missed.includes(h.id));
+  const byTime = (a, b) => (timeToMins(a.time) ?? 9999) - (timeToMins(b.time) ?? 9999);
+  const incomplete = scheduledHabits.filter((h) => !completions.includes(h.id) && !missed.includes(h.id)).sort(byTime);
+  const done       = scheduledHabits.filter((h) => completions.includes(h.id)).sort(byTime);
+  const missedList = scheduledHabits.filter((h) => missed.includes(h.id)).sort(byTime);
 
   const total = scheduledHabits.length;
   const completedCount = done.length;
@@ -375,6 +389,16 @@ const Dashboard = ({ user, onSignOut }) => {
     await habitService.saveHabits(next);
   };
 
+  const revertToIncomplete = async (id) => {
+    const newMissed = { ...habitData.missed };
+    newMissed[currentDateStr] = (newMissed[currentDateStr] || []).filter((x) => x !== id);
+    const newCompletions = { ...habitData.completions };
+    newCompletions[currentDateStr] = (newCompletions[currentDateStr] || []).filter((x) => x !== id);
+    const next = { ...habitData, missed: newMissed, completions: newCompletions };
+    setHabitData(next);
+    await habitService.saveHabits(next);
+  };
+
   const toggleMissed = async (id) => {
     const newMissed = { ...habitData.missed };
     const arr = [...(newMissed[currentDateStr] || [])];
@@ -410,35 +434,45 @@ const Dashboard = ({ user, onSignOut }) => {
     setEHAction(h.action || '');
     setEHTime(h.time || '');
     setEHTrigger(h.trigger || '');
+    setEHLocation(h.location || '');
     setEHIdentity(h.identity || '');
+    setEHDifficulty(h.difficulty || 'medium');
+    setEHReward(h.reward || '');
     setEHErr('');
   };
 
   const saveEditHabit = async () => {
     if (!eHAction.trim() || !eHTime) { setEHErr('Action and time are required.'); return; }
-    const updated = { ...editingHabit, action: eHAction.trim(), time: eHTime, trigger: eHTrigger.trim(), identity: eHIdentity.trim() };
+    const updated = {
+      ...editingHabit,
+      action: eHAction.trim(), time: eHTime,
+      trigger: eHTrigger.trim(), location: eHLocation.trim(),
+      identity: eHIdentity.trim(), difficulty: eHDifficulty,
+      reward: eHReward.trim(),
+    };
     const next = { ...habitData, habits: habitData.habits.map(h => h.id === editingHabit.id ? updated : h) };
     setHabitData(next);
-    await habitService.saveHabits(next);
     setEditingHabit(null);
+    habitService.saveHabits(next);
   };
 
-  const saveTask = useCallback(async (next) => {
+  const saveTask = useCallback((next) => {
     setTasks(next);
-    await todoService.saveTasks(next);
+    todoService.saveTasks(next); // fire-and-forget; Firebase real-time sub will sync
   }, []);
 
-  const toggleTask = async (id) =>
+  const toggleTask = (id) =>
     saveTask(tasks.map((t) => t.id === id ? { ...t, completed: !t.completed } : t));
 
-  const deleteTask = async (id) =>
+  const deleteTask = (id) =>
     saveTask(tasks.filter((t) => t.id !== id));
 
   const [priPopupId, setPriPopupId] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
 
-  const setPriority = async (id, pri) => {
+  const setPriority = (id, pri) => {
     setPriPopupId(null);
-    await saveTask(tasks.map((t) => t.id === id ? { ...t, priority: pri } : t));
+    saveTask(tasks.map((t) => t.id === id ? { ...t, priority: pri } : t));
   };
 
   const openEditTask = (task) => {
@@ -446,18 +480,18 @@ const Dashboard = ({ user, onSignOut }) => {
     setETitle(task.title || '');
     setEPri(task.priority || 'medium');
     setEDue(task.dueDate || '');
+    setEContext(task.context || '');
+    setEEnergy(task.energy || '');
   };
 
-  const saveEditTask = async () => {
+  const saveEditTask = () => {
     const title = eTitle.trim();
     if (!title) return;
-    try {
-      await saveTask(tasks.map((t) =>
-        t.id === editingTask.id ? { ...t, title, priority: ePri, dueDate: eDue } : t
-      ));
-    } finally {
-      setEditingTask(null);
-    }
+    const next = tasks.map((t) =>
+      t.id === editingTask.id ? { ...t, title, priority: ePri, dueDate: eDue, context: eContext, energy: eEnergy } : t
+    );
+    setEditingTask(null);
+    saveTask(next);
   };
 
   const addHabit = async () => {
@@ -468,14 +502,17 @@ const Dashboard = ({ user, onSignOut }) => {
       const newHabit = {
         id: `habit_${Date.now()}`,
         action: hAction.trim(), time: hTime,
-        trigger: hTrigger.trim(), identity: hIdentity.trim(),
-        startDate: today, location: '', review: '',
+        trigger: hTrigger.trim(), location: hLocation.trim(),
+        identity: hIdentity.trim(), difficulty: hDifficulty,
+        reward: hReward.trim(),
+        startDate: today,
       };
       const next = { ...habitData, habits: [...habitData.habits, newHabit] };
       setHabitData(next);
       await habitService.saveHabits(next);
       setShowAddHabit(false);
-      setHAction(''); setHTime(''); setHTrigger(''); setHIdentity(''); setHErr('');
+      setHAction(''); setHTime(''); setHTrigger(''); setHLocation('');
+      setHIdentity(''); setHDifficulty('medium'); setHReward(''); setHErr('');
     } finally {
       setSavingHabit(false);
     }
@@ -483,13 +520,14 @@ const Dashboard = ({ user, onSignOut }) => {
 
   const addTodo = async () => {
     if (!tTitle.trim()) { setTErr(true); setTimeout(() => setTErr(false), 500); return; }
-    await saveTask([...tasks, {
+    saveTask([...tasks, {
       id: `task_${Date.now()}`,
-      title: tTitle.trim(), priority: tPri, category: tCat, dueDate: tDue,
+      title: tTitle.trim(), priority: tPri, category: tCat,
+      context: tContext, energy: tEnergy, dueDate: tDue,
       completed: false, createdAt: new Date().toISOString(),
     }]);
     setShowAddTodo(false);
-    setTTitle(''); setTPri('medium'); setTCat(''); setTDue('');
+    setTTitle(''); setTPri('medium'); setTCat(''); setTContext(''); setTEnergy(''); setTDue('');
   };
 
   const enableNotifications = async () => {
@@ -507,7 +545,7 @@ const Dashboard = ({ user, onSignOut }) => {
   const visibleTasks = todoFilter === 'Done' ? completedTasks : activeTasks.filter((t) => {
     const dc = getDueClass(t.dueDate);
     if (todoFilter === 'Today') return dc === 'today' || dc === 'overdue';
-    if (todoFilter === 'Upcoming') return dc === 'tomorrow' || dc === 'future';
+    if (todoFilter === 'Quick') return t.energy === 'low';
     if (todoFilter === 'High') return (t.priority || 'medium') === 'high';
     return true;
   });
@@ -765,8 +803,12 @@ const Dashboard = ({ user, onSignOut }) => {
                                 {atRisk && <span className="db-risk-tag">Don't break streak!</span>}
                               </div>
                               <div className="db-habit-meta">
-                                {h.time}{h.identity ? ` · ${h.identity}` : ''}
+                                {h.time}
+                                {h.location && <span> · 📍 {h.location}</span>}
+                                {h.difficulty && <span className={`db-diff-chip db-diff-${h.difficulty}`}>{h.difficulty}</span>}
                               </div>
+                              {h.identity && <div className="db-habit-identity">💭 {h.identity}</div>}
+                              {h.reward && <div className="db-habit-reward">🎁 {h.reward}</div>}
                             </div>
                           </div>
                           <div className="db-habit-footer">
@@ -779,34 +821,46 @@ const Dashboard = ({ user, onSignOut }) => {
                     );
                   })}
 
-                  {done.length > 0 && (
-                    <div className="db-done-count">
-                      ✓ {done.length} completed
-                    </div>
-                  )}
+                  {(done.length > 0 || missedList.length > 0) && (
+                    <div className="db-history-section">
+                      <button className="db-history-toggle" onClick={() => setShowHistory((v) => !v)}>
+                        <span className="db-history-toggle-line" />
+                        <span className="db-history-toggle-label">
+                          {done.length > 0 && `✓ ${done.length} done`}
+                          {done.length > 0 && missedList.length > 0 && ' · '}
+                          {missedList.length > 0 && `✗ ${missedList.length} missed`}
+                        </span>
+                        <span className="db-history-toggle-line" />
+                        <span className={`db-history-chevron${showHistory ? ' open' : ''}`}>›</span>
+                      </button>
 
-                  {missedList.map((h) => (
-                    <div key={h.id} className="db-habit-row missed-row">
-                      {h.trigger && (
-                        <div className="db-habit-cue missed-cue">
-                          <span className="db-cue-label">After</span>
-                          <span className="db-cue-text">{h.trigger}</span>
+                      {showHistory && (
+                        <div className="db-history-list">
+                          {done.map((h) => (
+                            <div key={h.id} className="db-habit-log db-habit-log-done">
+                              <span className="db-log-icon">✓</span>
+                              <div className="db-log-body">
+                                <span className="db-log-name">{h.action}</span>
+                                <span className="db-log-time">{h.time}</span>
+                              </div>
+                              <span className="db-log-streak">🔥 {getCurrentStreak(h.id)}</span>
+                              <button className="db-log-undo" onClick={() => toggleCompletion(h.id)}>↶ Undo</button>
+                            </div>
+                          ))}
+                          {missedList.map((h) => (
+                            <div key={h.id} className="db-habit-log db-habit-log-missed">
+                              <span className="db-log-icon">✗</span>
+                              <div className="db-log-body">
+                                <span className="db-log-name">{h.action}</span>
+                                <span className="db-log-time">{h.time}</span>
+                              </div>
+                              <button className="db-log-undo db-log-undo-missed" onClick={() => revertToIncomplete(h.id)}>↶ Undo</button>
+                            </div>
+                          ))}
                         </div>
                       )}
-                      <div className="db-habit-action-row">
-                        <button className="db-habit-check missed-check" onClick={() => toggleMissed(h.id)} aria-label="Undo missed">↶</button>
-                        <div className="db-habit-action-body">
-                          <div className="db-habit-name">{h.action}</div>
-                          <div className="db-habit-meta">{h.time}</div>
-                        </div>
-                      </div>
-                      <div className="db-habit-footer">
-                        <span className="db-hf-streak db-hf-missed-label">✗ Missed</span>
-                        <button className="db-hf-btn db-hf-edit" onClick={() => openEditHabit(h)}>✎ Edit</button>
-                        <button className="db-hf-btn db-hf-undo" onClick={() => toggleCompletion(h.id)}>↶ Done</button>
-                      </div>
                     </div>
-                  ))}
+                  )}
 
                   {allDoneNow && (
                     <div className="db-all-done">
@@ -862,8 +916,8 @@ const Dashboard = ({ user, onSignOut }) => {
                         const di = dueDateLabel(task.dueDate);
                         const dc = getDueClass(task.dueDate);
                         return (
+                          <SwipeHabitRow key={task.id} onSwipeRight={() => toggleTask(task.id)} onSwipeLeft={() => deleteTask(task.id)} rightLabel="✓ Done" leftLabel="✕ Delete">
                           <div
-                            key={task.id}
                             className={`db-task-row${dc === 'overdue' ? ' overdue-row' : ''}${task.completed ? ' done-task' : ''}`}
                           >
                             <div className="db-task-body">
@@ -876,9 +930,12 @@ const Dashboard = ({ user, onSignOut }) => {
                               </button>
                               <div className="db-task-content">
                                 <div className="db-task-title">{task.title}</div>
-                                {(di || task.category) && (
+                                {(di || task.category || task.context || task.energy) && (
                                   <div className="db-task-badges">
                                     {di && <span className={badgeCls(di.cls)}>{di.text}</span>}
+                                    {task.energy === 'high' && <span className="db-badge db-badge-energy-high">⚡ High</span>}
+                                    {task.energy === 'low'  && <span className="db-badge db-badge-energy-low">🌿 Quick</span>}
+                                    {task.context && <span className="db-badge db-badge-gray">{task.context}</span>}
                                     {task.category && <span className="db-badge db-badge-gray">{task.category}</span>}
                                   </div>
                                 )}
@@ -920,6 +977,7 @@ const Dashboard = ({ user, onSignOut }) => {
                               <button className="db-tf-btn db-tf-delete" onClick={() => deleteTask(task.id)}>✕ Delete</button>
                             </div>
                           </div>
+                          </SwipeHabitRow>
                         );
                       };
 
@@ -1025,18 +1083,37 @@ const Dashboard = ({ user, onSignOut }) => {
               <button className="db-modal-close" onClick={() => setEditingHabit(null)}>✕</button>
             </div>
             {eHErr && <div style={{ color: '#B91C1C', fontSize: 13, marginBottom: 8 }}>{eHErr}</div>}
+            <div className="db-law-section"><span className="db-law-badge">1</span> Make it Obvious</div>
             <label className="db-form-label">Habit *</label>
             <input className="db-form-input" placeholder="e.g. Morning run" value={eHAction}
               onChange={(e) => setEHAction(e.target.value)} autoFocus />
             <label className="db-form-label">Time (IST) *</label>
             <input className="db-form-input" type="time" value={eHTime}
               onChange={(e) => setEHTime(e.target.value)} />
-            <label className="db-form-label">Trigger (after what?)</label>
-            <input className="db-form-input" placeholder="e.g. morning alarm" value={eHTrigger}
+            <label className="db-form-label">Cue — after what?</label>
+            <input className="db-form-input" placeholder="e.g. After morning alarm" value={eHTrigger}
               onChange={(e) => setEHTrigger(e.target.value)} />
-            <label className="db-form-label">Identity (I am…)</label>
-            <input className="db-form-input" placeholder="e.g. I am an athlete" value={eHIdentity}
+            <label className="db-form-label">Location — where?</label>
+            <input className="db-form-input" placeholder="e.g. At my desk" value={eHLocation}
+              onChange={(e) => setEHLocation(e.target.value)} />
+            <div className="db-law-section"><span className="db-law-badge">2</span> Make it Attractive</div>
+            <label className="db-form-label">Identity — I am…</label>
+            <input className="db-form-input" placeholder="e.g. I am someone who moves every day" value={eHIdentity}
               onChange={(e) => setEHIdentity(e.target.value)} />
+            <div className="db-law-section"><span className="db-law-badge">3</span> Make it Easy</div>
+            <label className="db-form-label">Difficulty</label>
+            <div className="db-pri-chips">
+              {DIFFICULTIES.map((d) => (
+                <button key={d.id}
+                  className={`db-pri-chip${eHDifficulty === d.id ? ' active' : ''}`}
+                  style={eHDifficulty === d.id ? { color: d.color, borderColor: d.color, background: d.color + '18' } : {}}
+                  onClick={() => setEHDifficulty(d.id)}>{d.label}</button>
+              ))}
+            </div>
+            <div className="db-law-section"><span className="db-law-badge">4</span> Make it Satisfying</div>
+            <label className="db-form-label">Reward — after I do this I will…</label>
+            <input className="db-form-input" placeholder="e.g. Enjoy my morning coffee" value={eHReward}
+              onChange={(e) => setEHReward(e.target.value)} />
             <div className="db-modal-actions" style={{ justifyContent: 'space-between' }}>
               <button className="db-modal-cancel" style={{ color: '#E24B4A' }}
                 onClick={() => { deleteHabit(editingHabit.id); setEditingHabit(null); }}>
@@ -1060,18 +1137,37 @@ const Dashboard = ({ user, onSignOut }) => {
               <button className="db-modal-close" onClick={() => setShowAddHabit(false)}>✕</button>
             </div>
             {hErr && <div style={{ color: '#B91C1C', fontSize: 13, marginBottom: 8 }}>{hErr}</div>}
+            <div className="db-law-section"><span className="db-law-badge">1</span> Make it Obvious</div>
             <label className="db-form-label">What's the habit? *</label>
             <input className="db-form-input" placeholder="e.g. Morning run" value={hAction}
               onChange={(e) => setHAction(e.target.value)} autoFocus />
             <label className="db-form-label">Time (IST) *</label>
             <input className="db-form-input" type="time" value={hTime}
               onChange={(e) => setHTime(e.target.value)} />
-            <label className="db-form-label">Trigger (after what?)</label>
+            <label className="db-form-label">Cue — after what?</label>
             <input className="db-form-input" placeholder="e.g. After morning alarm" value={hTrigger}
               onChange={(e) => setHTrigger(e.target.value)} />
-            <label className="db-form-label">Identity (I am…)</label>
-            <input className="db-form-input" placeholder="e.g. I am an athlete" value={hIdentity}
+            <label className="db-form-label">Location — where?</label>
+            <input className="db-form-input" placeholder="e.g. At my desk" value={hLocation}
+              onChange={(e) => setHLocation(e.target.value)} />
+            <div className="db-law-section"><span className="db-law-badge">2</span> Make it Attractive</div>
+            <label className="db-form-label">Identity — I am…</label>
+            <input className="db-form-input" placeholder="e.g. I am someone who moves every day" value={hIdentity}
               onChange={(e) => setHIdentity(e.target.value)} />
+            <div className="db-law-section"><span className="db-law-badge">3</span> Make it Easy</div>
+            <label className="db-form-label">Difficulty</label>
+            <div className="db-pri-chips">
+              {DIFFICULTIES.map((d) => (
+                <button key={d.id}
+                  className={`db-pri-chip${hDifficulty === d.id ? ' active' : ''}`}
+                  style={hDifficulty === d.id ? { color: d.color, borderColor: d.color, background: d.color + '18' } : {}}
+                  onClick={() => setHDifficulty(d.id)}>{d.label}</button>
+              ))}
+            </div>
+            <div className="db-law-section"><span className="db-law-badge">4</span> Make it Satisfying</div>
+            <label className="db-form-label">Reward — after I do this I will…</label>
+            <input className="db-form-input" placeholder="e.g. Enjoy my morning coffee" value={hReward}
+              onChange={(e) => setHReward(e.target.value)} />
             <div className="db-modal-actions">
               <button className="db-modal-cancel" onClick={() => setShowAddHabit(false)}>Cancel</button>
               <button className="db-modal-save" onClick={addHabit} disabled={savingHabit}>
@@ -1103,6 +1199,24 @@ const Dashboard = ({ user, onSignOut }) => {
                   onClick={() => setEPri(p.id)}>
                   {p.label}
                 </button>
+              ))}
+            </div>
+            <label className="db-form-label">Energy needed</label>
+            <div className="db-pri-chips">
+              {ENERGY_LEVELS.map((e) => (
+                <button key={e.id}
+                  className={`db-pri-chip${eEnergy === e.id ? ' active' : ''}`}
+                  style={eEnergy === e.id ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
+                  onClick={() => setEEnergy(eEnergy === e.id ? '' : e.id)}>{e.label}</button>
+              ))}
+            </div>
+            <label className="db-form-label">Context</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {CONTEXTS.map((c) => (
+                <button key={c}
+                  className={`db-pri-chip${eContext === c ? ' active' : ''}`}
+                  style={eContext === c ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
+                  onClick={() => setEContext(eContext === c ? '' : c)}>{c}</button>
               ))}
             </div>
             <label className="db-form-label">Deadline</label>
@@ -1142,15 +1256,31 @@ const Dashboard = ({ user, onSignOut }) => {
                 </button>
               ))}
             </div>
+            <label className="db-form-label">Energy needed</label>
+            <div className="db-pri-chips">
+              {ENERGY_LEVELS.map((e) => (
+                <button key={e.id}
+                  className={`db-pri-chip${tEnergy === e.id ? ' active' : ''}`}
+                  style={tEnergy === e.id ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
+                  onClick={() => setTEnergy(tEnergy === e.id ? '' : e.id)}>{e.label}</button>
+              ))}
+            </div>
+            <label className="db-form-label">Context</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {CONTEXTS.map((c) => (
+                <button key={c}
+                  className={`db-pri-chip${tContext === c ? ' active' : ''}`}
+                  style={tContext === c ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
+                  onClick={() => setTContext(tContext === c ? '' : c)}>{c}</button>
+              ))}
+            </div>
             <label className="db-form-label">Category</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {CATEGORIES.map((c) => (
                 <button key={c}
                   className={`db-pri-chip${tCat === c ? ' active' : ''}`}
                   style={tCat === c ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
-                  onClick={() => setTCat(tCat === c ? '' : c)}>
-                  {c}
-                </button>
+                  onClick={() => setTCat(tCat === c ? '' : c)}>{c}</button>
               ))}
             </div>
             <label className="db-form-label">Due date</label>

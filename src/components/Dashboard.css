@@ -1668,3 +1668,247 @@
   color: #6C63D5;
 }
 .db-hf-undo:active { background: #F4F3FB; }
+
+/* ── Atomic Habits law section headers in modal ── */
+.db-law-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6C63D5;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin: 16px 0 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #EEEDFE;
+}
+
+.db-law-badge {
+  width: 20px;
+  height: 20px;
+  background: #6C63D5;
+  color: #fff;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* ── Difficulty chip on habit card ── */
+.db-diff-chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 20px;
+  margin-left: 6px;
+  text-transform: capitalize;
+}
+
+.db-diff-easy   { background: #DCFCE7; color: #16A34A; }
+.db-diff-medium { background: #FEF3C7; color: #92400E; }
+.db-diff-hard   { background: #FEE2E2; color: #B91C1C; }
+
+/* ── Habit identity & reward lines ── */
+.db-habit-identity {
+  font-size: 11px;
+  color: #7F77DD;
+  margin-top: 3px;
+  font-style: italic;
+}
+
+.db-habit-reward {
+  font-size: 11px;
+  color: #16A34A;
+  margin-top: 2px;
+}
+
+/* ── Energy badges on task ── */
+.db-badge-energy-high {
+  background: #FEF3C7;
+  color: #92400E;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.db-badge-energy-low {
+  background: #DCFCE7;
+  color: #16A34A;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+/* ── Completed / missed habit history ── */
+.db-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.db-history-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.db-history-divider::before,
+.db-history-divider::after {
+  content: '''';
+  flex: 1;
+  height: 1px;
+  background: #E5E3F7;
+}
+
+.db-history-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9CA3AF;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+.db-habit-log {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 0.5px solid transparent;
+}
+
+.db-habit-log-done {
+  background: #F0FDF4;
+  border-color: #BBF7D0;
+}
+
+.db-habit-log-missed {
+  background: #FFF1F2;
+  border-color: #FECDD3;
+}
+
+.db-log-icon {
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.db-habit-log-done .db-log-icon  { color: #16A34A; }
+.db-habit-log-missed .db-log-icon { color: #E24B4A; }
+
+.db-log-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.db-log-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B7280;
+  text-decoration: line-through;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-habit-log-missed .db-log-name {
+  text-decoration: none;
+  color: #9B1C1C;
+}
+
+.db-log-time {
+  font-size: 11px;
+  color: #9CA3AF;
+  flex-shrink: 0;
+}
+
+.db-log-streak {
+  font-size: 11px;
+  font-weight: 600;
+  color: #F59E0B;
+  flex-shrink: 0;
+}
+
+.db-log-undo {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.db-log-undo:active { background: rgba(0,0,0,0.06); }
+
+.db-log-undo-missed {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6C63D5;
+  background: #EEEDFE;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+/* ── History collapse toggle ── */
+.db-history-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.db-history-toggle-line {
+  flex: 1;
+  height: 1px;
+  background: #E5E3F7;
+}
+
+.db-history-toggle-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9CA3AF;
+  white-space: nowrap;
+}
+
+.db-history-chevron {
+  font-size: 16px;
+  color: #C4BFEE;
+  line-height: 1;
+  transform: rotate(90deg);
+  transition: transform .2s;
+  display: inline-block;
+}
+
+.db-history-chevron.open {
+  transform: rotate(-90deg);
+}
+
+.db-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
