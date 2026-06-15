@@ -36,17 +36,17 @@
   margin: 0 auto;
   z-index: 100;
   box-shadow: 0 -1px 0 var(--border-light), 0 -4px 12px rgba(16,24,40,0.04);
-  padding: 8px 0;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom));
-  height: var(--nav-height);
+  padding: 4px 0;
+  padding-bottom: calc(4px + env(safe-area-inset-bottom));
+  height: 52px;
 }
 
 .bottom-nav button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 8px 16px;
+  gap: 2px;
+  padding: 6px 16px;
   border: none;
   background: transparent;
   font-family: var(--font-primary);
@@ -63,7 +63,7 @@
 }
 
 .bottom-nav button .nav-icon {
-  font-size: 24px;
+  font-size: 20px;
   transition: all var(--transition-fast) var(--ease-standard);
 }
 

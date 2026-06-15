@@ -27,8 +27,8 @@
 /* â”€â”€ Hero â”€â”€ */
 .db-hero {
   background: #6C63D5;
-  padding: 16px 16px 20px;
-  padding-top: calc(16px + env(safe-area-inset-top));
+  padding: 12px 16px 14px;
+  padding-top: calc(12px + env(safe-area-inset-top));
   flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
@@ -54,21 +54,21 @@
 /* ── Today hero ── */
 .db-hero-today {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .db-ring-wrap {
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 64px;
+  height: 64px;
   flex-shrink: 0;
 }
 
 .db-ring-wrap svg {
-  width: 96px;
-  height: 96px;
+  width: 64px;
+  height: 64px;
 }
 
 .db-ring-center {
@@ -81,26 +81,26 @@
 }
 
 .db-ring-pct {
-  font-size: 22px;
+  font-size: 15px;
   font-weight: 700;
   color: #fff;
   line-height: 1;
 }
 
 .db-ring-sub {
-  font-size: 10px;
+  font-size: 9px;
   color: rgba(255,255,255,0.55);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* Stat row */
 .db-hero-stat-row {
   display: flex;
   align-items: center;
-  width: 100%;
+  flex: 1;
   background: rgba(255,255,255,0.12);
-  border-radius: 14px;
-  padding: 12px 0;
+  border-radius: 12px;
+  padding: 8px 0;
 }
 
 .db-hero-stat {
@@ -109,7 +109,7 @@
 }
 
 .db-hero-stat-val {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 700;
   color: #fff;
   line-height: 1;
@@ -119,15 +119,15 @@
 .db-hero-stat-val.danger { color: #FCA5A5; }
 
 .db-hero-stat-lbl {
-  font-size: 10px;
+  font-size: 9px;
   color: rgba(255,255,255,0.55);
-  margin-top: 4px;
+  margin-top: 3px;
   font-weight: 500;
 }
 
 .db-hero-stat-divider {
   width: 1px;
-  height: 32px;
+  height: 24px;
   background: rgba(255,255,255,0.15);
   flex-shrink: 0;
 }
@@ -169,7 +169,7 @@
 
 /* â”€â”€ Section â”€â”€ */
 .db-section {
-  padding: 14px 14px 0;
+  padding: 16px 16px 0;
   box-sizing: border-box;
   width: 100%;
 }
@@ -183,9 +183,9 @@
 }
 
 .db-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #2D2A3D;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1A1730;
   letter-spacing: .01em;
   flex: 1;
   min-width: 0;
@@ -347,13 +347,13 @@
 .db-habits {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 10px;
 }
 
 .db-habit-row {
   background: #fff;
-  border-radius: 14px;
-  border: 0.5px solid #E5E3F7;
+  border-radius: 16px;
+  border: 1.5px solid #D6D2F5;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -410,9 +410,9 @@
 }
 
 .db-habit-name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1F2937;
+  color: #1A1730;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -429,9 +429,9 @@
 }
 
 .db-habit-meta {
-  font-size: 11px;
-  color: #9CA3AF;
-  margin-top: 2px;
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -571,35 +571,36 @@
 .db-tasks {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   padding-bottom: 12px;
 }
 
 .db-task-row {
   background: #fff;
-  border-radius: 14px;
-  border: 0.5px solid #E5E3F7;
+  border-radius: 16px;
+  border: 1.5px solid #D6D2F5;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .db-task-row.overdue-row {
-  border-left: 2.5px solid #E24B4A;
+  border: 1.5px solid #F09595;
+  border-left: 3px solid #E24B4A;
 }
 
 .db-task-chk {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: 1.5px solid #D1D5DB;
+  border: 1.5px solid #C7C4E8;
   flex-shrink: 0;
   cursor: pointer;
   background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   color: transparent;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -614,35 +615,67 @@
 .db-task-body {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 12px;
+  padding: 14px 16px;
 }
 
 .db-task-date-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-top: 0.5px solid #F0EEF9;
+  gap: 7px;
+  padding: 8px 16px;
+  border-top: 1px solid #EDE9FC;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .db-task-date-row::-webkit-scrollbar { display: none; }
 
-.db-task-date-icon { font-size: 12px; flex-shrink: 0; }
+.db-task-date-icon { font-size: 13px; flex-shrink: 0; }
 
 .db-task-date-chip {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 5px 12px;
   border-radius: 20px;
-  border: 0.5px solid #E0DCF8;
+  border: 1px solid #D6D2F5;
   background: transparent;
-  color: #9B96D4;
+  color: #7B74CC;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
 }
+.db-task-date-custom {
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.db-task-date-custom input[type="date"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.db-task-edit-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  color: #9B96D4;
+  padding: 4px 2px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .db-task-date-chip.active {
   background: #EEEDFE;
   color: #3C3489;
@@ -656,19 +689,19 @@
 
 .db-task-pri-strip {
   display: flex;
-  border-top: 0.5px solid #F0EEF9;
+  border-top: 1px solid #EDE9FC;
 }
 
 .db-task-pri-btn {
   flex: 1;
-  padding: 7px 0;
-  font-size: 11px;
+  padding: 9px 0;
+  font-size: 12px;
   font-weight: 600;
   border: none;
   background: transparent;
   cursor: pointer;
-  color: #BDBDBD;
-  border-right: 0.5px solid #F0EEF9;
+  color: #C0BBEB;
+  border-right: 1px solid #EDE9FC;
   letter-spacing: 0.03em;
   transition: background 0.12s;
 }
@@ -684,8 +717,9 @@
 }
 
 .db-task-title {
-  font-size: 13px;
-  color: #1F2937;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1A1730;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1535,20 +1569,20 @@
 
 /* ── Trigger cue strip ── */
 .db-habit-cue-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #8B84E0;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 /* ── Habit action row (check + body) ── */
 .db-habit-action-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 12px;
+  padding: 14px 16px;
 }
 
 .db-habit-action-body {
@@ -1663,9 +1697,9 @@
 .db-habit-streak-corner {
   flex-shrink: 0;
   align-self: flex-start;
-  margin-top: 12px;
-  margin-right: 14px;
-  font-size: 12px;
+  margin-top: 14px;
+  margin-right: 16px;
+  font-size: 13px;
   font-weight: 700;
   color: #F59E0B;
   white-space: nowrap;

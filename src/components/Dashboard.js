@@ -954,6 +954,11 @@ const Dashboard = ({ user, onSignOut }) => {
                                   </div>
                                 )}
                               </div>
+                              <button
+                                className="db-task-edit-btn"
+                                onClick={(e) => { e.stopPropagation(); openEditTask(task); }}
+                                aria-label="Edit task"
+                              >✎</button>
                             </div>
                             {!task.completed && (() => {
                               const today = addDays(0);
@@ -969,7 +974,6 @@ const Dashboard = ({ user, onSignOut }) => {
                                 : null;
                               return (
                                 <div className="db-task-date-row">
-                                  <span className="db-task-date-icon">📅</span>
                                   {isOther && (
                                     <button
                                       className={`db-task-date-chip${dc === 'overdue' ? ' overdue' : ' active'}`}
@@ -988,6 +992,16 @@ const Dashboard = ({ user, onSignOut }) => {
                                     className={`db-task-date-chip${isWeek ? ' active' : ''}`}
                                     onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, isWeek ? '' : week); }}
                                   >This week{isWeek ? ' ✕' : ''}</button>
+                                  <label className="db-task-date-chip db-task-date-custom">
+                                    📆
+                                    <input
+                                      type="date"
+                                      value={isOther ? cur : ''}
+                                      min={today}
+                                      onChange={(e) => { if (e.target.value) setTaskDue(task.id, e.target.value); }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </label>
                                 </div>
                               );
                             })()}
