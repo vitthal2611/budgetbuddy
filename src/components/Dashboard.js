@@ -35,6 +35,19 @@ const formatDate = (d) => {
   return `${p.year}-${p.month}-${p.day}`;
 };
 
+const addDays = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return formatDate(d);
+};
+
+const endOfWeek = () => {
+  const d = new Date();
+  const diff = 7 - d.getDay();
+  d.setDate(d.getDate() + diff);
+  return formatDate(d);
+};
+
 const localDateStr = (date) => {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -475,6 +488,17 @@ const Dashboard = ({ user, onSignOut }) => {
     saveTask(tasks.map((t) => t.id === id ? { ...t, priority: pri } : t));
   };
 
+  const PRIORITY_CYCLE = ['high', 'medium', 'low', null];
+  const cyclePriority = (id, current) => {
+    const idx = PRIORITY_CYCLE.indexOf(current || null);
+    const next = PRIORITY_CYCLE[(idx + 1) % PRIORITY_CYCLE.length];
+    saveTask(tasks.map((t) => t.id === id ? { ...t, priority: next } : t));
+  };
+
+  const setTaskDue = (id, date) => {
+    saveTask(tasks.map((t) => t.id === id ? { ...t, dueDate: date } : t));
+  };
+
   const openEditTask = (task) => {
     setEditingTask(task);
     setETitle(task.title || '');
@@ -789,15 +813,12 @@ const Dashboard = ({ user, onSignOut }) => {
                     return (
                       <SwipeHabitRow key={h.id} onSwipeRight={() => toggleCompletion(h.id)} onSwipeLeft={() => toggleMissed(h.id)}>
                         <div className={`db-habit-row${atRisk ? ' at-risk' : ''}`}>
-                          {h.trigger && (
-                            <div className="db-habit-cue">
-                              <span className="db-cue-label">After</span>
-                              <span className="db-cue-text">{h.trigger.replace(/^after\s+/i, '')}</span>
-                            </div>
-                          )}
                           <div className="db-habit-action-row">
                             <button className="db-habit-check" onClick={() => toggleCompletion(h.id)} aria-label="Mark done">✓</button>
                             <div className="db-habit-action-body">
+                              {h.trigger && (
+                                <div className="db-habit-cue-label">{h.trigger.replace(/^after\s+/i, 'After ')}</div>
+                              )}
                               <div className="db-habit-name">
                                 {h.action}
                                 {atRisk && <span className="db-risk-tag">Don't break streak!</span>}
@@ -810,11 +831,7 @@ const Dashboard = ({ user, onSignOut }) => {
                               {h.identity && <div className="db-habit-identity">💭 {h.identity}</div>}
                               {h.reward && <div className="db-habit-reward">🎁 {h.reward}</div>}
                             </div>
-                          </div>
-                          <div className="db-habit-footer">
-                            <span className="db-hf-streak">🔥 {getCurrentStreak(h.id)} day streak</span>
-                            <button className="db-hf-btn db-hf-edit" onClick={() => openEditHabit(h)}>✎ Edit</button>
-                            <button className="db-hf-btn db-hf-miss" onClick={() => toggleMissed(h.id)}>✗ Missed</button>
+                            <span className="db-habit-streak-corner">🔥 {getCurrentStreak(h.id)}</span>
                           </div>
                         </div>
                       </SwipeHabitRow>
@@ -930,52 +947,64 @@ const Dashboard = ({ user, onSignOut }) => {
                               </button>
                               <div className="db-task-content">
                                 <div className="db-task-title">{task.title}</div>
-                                {(di || task.category || task.context || task.energy) && (
+                                {(di || task.category) && (
                                   <div className="db-task-badges">
                                     {di && <span className={badgeCls(di.cls)}>{di.text}</span>}
-                                    {task.energy === 'high' && <span className="db-badge db-badge-energy-high">⚡ High</span>}
-                                    {task.energy === 'low'  && <span className="db-badge db-badge-energy-low">🌿 Quick</span>}
-                                    {task.context && <span className="db-badge db-badge-gray">{task.context}</span>}
                                     {task.category && <span className="db-badge db-badge-gray">{task.category}</span>}
                                   </div>
                                 )}
                               </div>
                             </div>
-                            <div className="db-task-footer">
-                              {(() => {
-                                const pri = task.priority || 'medium';
-                                const col = PRIORITY_COLOR[pri];
-                                const isOpen = priPopupId === task.id;
-                                return (
-                                  <span className="db-pri-pill-wrap">
+                            {!task.completed && (() => {
+                              const today = addDays(0);
+                              const tomorrow = addDays(1);
+                              const week = endOfWeek();
+                              const cur = task.dueDate || '';
+                              const isToday = cur === today;
+                              const isTomorrow = cur === tomorrow;
+                              const isWeek = cur === week;
+                              const isOther = cur && !isToday && !isTomorrow && !isWeek;
+                              const fmtOther = isOther
+                                ? new Date(cur + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                                : null;
+                              return (
+                                <div className="db-task-date-row">
+                                  <span className="db-task-date-icon">📅</span>
+                                  {isOther && (
                                     <button
-                                      className="db-pri-pill"
-                                      style={{ color: col, background: col + '1A' }}
-                                      onClick={(e) => { e.stopPropagation(); setPriPopupId(isOpen ? null : task.id); }}
-                                      aria-label={`Priority: ${pri}`}
-                                    >
-                                      {pri.charAt(0).toUpperCase() + pri.slice(1)}
-                                    </button>
-                                    {isOpen && (
-                                      <span className="db-pri-popup" onClick={(e) => e.stopPropagation()}>
-                                        {PRIORITIES.map(p => (
-                                          <button
-                                            key={p.id}
-                                            className={`db-pri-option${pri === p.id ? ' active' : ''}`}
-                                            style={{ color: p.color }}
-                                            onClick={(e) => { e.stopPropagation(); setPriority(task.id, p.id); }}
-                                          >
-                                            {p.label}
-                                          </button>
-                                        ))}
-                                      </span>
-                                    )}
-                                  </span>
-                                );
-                              })()}
-                              <button className="db-tf-btn db-tf-edit" onClick={() => openEditTask(task)}>✎ Edit</button>
-                              <button className="db-tf-btn db-tf-delete" onClick={() => deleteTask(task.id)}>✕ Delete</button>
-                            </div>
+                                      className={`db-task-date-chip${dc === 'overdue' ? ' overdue' : ' active'}`}
+                                      onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, ''); }}
+                                    >{fmtOther} ✕</button>
+                                  )}
+                                  <button
+                                    className={`db-task-date-chip${isToday ? ' active' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, isToday ? '' : today); }}
+                                  >Today{isToday ? ' ✕' : ''}</button>
+                                  <button
+                                    className={`db-task-date-chip${isTomorrow ? ' active' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, isTomorrow ? '' : tomorrow); }}
+                                  >Tomorrow{isTomorrow ? ' ✕' : ''}</button>
+                                  <button
+                                    className={`db-task-date-chip${isWeek ? ' active' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, isWeek ? '' : week); }}
+                                  >This week{isWeek ? ' ✕' : ''}</button>
+                                </div>
+                              );
+                            })()}
+                            {!task.completed && (
+                              <div className="db-task-pri-strip">
+                                {['high', 'medium', 'low'].map((p) => (
+                                  <button
+                                    key={p}
+                                    className={`db-task-pri-btn db-task-pri-${p}${task.priority === p ? ' active' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); setPriority(task.id, p); }}
+                                  >
+                                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
                           </div>
                           </SwipeHabitRow>
                         );
@@ -1201,24 +1230,6 @@ const Dashboard = ({ user, onSignOut }) => {
                 </button>
               ))}
             </div>
-            <label className="db-form-label">Energy needed</label>
-            <div className="db-pri-chips">
-              {ENERGY_LEVELS.map((e) => (
-                <button key={e.id}
-                  className={`db-pri-chip${eEnergy === e.id ? ' active' : ''}`}
-                  style={eEnergy === e.id ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
-                  onClick={() => setEEnergy(eEnergy === e.id ? '' : e.id)}>{e.label}</button>
-              ))}
-            </div>
-            <label className="db-form-label">Context</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {CONTEXTS.map((c) => (
-                <button key={c}
-                  className={`db-pri-chip${eContext === c ? ' active' : ''}`}
-                  style={eContext === c ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
-                  onClick={() => setEContext(eContext === c ? '' : c)}>{c}</button>
-              ))}
-            </div>
             <label className="db-form-label">Deadline</label>
             <input className="db-form-input" type="date" value={eDue}
               onChange={(e) => setEDue(e.target.value)} />
@@ -1254,24 +1265,6 @@ const Dashboard = ({ user, onSignOut }) => {
                   onClick={() => setTPri(p.id)}>
                   {p.label}
                 </button>
-              ))}
-            </div>
-            <label className="db-form-label">Energy needed</label>
-            <div className="db-pri-chips">
-              {ENERGY_LEVELS.map((e) => (
-                <button key={e.id}
-                  className={`db-pri-chip${tEnergy === e.id ? ' active' : ''}`}
-                  style={tEnergy === e.id ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
-                  onClick={() => setTEnergy(tEnergy === e.id ? '' : e.id)}>{e.label}</button>
-              ))}
-            </div>
-            <label className="db-form-label">Context</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {CONTEXTS.map((c) => (
-                <button key={c}
-                  className={`db-pri-chip${tContext === c ? ' active' : ''}`}
-                  style={tContext === c ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
-                  onClick={() => setTContext(tContext === c ? '' : c)}>{c}</button>
               ))}
             </div>
             <label className="db-form-label">Category</label>

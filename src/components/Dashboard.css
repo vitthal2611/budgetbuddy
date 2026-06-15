@@ -618,6 +618,66 @@
   padding: 12px 14px;
 }
 
+.db-task-date-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-top: 0.5px solid #F0EEF9;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.db-task-date-row::-webkit-scrollbar { display: none; }
+
+.db-task-date-icon { font-size: 12px; flex-shrink: 0; }
+
+.db-task-date-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 0.5px solid #E0DCF8;
+  background: transparent;
+  color: #9B96D4;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.db-task-date-chip.active {
+  background: #EEEDFE;
+  color: #3C3489;
+  border-color: #AFA9EC;
+}
+.db-task-date-chip.overdue {
+  background: #FCEBEB;
+  color: #A32D2D;
+  border-color: #F09595;
+}
+
+.db-task-pri-strip {
+  display: flex;
+  border-top: 0.5px solid #F0EEF9;
+}
+
+.db-task-pri-btn {
+  flex: 1;
+  padding: 7px 0;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #BDBDBD;
+  border-right: 0.5px solid #F0EEF9;
+  letter-spacing: 0.03em;
+  transition: background 0.12s;
+}
+.db-task-pri-btn:last-child { border-right: none; }
+
+.db-task-pri-high.active  { background: #FCEBEB; color: #A32D2D; }
+.db-task-pri-medium.active { background: #FAEEDA; color: #854F0B; }
+.db-task-pri-low.active   { background: #EAF3DE; color: #3B6D11; }
+
 .db-task-content {
   flex: 1;
   min-width: 0;
@@ -1474,46 +1534,13 @@
 }
 
 /* ── Trigger cue strip ── */
-.db-habit-cue {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 14px;
-  border-left: 3px solid #C4BFEE;
-  background: #6C63D508;
-  margin: 0 12px 6px 12px;
-}
-
-.db-cue-label {
+.db-habit-cue-label {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .06em;
+  letter-spacing: 0.06em;
   color: #8B84E0;
-  flex-shrink: 0;
-}
-
-.db-cue-text {
-  font-size: 12px;
-  color: #534AB7;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.db-habit-cue.done-cue {
-  border-left-color: #C4BFEE;
-  opacity: 0.5;
-}
-
-.db-habit-cue.missed-cue {
-  border-left-color: #fca5a5;
-}
-
-.db-habit-cue.missed-cue .db-cue-label,
-.db-habit-cue.missed-cue .db-cue-text {
-  color: #b91c1c;
+  margin-bottom: 2px;
 }
 
 /* ── Habit action row (check + body) ── */
@@ -1631,6 +1658,17 @@
   color: #F59E0B;
   padding: 9px 14px;
   border-right: 0.5px solid #F0EEF9;
+}
+
+.db-habit-streak-corner {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 12px;
+  margin-right: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #F59E0B;
+  white-space: nowrap;
 }
 
 .db-hf-missed-label {
