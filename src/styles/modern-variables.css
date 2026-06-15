@@ -3,9 +3,9 @@
 
 :root {
   /* ===== Neutrals ===== */
-  --bg-primary:   #F5F6FA;
+  --bg-primary:   #F4F3FB;
   --bg-secondary: #FFFFFF;
-  --bg-tertiary:  #EEF0F5;
+  --bg-tertiary:  #EEEDFE;
 
   --text-primary:   #16181A;
   --text-secondary: #5C6370;
@@ -17,13 +17,13 @@
   --border-dark:   #CDD0DA;
 
   /* ===== Brand Colors ===== */
-  --primary:       #5B5FEF;
-  --primary-light: #7B7FF5;
-  --primary-dark:  #4347D9;
-  --primary-bg:    #EEEFFE;
+  --primary:       #6C63D5;
+  --primary-light: #8B84E0;
+  --primary-dark:  #534AB7;
+  --primary-bg:    #EEEDFE;
 
-  --secondary:     #8B5CF6;
-  --secondary-light: #A78BFA;
+  --secondary:     #8B7CF6;
+  --secondary-light: #A99BFA;
   --secondary-bg:  #F4F0FE;
 
   /* ===== Semantic Colors ===== */
@@ -482,12 +482,12 @@
     --border-medium: #D0D5DD;
 
     /* Desktop sidebar tokens */
-    --sidebar-bg:        #1C1F3A;   /* deep navy — less harsh than pure indigo */
+    --sidebar-bg:        #1C1F3A;   /* deep navy */
     --sidebar-bg-hover:  rgba(255,255,255,0.06);
-    --sidebar-bg-active: rgba(99,102,241,0.18);
+    --sidebar-bg-active: rgba(108,99,213,0.20);
     --sidebar-text:      rgba(255,255,255,0.55);
     --sidebar-text-active: #FFFFFF;
-    --sidebar-accent:    #6366F1;
+    --sidebar-accent:    #6C63D5;
     --sidebar-width:     220px;
 
     /* Desktop topbar */

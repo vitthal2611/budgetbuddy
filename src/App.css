@@ -9,7 +9,6 @@
   overflow: hidden;
 }
 
-/* On mobile, app-main is just a flex column passthrough */
 .app-main {
   display: flex;
   flex-direction: column;
@@ -141,49 +140,11 @@
 }
 
 @media (min-width: 768px) {
-  /* Sidebar layout: App becomes a horizontal flex row */
+  /* Keep same mobile-style centered column on desktop */
   .App {
-    max-width: 100%;
-    flex-direction: row;
-    height: 100vh;
-    overflow: hidden;
-    background: var(--bg-primary, #F7F8FA);
-  }
-
-  /* app-main takes remaining space, scrolls internally */
-  .app-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    height: 100vh;
-    overflow: hidden;
-    background: var(--bg-primary, #F7F8FA);
-    position: relative;
-  }
-
-  .content {
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-    background: var(--bg-primary, #F7F8FA);
-    position: relative;
-  }
-
-  /* Content views fill the space nicely */
-  .content > * {
-    height: 100%;
-    max-width: 100%;
-  }
-
-  .bottom-nav { display: none; }
-  .tabs       { display: none; }
-
-  /* Sync/offline indicators shift right of sidebar */
-  .sync-indicator,
-  .offline-indicator {
-    left: calc(var(--sidebar-width, 220px) + 16px);
-    right: auto;
+    max-width: 480px;
+    margin: 0 auto;
+    box-shadow: 0 0 60px rgba(0,0,0,0.12);
   }
 }
 
@@ -806,12 +767,12 @@
 }
 
 .bottom-nav button.active {
-  background: #ECFDF5;
-  color: #047857;
+  background: #EEEDFE;
+  color: #534AB7;
 }
 
 .bottom-nav button.active .nav-icon {
-  background: #10B981;
+  background: #6C63D5;
   color: #FFFFFF;
 }
 

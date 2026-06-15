@@ -1,6 +1,6 @@
-/* ═══════════════════════════════════════════════════════════
-   TodoMatrix.css  —  Supplements HabitTracker.css
-   ═══════════════════════════════════════════════════════════ */
+﻿/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   TodoMatrix.css  â€”  Supplements HabitTracker.css
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 /* Override habit card left bar color with priority color */
 .habit-today-card[style*="--priority-color"]::before {
@@ -31,7 +31,7 @@
 
 .todo-stat-focus {
   border-color: #A7F3D0;
-  background: #ECFDF5;
+  background: #EEEDFE;
 }
 
 .todo-stat-value {
@@ -191,7 +191,7 @@
   display: none;
 }
 
-/* ── Category tag ── */
+/* â”€â”€ Category tag â”€â”€ */
 .todo-category-tag {
   font-size: 11px;
   font-weight: 600;
@@ -202,7 +202,7 @@
   white-space: nowrap;
 }
 
-/* ── Card header meta row ── */
+/* â”€â”€ Card header meta row â”€â”€ */
 .todo-card-meta {
   display: flex;
   align-items: center;
@@ -210,7 +210,7 @@
   flex-shrink: 0;
 }
 
-/* ── Due date badge ── */
+/* â”€â”€ Due date badge â”€â”€ */
 .todo-due-badge {
   font-size: 11px;
   font-weight: 700;
@@ -234,7 +234,7 @@
 .todo-due-tomorrow { background: #D1FAE5; color: #059669; }
 .todo-due-future   { background: #EFF6FF; color: #2563EB; }
 
-/* ── 3-dot menu button ── */
+/* â”€â”€ 3-dot menu button â”€â”€ */
 .todo-menu-btn-inner {
   width: 30px;
   height: 30px;
@@ -255,7 +255,7 @@
   transform: scale(0.92);
 }
 
-/* ── Priority row in card body ── */
+/* â”€â”€ Priority row in card body â”€â”€ */
 .todo-priority-row {
   display: flex;
   gap: 6px;
@@ -327,7 +327,7 @@
 
 .todo-undo-btn {
   border: none;
-  background: #10B981;
+  background: #6C63D5;
   color: white;
   font-size: 13px;
   font-weight: 700;
@@ -399,7 +399,7 @@
 
 .todo-form-input:focus {
   outline: none;
-  border-color: #10B981;
+  border-color: #6C63D5;
   box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
 }
 
@@ -542,7 +542,7 @@
 }
 
 .todo-btn-save {
-  background: #10B981;
+  background: #6C63D5;
   color: white;
 }
 
@@ -643,7 +643,7 @@
 }
 
 .todo-stat-focus {
-  background: #ECFDF5;
+  background: #EEEDFE;
 }
 
 .todo-filter-bar {
@@ -694,7 +694,7 @@
 }
 
 .todo-task-card-completed .habit-complete-icon {
-  background: #10B981;
+  background: #6C63D5;
 }
 
 .todo-task-card .habit-today-identity {
@@ -752,13 +752,13 @@
 .todo-filter-chip.active,
 .todo-task-card .habit-complete-icon,
 .todo-btn-save {
-  background: #ECFDF5;
+  background: #EEEDFE;
   border-color: #A7F3D0;
-  color: #047857;
+  color: #534AB7;
 }
 
 .todo-stat-focus .todo-stat-value {
-  color: #047857;
+  color: #534AB7;
 }
 
 .todo-filter-chip.active {
@@ -770,7 +770,7 @@
 }
 
 .todo-task-card::before {
-  background: linear-gradient(180deg, #10B981 0%, #3B82F6 100%) !important;
+  background: linear-gradient(180deg, #6C63D5 0%, #3B82F6 100%) !important;
 }
 
 .todo-task-card .habit-today-header {
@@ -783,31 +783,31 @@
 }
 
 .todo-task-card .habit-complete-icon {
-  background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+  background: linear-gradient(135deg, #6C63D5 0%, #8B84E0 100%);
   color: #FFFFFF;
 }
 
 .todo-task-card-completed .habit-complete-icon {
   background: #A7F3D0;
-  color: #047857;
+  color: #534AB7;
 }
 
 .todo-category-tag {
-  background: #ECFDF5;
-  color: #047857;
+  background: #EEEDFE;
+  color: #534AB7;
 }
 
 .todo-due-today,
 .todo-due-tomorrow,
 .todo-due-future {
-  background: #ECFDF5;
-  color: #047857;
+  background: #EEEDFE;
+  color: #534AB7;
 }
 
 .todo-status-today,
 .todo-status-tomorrow,
 .todo-status-future {
-  background: #10B981;
+  background: #6C63D5;
 }
 
 .todo-priority-btn {
@@ -817,9 +817,9 @@
 }
 
 .todo-priority-btn.active {
-  background: #ECFDF5 !important;
-  border-color: #10B981 !important;
-  color: #047857 !important;
+  background: #EEEDFE !important;
+  border-color: #6C63D5 !important;
+  color: #534AB7 !important;
 }
 
 .todo-card-status-line {
@@ -833,16 +833,16 @@
 }
 
 .todo-btn-save {
-  background: #10B981;
+  background: #6C63D5;
   color: #FFFFFF;
   border: none;
 }
 
 .todo-priority-chip.active,
 .todo-category-chip.active {
-  background: #ECFDF5 !important;
-  border-color: #10B981 !important;
-  color: #047857 !important;
+  background: #EEEDFE !important;
+  border-color: #6C63D5 !important;
+  color: #534AB7 !important;
 }
 
 /* Compact task card density */

@@ -1,8 +1,8 @@
-/* Mobile-first Habit Tracker */
+﻿/* Mobile-first Habit Tracker */
 .habit-tracker {
   max-width: 480px;
   margin: 0 auto;
-  background: #F8F7FF;
+  background: #F4F3FB;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -21,7 +21,7 @@
 /* Header */
 .habit-header {
   padding: 14px 16px;
-  background: #F8F7FF;
+  background: #F4F3FB;
   border-bottom: 1px solid #E5E3F7;
   display: flex;
   justify-content: space-between;
@@ -37,7 +37,7 @@
 }
 
 .habit-add-btn {
-  background: #10B981;
+  background: #6C63D5;
   color: white;
   border: none;
   padding: 8px 16px;
@@ -59,7 +59,7 @@
   display: flex;
   gap: 0;
   padding: 0 16px;
-  background: #F8F7FF;
+  background: #F4F3FB;
   border-bottom: 2px solid #E5E3F7;
 }
 
@@ -79,7 +79,7 @@
 }
 
 .habit-tab.active {
-  color: #10B981;
+  color: #6C63D5;
 }
 
 .habit-tab.active::after {
@@ -89,7 +89,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: #10B981;
+  background: #6C63D5;
 }
 
 .habit-tab:active {
@@ -99,7 +99,7 @@
 /* Today Insights */
 .habit-today-insights {
   padding: 16px 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6C63D5 0%, #534AB7 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -161,7 +161,7 @@
 
 .habit-reminder-enabled {
   background: #D1FAE5;
-  color: #047857;
+  color: #534AB7;
 }
 
 .habit-reminder-blocked {
@@ -276,7 +276,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 4px 12px;
-  background: var(--primary, #4CAF50);
+  background: var(--primary, #6C63D5);
   color: white;
   border: none;
   border-radius: 12px;
@@ -294,7 +294,7 @@
 .habit-insights-card {
   margin: 16px;
   padding: 16px 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6C63D5 0%, #534AB7 100%);
   border-radius: 16px;
   color: white;
   display: flex;
@@ -362,7 +362,7 @@
 .habit-all-complete p {
   font-size: 16px;
   font-weight: 600;
-  color: var(--primary, #4CAF50);
+  color: var(--primary, #6C63D5);
   line-height: 1.5;
   margin: 0;
 }
@@ -683,7 +683,7 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #10B981 0%, #34D399 100%);
+  background: linear-gradient(180deg, #6C63D5 0%, #8B84E0 100%);
   border-radius: 16px 0 0 16px;
 }
 
@@ -870,7 +870,7 @@
 
 .habit-reminder-complete {
   background: #D1FAE5;
-  color: #047857;
+  color: #534AB7;
   border-color: #A7F3D0;
 }
 
@@ -950,7 +950,7 @@
 }
 
 .habit-complete-icon {
-  background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+  background: linear-gradient(135deg, #6C63D5 0%, #8B84E0 100%);
   color: white;
   box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.10);
 }
@@ -979,7 +979,7 @@
 
 .habit-unmiss-icon {
   background: rgba(16, 185, 129, 0.10);
-  color: #10B981;
+  color: #6C63D5;
   border: none;
 }
 
@@ -1021,7 +1021,7 @@
 .habit-week-time {
   font-size: 13px;
   font-weight: 700;
-  color: var(--primary, #4CAF50);
+  color: var(--primary, #6C63D5);
   background: rgba(76, 175, 80, 0.15);
   padding: 6px 12px;
   border-radius: 8px;
@@ -1087,7 +1087,7 @@
 .habit-week-stat-value {
   font-size: 20px;
   font-weight: 700;
-  color: var(--primary, #4CAF50);
+  color: var(--primary, #6C63D5);
   line-height: 1;
 }
 
@@ -1227,7 +1227,7 @@
 
 .habit-value.identity-value {
   font-weight: 700;
-  color: var(--primary, #4CAF50);
+  color: var(--primary, #6C63D5);
   font-size: 15px;
 }
 
@@ -1251,7 +1251,7 @@
 
 .habit-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
+  background: linear-gradient(90deg, #6C63D5 0%, #8B84E0 100%);
   border-radius: 4px;
   transition: width 0.3s ease;
 }
@@ -1294,7 +1294,7 @@
 .habit-stat-value {
   font-size: 16px;
   font-weight: 700;
-  color: var(--primary, #4CAF50);
+  color: var(--primary, #6C63D5);
 }
 
 /* Week View - Horizontal (Now Monthly Calendar) */
@@ -1450,12 +1450,12 @@
 }
 
 .habit-checkbox-input:checked + .habit-checkbox-custom {
-  background: var(--primary, #4CAF50);
-  border-color: var(--primary, #4CAF50);
+  background: var(--primary, #6C63D5);
+  border-color: var(--primary, #6C63D5);
 }
 
 .habit-checkbox-input:checked + .habit-checkbox-custom::after {
-  content: '✓';
+  content: 'âœ“';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -1561,7 +1561,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: var(--primary, #4CAF50);
+  background: var(--primary, #6C63D5);
   transition: width 0.2s ease;
 }
 
@@ -1642,7 +1642,7 @@
 
 .habit-form-input:focus {
   outline: none;
-  border-color: var(--primary, #4CAF50);
+  border-color: var(--primary, #6C63D5);
 }
 
 .habit-form-input::placeholder {
@@ -1663,7 +1663,7 @@
 .habit-form-section-title {
   font-size: 14px;
   font-weight: 700;
-  color: #667eea;
+  color: #6C63D5;
   margin-bottom: 4px;
   display: flex;
   align-items: center;
@@ -1685,7 +1685,7 @@
 }
 
 .habit-form-preview strong {
-  color: #667eea;
+  color: #6C63D5;
   font-weight: 700;
 }
 
@@ -1706,7 +1706,7 @@
 
 .habit-ai-kicker {
   display: block;
-  color: var(--primary, #4CAF50);
+  color: var(--primary, #6C63D5);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0;
@@ -1835,7 +1835,7 @@
 }
 
 .habit-combined-row .habit-value strong {
-  color: #667eea;
+  color: #6C63D5;
   font-weight: 700;
 }
 
@@ -1852,7 +1852,7 @@
 
 .habit-form-textarea:focus {
   outline: none;
-  border-color: var(--primary, #4CAF50);
+  border-color: var(--primary, #6C63D5);
 }
 
 .habit-form-textarea::placeholder {
@@ -1885,7 +1885,7 @@
 }
 
 .habit-modal-save {
-  background: var(--primary, #4CAF50);
+  background: var(--primary, #6C63D5);
   color: white;
 }
 
@@ -1949,7 +1949,7 @@
 /* Footer with Motivational Quote */
 .habit-footer {
   margin: 0 16px 16px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6C63D5 0%, #534AB7 100%);
   padding: 14px 16px;
   display: flex;
   align-items: center;
@@ -2026,7 +2026,7 @@
   border-bottom: 1px solid var(--border-light, #e0e0e0);
   font-size: 13px;
   font-weight: 700;
-  color: #667eea;
+  color: #6C63D5;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -2084,7 +2084,7 @@
 
 .habit-form-hint {
   font-size: 12px;
-  color: #667eea;
+  color: #6C63D5;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -2242,7 +2242,7 @@
   .habit-today-identity {
     font-size: 14px;
     font-weight: 700;
-    color: #667eea;
+    color: #6C63D5;
     line-height: 1.4;
     word-break: break-word;
     flex: 1;
@@ -3052,7 +3052,7 @@
 /* Better focus states for accessibility */
 .habit-form-input:focus,
 .habit-form-textarea:focus {
-  outline: 2px solid var(--primary, #4CAF50);
+  outline: 2px solid var(--primary, #6C63D5);
   outline-offset: 2px;
 }
 
@@ -3124,8 +3124,8 @@
 }
 
 .habit-tab.active {
-  background: #ECFDF5;
-  color: #047857;
+  background: #EEEDFE;
+  color: #534AB7;
 }
 
 .habit-tab.active::after {
@@ -3181,7 +3181,7 @@
 
 .habit-today-card::before {
   width: 5px;
-  background: linear-gradient(180deg, #10B981 0%, #3B82F6 100%);
+  background: linear-gradient(180deg, #6C63D5 0%, #3B82F6 100%);
 }
 
 .habit-today-header {

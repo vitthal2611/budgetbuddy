@@ -2456,10 +2456,17 @@ const HabitTracker = () => {
       const notificationKey = `habit-notified-${habit.id}-${istNow.date}-${habit.time}`;
       if (localStorage.getItem(notificationKey)) return;
 
-      new Notification('Habit reminder', {
+      const notifOpts = {
         body: `${habit.action} at ${habit.time} IST`,
         tag: notificationKey
-      });
+      };
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then((reg) =>
+          reg.showNotification('Habit reminder', notifOpts)
+        );
+      } else {
+        new Notification('Habit reminder', notifOpts);
+      }
       localStorage.setItem(notificationKey, 'sent');
     });
   }, [data, istNow, loading, notificationPermission]);
