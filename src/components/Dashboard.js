@@ -210,6 +210,7 @@ const Dashboard = ({ user, onSignOut }) => {
 
   // Edit todo modal
   const [editingTask, setEditingTask] = useState(null);
+  const [eTitle, setETitle] = useState('');
   const [ePri, setEPri]   = useState('medium');
   const [eDue, setEDue]   = useState('');
 
@@ -442,15 +443,21 @@ const Dashboard = ({ user, onSignOut }) => {
 
   const openEditTask = (task) => {
     setEditingTask(task);
+    setETitle(task.title || '');
     setEPri(task.priority || 'medium');
     setEDue(task.dueDate || '');
   };
 
   const saveEditTask = async () => {
-    await saveTask(tasks.map((t) =>
-      t.id === editingTask.id ? { ...t, priority: ePri, dueDate: eDue } : t
-    ));
-    setEditingTask(null);
+    const title = eTitle.trim();
+    if (!title) return;
+    try {
+      await saveTask(tasks.map((t) =>
+        t.id === editingTask.id ? { ...t, title, priority: ePri, dueDate: eDue } : t
+      ));
+    } finally {
+      setEditingTask(null);
+    }
   };
 
   const addHabit = async () => {
@@ -744,30 +751,28 @@ const Dashboard = ({ user, onSignOut }) => {
                     return (
                       <SwipeHabitRow key={h.id} onSwipeRight={() => toggleCompletion(h.id)} onSwipeLeft={() => toggleMissed(h.id)}>
                         <div className={`db-habit-row${atRisk ? ' at-risk' : ''}`}>
-                          <div className="db-habit-info">
-                            {h.trigger && (
-                              <div className="db-habit-cue">
-                                <span className="db-cue-label">After</span>
-                                <span className="db-cue-text">{h.trigger.replace(/^after\s+/i, '')}</span>
+                          {h.trigger && (
+                            <div className="db-habit-cue">
+                              <span className="db-cue-label">After</span>
+                              <span className="db-cue-text">{h.trigger.replace(/^after\s+/i, '')}</span>
+                            </div>
+                          )}
+                          <div className="db-habit-action-row">
+                            <button className="db-habit-check" onClick={() => toggleCompletion(h.id)} aria-label="Mark done">✓</button>
+                            <div className="db-habit-action-body">
+                              <div className="db-habit-name">
+                                {h.action}
+                                {atRisk && <span className="db-risk-tag">Don't break streak!</span>}
                               </div>
-                            )}
-                            <div className="db-habit-action-row">
-                              <button className="db-habit-check" onClick={() => toggleCompletion(h.id)} aria-label="Mark done">✓</button>
-                              <div className="db-habit-action-body">
-                                <div className="db-habit-name">
-                                  {h.action}
-                                  {atRisk && <span className="db-risk-tag">Don't break streak!</span>}
-                                </div>
-                                <div className="db-habit-meta">
-                                  {h.time}{h.identity ? ` · ${h.identity}` : ''}
-                                </div>
-                              </div>
-                              <div className="db-habit-right">
-                                <span className="db-habit-streak">🔥 {getCurrentStreak(h.id)}</span>
-                                <button className="db-habit-edit" onClick={() => openEditHabit(h)} aria-label="Edit habit">✎</button>
-                                <button className="db-habit-miss" onClick={() => toggleMissed(h.id)} aria-label="Mark missed">✗</button>
+                              <div className="db-habit-meta">
+                                {h.time}{h.identity ? ` · ${h.identity}` : ''}
                               </div>
                             </div>
+                          </div>
+                          <div className="db-habit-footer">
+                            <span className="db-hf-streak">🔥 {getCurrentStreak(h.id)} day streak</span>
+                            <button className="db-hf-btn db-hf-edit" onClick={() => openEditHabit(h)}>✎ Edit</button>
+                            <button className="db-hf-btn db-hf-miss" onClick={() => toggleMissed(h.id)}>✗ Missed</button>
                           </div>
                         </div>
                       </SwipeHabitRow>
@@ -782,24 +787,23 @@ const Dashboard = ({ user, onSignOut }) => {
 
                   {missedList.map((h) => (
                     <div key={h.id} className="db-habit-row missed-row">
-                      <div className="db-habit-info">
-                        {h.trigger && (
-                          <div className="db-habit-cue missed-cue">
-                            <span className="db-cue-label">After</span>
-                            <span className="db-cue-text">{h.trigger}</span>
-                          </div>
-                        )}
-                        <div className="db-habit-action-row">
-                          <button className="db-habit-check missed-check" onClick={() => toggleMissed(h.id)} aria-label="Undo missed">↶</button>
-                          <div className="db-habit-action-body">
-                            <div className="db-habit-name">{h.action}</div>
-                            <div className="db-habit-meta">{h.time}</div>
-                          </div>
-                          <div className="db-habit-right">
-                            <button className="db-habit-edit" onClick={() => openEditHabit(h)} aria-label="Edit habit">✎</button>
-                            <button className="db-habit-undo" onClick={() => toggleCompletion(h.id)}>Done</button>
-                          </div>
+                      {h.trigger && (
+                        <div className="db-habit-cue missed-cue">
+                          <span className="db-cue-label">After</span>
+                          <span className="db-cue-text">{h.trigger}</span>
                         </div>
+                      )}
+                      <div className="db-habit-action-row">
+                        <button className="db-habit-check missed-check" onClick={() => toggleMissed(h.id)} aria-label="Undo missed">↶</button>
+                        <div className="db-habit-action-body">
+                          <div className="db-habit-name">{h.action}</div>
+                          <div className="db-habit-meta">{h.time}</div>
+                        </div>
+                      </div>
+                      <div className="db-habit-footer">
+                        <span className="db-hf-streak db-hf-missed-label">✗ Missed</span>
+                        <button className="db-hf-btn db-hf-edit" onClick={() => openEditHabit(h)}>✎ Edit</button>
+                        <button className="db-hf-btn db-hf-undo" onClick={() => toggleCompletion(h.id)}>↶ Done</button>
                       </div>
                     </div>
                   ))}
@@ -862,54 +866,59 @@ const Dashboard = ({ user, onSignOut }) => {
                             key={task.id}
                             className={`db-task-row${dc === 'overdue' ? ' overdue-row' : ''}${task.completed ? ' done-task' : ''}`}
                           >
-                            <button
-                              className={`db-task-chk${task.completed ? ' done-chk' : ''}`}
-                              onClick={() => toggleTask(task.id)}
-                              aria-label={task.completed ? 'Mark active' : 'Mark done'}
-                            >
-                              {task.completed ? '✓' : ''}
-                            </button>
-                            <div className="db-task-body" onClick={() => openEditTask(task)} role="button" tabIndex={0}
-                              onKeyDown={(e) => e.key === 'Enter' && openEditTask(task)}>
-                              <div className="db-task-title">{task.title}</div>
-                              <div className="db-task-badges">
-                                {(() => {
-                                  const pri = task.priority || 'medium';
-                                  const col = PRIORITY_COLOR[pri];
-                                  const isOpen = priPopupId === task.id;
-                                  return (
-                                    <span className="db-pri-pill-wrap">
-                                      <button
-                                        className="db-pri-pill"
-                                        style={{ color: col, background: col + '1A' }}
-                                        onClick={(e) => { e.stopPropagation(); setPriPopupId(isOpen ? null : task.id); }}
-                                        aria-label={`Priority: ${pri}`}
-                                      >
-                                        {pri.charAt(0).toUpperCase() + pri.slice(1)}
-                                      </button>
-                                      {isOpen && (
-                                        <span className="db-pri-popup" onClick={(e) => e.stopPropagation()}>
-                                          {PRIORITIES.map(p => (
-                                            <button
-                                              key={p.id}
-                                              className={`db-pri-option${pri === p.id ? ' active' : ''}`}
-                                              style={{ color: p.color }}
-                                              onClick={(e) => { e.stopPropagation(); setPriority(task.id, p.id); }}
-                                            >
-                                              {p.label}
-                                            </button>
-                                          ))}
-                                        </span>
-                                      )}
-                                    </span>
-                                  );
-                                })()}
-                                {di && <span className={badgeCls(di.cls)}>{di.text}</span>}
-                                {task.category && <span className="db-badge db-badge-gray">{task.category}</span>}
-                                <span className="db-task-edit-hint">✎</span>
+                            <div className="db-task-body">
+                              <button
+                                className={`db-task-chk${task.completed ? ' done-chk' : ''}`}
+                                onClick={() => toggleTask(task.id)}
+                                aria-label={task.completed ? 'Mark active' : 'Mark done'}
+                              >
+                                {task.completed ? '✓' : ''}
+                              </button>
+                              <div className="db-task-content">
+                                <div className="db-task-title">{task.title}</div>
+                                {(di || task.category) && (
+                                  <div className="db-task-badges">
+                                    {di && <span className={badgeCls(di.cls)}>{di.text}</span>}
+                                    {task.category && <span className="db-badge db-badge-gray">{task.category}</span>}
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <button className="db-task-delete" onClick={() => deleteTask(task.id)} aria-label="Delete task">✕</button>
+                            <div className="db-task-footer">
+                              {(() => {
+                                const pri = task.priority || 'medium';
+                                const col = PRIORITY_COLOR[pri];
+                                const isOpen = priPopupId === task.id;
+                                return (
+                                  <span className="db-pri-pill-wrap">
+                                    <button
+                                      className="db-pri-pill"
+                                      style={{ color: col, background: col + '1A' }}
+                                      onClick={(e) => { e.stopPropagation(); setPriPopupId(isOpen ? null : task.id); }}
+                                      aria-label={`Priority: ${pri}`}
+                                    >
+                                      {pri.charAt(0).toUpperCase() + pri.slice(1)}
+                                    </button>
+                                    {isOpen && (
+                                      <span className="db-pri-popup" onClick={(e) => e.stopPropagation()}>
+                                        {PRIORITIES.map(p => (
+                                          <button
+                                            key={p.id}
+                                            className={`db-pri-option${pri === p.id ? ' active' : ''}`}
+                                            style={{ color: p.color }}
+                                            onClick={(e) => { e.stopPropagation(); setPriority(task.id, p.id); }}
+                                          >
+                                            {p.label}
+                                          </button>
+                                        ))}
+                                      </span>
+                                    )}
+                                  </span>
+                                );
+                              })()}
+                              <button className="db-tf-btn db-tf-edit" onClick={() => openEditTask(task)}>✎ Edit</button>
+                              <button className="db-tf-btn db-tf-delete" onClick={() => deleteTask(task.id)}>✕ Delete</button>
+                            </div>
                           </div>
                         );
                       };
@@ -1081,7 +1090,10 @@ const Dashboard = ({ user, onSignOut }) => {
               <span className="db-modal-title">Edit task</span>
               <button className="db-modal-close" onClick={() => setEditingTask(null)}>✕</button>
             </div>
-            <div className="db-edit-task-title">{editingTask.title}</div>
+            <label className="db-form-label">Task name</label>
+            <input className="db-form-input" type="text" value={eTitle}
+              onChange={(e) => setETitle(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveEditTask()} />
             <label className="db-form-label">Priority</label>
             <div className="db-pri-chips">
               {PRIORITIES.map((p) => (

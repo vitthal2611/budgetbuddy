@@ -352,16 +352,16 @@
 
 .db-habit-row {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 0.5px solid #E5E3F7;
-  padding: 11px 12px;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  overflow: hidden;
   touch-action: manipulation;
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
+  padding: 0;
 }
 
 .db-habit-row.done {
@@ -370,8 +370,7 @@
 
 .db-habit-row.missed-row {
   border-left: 2.5px solid #EF4444;
-  border-radius: 0 12px 12px 0;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 .db-habit-check {
@@ -578,17 +577,15 @@
 
 .db-task-row {
   background: #fff;
-  border-radius: 10px;
+  border-radius: 14px;
   border: 0.5px solid #E5E3F7;
-  padding: 11px 13px;
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .db-task-row.overdue-row {
   border-left: 2.5px solid #E24B4A;
-  border-radius: 0 10px 10px 0;
 }
 
 .db-task-chk {
@@ -615,6 +612,13 @@
 }
 
 .db-task-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.db-task-content {
   flex: 1;
   min-width: 0;
 }
@@ -1345,7 +1349,51 @@
 }
 .db-empty-btn:hover { background: #534AB7; }
 
-/* ── Task delete button ── */
+/* ── Task footer strip ── */
+.db-task-footer {
+  display: flex;
+  align-items: center;
+  border-top: 0.5px solid #F0EEF9;
+}
+
+.db-tf-btn {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .12s;
+}
+
+.db-pri-pill-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 0.5px solid #F0EEF9;
+  padding: 4px 0;
+  position: relative;
+}
+
+.db-tf-edit {
+  color: #6C63D5;
+  border-right: 0.5px solid #F0EEF9;
+}
+.db-tf-edit:active { background: #F4F3FB; }
+
+.db-tf-delete {
+  color: #E24B4A;
+}
+.db-tf-delete:active { background: #FEF2F2; }
+
+/* ── Task delete button (legacy, keep for safety) ── */
 .db-task-delete {
   background: none;
   border: none;
@@ -1360,7 +1408,7 @@
 }
 .db-task-delete:hover { color: #E24B4A; background: #FEE2E2; }
 
-/* ── Task edit hint ── */
+/* ── Task edit hint (legacy) ── */
 .db-task-edit-hint {
   font-size: 11px;
   color: #bbb;
@@ -1368,12 +1416,6 @@
   vertical-align: middle;
 }
 
-.db-task-body {
-  cursor: pointer;
-  flex: 1;
-  min-width: 0;
-}
-.db-task-body:hover .db-task-edit-hint { color: #6C63D5; }
 
 /* ── Edit task modal ── */
 .db-edit-task-title {
@@ -1436,8 +1478,9 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 12px 0;
-  border-left: 2px solid #C4BFEE;
+  padding: 6px 14px;
+  border-left: 3px solid #C4BFEE;
+  background: #6C63D508;
   margin: 0 12px 6px 12px;
 }
 
@@ -1473,12 +1516,12 @@
   color: #b91c1c;
 }
 
-/* ── Habit action row (check + body + right) ── */
+/* ── Habit action row (check + body) ── */
 .db-habit-action-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 12px 12px;
+  padding: 12px 14px;
 }
 
 .db-habit-action-body {
@@ -1486,10 +1529,7 @@
   min-width: 0;
 }
 
-/* Override old padding since action-row handles it */
-.db-habit-row {
-  padding: 10px 0 0 !important;
-}
+/* padding handled by child elements */
 
 /* ── Habit edit button ── */
 .db-habit-edit {
@@ -1576,3 +1616,55 @@
 .db-pri-option.active {
   background: #F4F3FB;
 }
+
+/* ── Habit card footer strip ── */
+.db-habit-footer {
+  display: flex;
+  align-items: center;
+  border-top: 0.5px solid #F0EEF9;
+}
+
+.db-hf-streak {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: #F59E0B;
+  padding: 9px 14px;
+  border-right: 0.5px solid #F0EEF9;
+}
+
+.db-hf-missed-label {
+  color: #E24B4A;
+}
+
+.db-hf-btn {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .12s;
+}
+
+.db-hf-edit {
+  color: #6C63D5;
+  border-right: 0.5px solid #F0EEF9;
+}
+.db-hf-edit:active { background: #F4F3FB; }
+
+.db-hf-miss {
+  color: #E24B4A;
+}
+.db-hf-miss:active { background: #FEF2F2; }
+
+.db-hf-undo {
+  color: #6C63D5;
+}
+.db-hf-undo:active { background: #F4F3FB; }
