@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import habitService from '../services/habitService';
-import todoService from '../services/todoService';
+import KanbanTodo from './KanbanTodo';
 import './Dashboard.css';
 
 const IST_TZ = 'Asia/Kolkata';
@@ -14,7 +14,6 @@ const CATEGORIES = ['Work', 'Personal', 'Health', 'Finance', 'Learning', 'Home',
 const CONTEXTS = ['@home', '@work', '@phone', '@computer', '@outside', '@errands'];
 const ENERGY_LEVELS = [{ id: 'high', label: '⚡ High energy' }, { id: 'low', label: '🌿 Low energy' }];
 const DIFFICULTIES = [{ id: 'easy', label: 'Easy', color: '#16A34A' }, { id: 'medium', label: 'Medium', color: '#F59E0B' }, { id: 'hard', label: 'Hard', color: '#E24B4A' }];
-const TODO_FILTERS = ['All', 'Today', 'Quick', 'High', 'Done'];
 
 const getIstParts = () => {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -35,18 +34,7 @@ const formatDate = (d) => {
   return `${p.year}-${p.month}-${p.day}`;
 };
 
-const addDays = (n) => {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return formatDate(d);
-};
 
-const endOfWeek = () => {
-  const d = new Date();
-  const diff = 7 - d.getDay();
-  d.setDate(d.getDate() + diff);
-  return formatDate(d);
-};
 
 const localDateStr = (date) => {
   const y = date.getFullYear();
@@ -61,35 +49,6 @@ const timeToMins = (t) => {
   return Number.isNaN(h) || Number.isNaN(m) ? null : h * 60 + m;
 };
 
-const dueDateLabel = (dueDate) => {
-  if (!dueDate) return null;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDate + 'T00:00:00'); due.setHours(0, 0, 0, 0);
-  const diff = Math.round((due - today) / 86400000);
-  if (diff < 0)   return { text: 'Overdue',  cls: 'overdue' };
-  if (diff === 0) return { text: 'Today',    cls: 'today' };
-  if (diff === 1) return { text: 'Tomorrow', cls: 'tomorrow' };
-  return { text: due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), cls: 'future' };
-};
-
-const getDueClass = (d) => dueDateLabel(d)?.cls || 'none';
-
-const sortTasks = (items) => [...items].sort((a, b) => {
-  const rank = { overdue: 0, today: 1, tomorrow: 2, future: 3, none: 4 };
-  const ra = rank[getDueClass(a.dueDate)] ?? 4;
-  const rb = rank[getDueClass(b.dueDate)] ?? 4;
-  if (ra !== rb) return ra - rb;
-  const pa = { high: 0, medium: 1, low: 2 }[a.priority] ?? 1;
-  const pb = { high: 0, medium: 1, low: 2 }[b.priority] ?? 1;
-  return pa - pb;
-});
-
-const badgeCls = (cls) => {
-  if (cls === 'overdue') return 'db-badge db-badge-red';
-  if (cls === 'today' || cls === 'tomorrow') return 'db-badge db-badge-amber';
-  if (cls === 'future') return 'db-badge db-badge-green';
-  return 'db-badge db-badge-gray';
-};
 
 const getDayLabel = (dateStr) => {
   const [y, mo, d] = dateStr.split('-').map(Number);
@@ -153,47 +112,16 @@ const Confetti = ({ active }) => {
   );
 };
 
-// Swipeable habit row
-const SwipeHabitRow = ({ children, onSwipeRight, onSwipeLeft, className, rightLabel = '✓ Done', leftLabel = '✗ Miss' }) => {
-  const startX = useRef(null);
-  const el = useRef(null);
-  const [offset, setOffset] = useState(0);
-  const [swiping, setSwiping] = useState(false);
-
-  const onTouchStart = (e) => { startX.current = e.touches[0].clientX; setSwiping(false); };
-  const onTouchMove = (e) => {
-    if (startX.current === null) return;
-    const dx = e.touches[0].clientX - startX.current;
-    if (Math.abs(dx) > 8) { setSwiping(true); setOffset(Math.max(-80, Math.min(80, dx))); }
-  };
-  const onTouchEnd = () => {
-    if (offset > 55 && onSwipeRight) { onSwipeRight(); }
-    else if (offset < -55 && onSwipeLeft) { onSwipeLeft(); }
-    setOffset(0); setSwiping(false); startX.current = null;
-  };
-
-  return (
-    <div className={`db-swipe-wrap ${className || ''}`} ref={el}
-      onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-      <div className="db-swipe-hint-left" style={{ opacity: offset > 30 ? (offset - 30) / 50 : 0 }}>{rightLabel}</div>
-      <div className="db-swipe-hint-right" style={{ opacity: offset < -30 ? (-offset - 30) / 50 : 0 }}>{leftLabel}</div>
-      <div className="db-swipe-inner" style={{ transform: `translateX(${offset}px)`, transition: swiping ? 'none' : 'transform .2s ease' }}>
-        {children}
-      </div>
-    </div>
-  );
-};
 
 const Dashboard = ({ user, onSignOut }) => {
   const [habitData, setHabitData] = useState({ habits: [], completions: {}, missed: {} });
-  const [tasks, setTasks]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [istNow, setIstNow]       = useState(getIstParts);
   const [dayOffset, setDayOffset] = useState(0);
-  const [todoFilter, setTodoFilter] = useState('All');
   const [view, setView]           = useState('today');
   const [monthOffset, setMonthOffset] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const prevAllDone = useRef(false);
   const [notifPerm, setNotifPerm] = useState(
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission
@@ -222,23 +150,6 @@ const Dashboard = ({ user, onSignOut }) => {
   const [eHReward, setEHReward]       = useState('');
   const [eHErr, setEHErr]             = useState('');
 
-  // Add todo modal
-  const [showAddTodo, setShowAddTodo] = useState(false);
-  const [tTitle, setTTitle]     = useState('');
-  const [tPri, setTPri]         = useState('medium');
-  const [tCat, setTCat]         = useState('');
-  const [tContext, setTContext]  = useState('');
-  const [tEnergy, setTEnergy]   = useState('');
-  const [tDue, setTDue]         = useState('');
-  const [tErr, setTErr]         = useState(false);
-
-  // Edit todo modal
-  const [editingTask, setEditingTask] = useState(null);
-  const [eTitle, setETitle]     = useState('');
-  const [ePri, setEPri]         = useState('medium');
-  const [eDue, setEDue]         = useState('');
-  const [eContext, setEContext]  = useState('');
-  const [eEnergy, setEEnergy]   = useState('');
 
   useEffect(() => {
     const unsub = habitService.subscribeToHabits((d) => {
@@ -248,10 +159,6 @@ const Dashboard = ({ user, onSignOut }) => {
     return () => unsub();
   }, []);
 
-  useEffect(() => {
-    const unsub = todoService.subscribeToTasks((d) => setTasks(d || []));
-    return () => unsub();
-  }, []);
 
   useEffect(() => {
     const tick = () => setIstNow(getIstParts());
@@ -469,54 +376,6 @@ const Dashboard = ({ user, onSignOut }) => {
     habitService.saveHabits(next);
   };
 
-  const saveTask = useCallback((next) => {
-    setTasks(next);
-    todoService.saveTasks(next); // fire-and-forget; Firebase real-time sub will sync
-  }, []);
-
-  const toggleTask = (id) =>
-    saveTask(tasks.map((t) => t.id === id ? { ...t, completed: !t.completed } : t));
-
-  const deleteTask = (id) =>
-    saveTask(tasks.filter((t) => t.id !== id));
-
-  const [priPopupId, setPriPopupId] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
-
-  const setPriority = (id, pri) => {
-    setPriPopupId(null);
-    saveTask(tasks.map((t) => t.id === id ? { ...t, priority: pri } : t));
-  };
-
-  const PRIORITY_CYCLE = ['high', 'medium', 'low', null];
-  const cyclePriority = (id, current) => {
-    const idx = PRIORITY_CYCLE.indexOf(current || null);
-    const next = PRIORITY_CYCLE[(idx + 1) % PRIORITY_CYCLE.length];
-    saveTask(tasks.map((t) => t.id === id ? { ...t, priority: next } : t));
-  };
-
-  const setTaskDue = (id, date) => {
-    saveTask(tasks.map((t) => t.id === id ? { ...t, dueDate: date } : t));
-  };
-
-  const openEditTask = (task) => {
-    setEditingTask(task);
-    setETitle(task.title || '');
-    setEPri(task.priority || 'medium');
-    setEDue(task.dueDate || '');
-    setEContext(task.context || '');
-    setEEnergy(task.energy || '');
-  };
-
-  const saveEditTask = () => {
-    const title = eTitle.trim();
-    if (!title) return;
-    const next = tasks.map((t) =>
-      t.id === editingTask.id ? { ...t, title, priority: ePri, dueDate: eDue, context: eContext, energy: eEnergy } : t
-    );
-    setEditingTask(null);
-    saveTask(next);
-  };
 
   const addHabit = async () => {
     if (!hAction.trim() || !hTime) { setHErr('Action and time are required.'); return; }
@@ -542,17 +401,6 @@ const Dashboard = ({ user, onSignOut }) => {
     }
   };
 
-  const addTodo = async () => {
-    if (!tTitle.trim()) { setTErr(true); setTimeout(() => setTErr(false), 500); return; }
-    saveTask([...tasks, {
-      id: `task_${Date.now()}`,
-      title: tTitle.trim(), priority: tPri, category: tCat,
-      context: tContext, energy: tEnergy, dueDate: tDue,
-      completed: false, createdAt: new Date().toISOString(),
-    }]);
-    setShowAddTodo(false);
-    setTTitle(''); setTPri('medium'); setTCat(''); setTContext(''); setTEnergy(''); setTDue('');
-  };
 
   const enableNotifications = async () => {
     if (typeof Notification === 'undefined') return;
@@ -560,19 +408,6 @@ const Dashboard = ({ user, onSignOut }) => {
     setNotifPerm(p);
   };
 
-  // Todo lists
-  const activeTasks = sortTasks(tasks.filter((t) => !t.completed));
-  const completedTasks = sortTasks(tasks.filter((t) => t.completed));
-  const dueToday  = activeTasks.filter((t) => getDueClass(t.dueDate) === 'today').length;
-  const overdue   = activeTasks.filter((t) => getDueClass(t.dueDate) === 'overdue').length;
-
-  const visibleTasks = todoFilter === 'Done' ? completedTasks : activeTasks.filter((t) => {
-    const dc = getDueClass(t.dueDate);
-    if (todoFilter === 'Today') return dc === 'today' || dc === 'overdue';
-    if (todoFilter === 'Quick') return t.energy === 'low';
-    if (todoFilter === 'High') return (t.priority || 'medium') === 'high';
-    return true;
-  });
 
   // Weekly view
   const monthDays = buildMonth(monthOffset);
@@ -672,6 +507,7 @@ const Dashboard = ({ user, onSignOut }) => {
         <div className="db-view-tabs">
           <button className={`db-view-tab${view === 'today' ? ' active' : ''}`} onClick={() => setView('today')}>Today</button>
           <button className={`db-view-tab${view === 'weekly' ? ' active' : ''}`} onClick={() => setView('weekly')}>Weekly</button>
+          <button className={`db-view-tab${view === 'tasks' ? ' active' : ''}`} onClick={() => setView('tasks')}>Tasks</button>
         </div>
 
         {view === 'today' && (
@@ -704,16 +540,6 @@ const Dashboard = ({ user, onSignOut }) => {
               <div className="db-hero-stat">
                 <div className="db-hero-stat-val">{incomplete.length}</div>
                 <div className="db-hero-stat-lbl">Left</div>
-              </div>
-              <div className="db-hero-stat-divider" />
-              <div className="db-hero-stat">
-                <div className={`db-hero-stat-val${overdue > 0 ? ' warn' : ''}`}>{dueToday + overdue}</div>
-                <div className="db-hero-stat-lbl">Tasks due</div>
-              </div>
-              <div className="db-hero-stat-divider" />
-              <div className="db-hero-stat">
-                <div className={`db-hero-stat-val${overdue > 0 ? ' danger' : ''}`}>{overdue}</div>
-                <div className="db-hero-stat-lbl">Overdue</div>
               </div>
             </div>
           </div>
@@ -751,7 +577,7 @@ const Dashboard = ({ user, onSignOut }) => {
         )}
       </div>
 
-      <div className="db-scroll" onClick={() => setPriPopupId(null)}>
+      <div className="db-scroll">
 
         {/* ── TODAY VIEW ─────────────────────────────── */}
         {view === 'today' && (
@@ -811,8 +637,7 @@ const Dashboard = ({ user, onSignOut }) => {
                   {incomplete.map((h) => {
                     const atRisk = isAtRisk(h);
                     return (
-                      <SwipeHabitRow key={h.id} onSwipeRight={() => toggleCompletion(h.id)} onSwipeLeft={() => toggleMissed(h.id)}>
-                        <div className={`db-habit-row${atRisk ? ' at-risk' : ''}`}>
+                        <div key={h.id} className={`db-habit-row${atRisk ? ' at-risk' : ''}`}>
                           <div className="db-habit-action-row">
                             <button className="db-habit-check" onClick={() => toggleCompletion(h.id)} aria-label="Mark done">✓</button>
                             <div className="db-habit-action-body">
@@ -834,7 +659,6 @@ const Dashboard = ({ user, onSignOut }) => {
                             <span className="db-habit-streak-corner">🔥 {getCurrentStreak(h.id)}</span>
                           </div>
                         </div>
-                      </SwipeHabitRow>
                     );
                   })}
 
@@ -888,167 +712,6 @@ const Dashboard = ({ user, onSignOut }) => {
               )}
             </div>
 
-            <hr className="db-divider" />
-
-            {/* To-do section */}
-            <div className="db-section" style={{ marginTop: 16 }}>
-              <div className="db-section-hd">
-                <span className="db-section-title">To-do</span>
-                <button className="db-add-btn" onClick={() => setShowAddTodo(true)}>+ Add</button>
-              </div>
-
-              <div className="db-todo-stats">
-                <div className="db-stat accent">
-                  <div className="db-stat-val">{activeTasks.length}</div>
-                  <div className="db-stat-lbl">Open tasks</div>
-                </div>
-                <div className="db-stat">
-                  <div className="db-stat-val">{overdue}</div>
-                  <div className="db-stat-lbl">Overdue</div>
-                </div>
-              </div>
-
-              <div className="db-filters">
-                {TODO_FILTERS.map((f) => (
-                  <button key={f} className={`db-chip${todoFilter === f ? ' active' : ''}`} onClick={() => setTodoFilter(f)}>{f}</button>
-                ))}
-              </div>
-
-              {tasks.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon">✅</div>
-                  <div className="db-empty-title">No tasks yet</div>
-                  <div className="db-empty-sub">Add what's on your mind and get it done.</div>
-                  <button className="db-empty-btn" onClick={() => setShowAddTodo(true)}>Add your first task</button>
-                </div>
-              ) : (
-                <div className="db-tasks">
-                  {visibleTasks.length === 0 ? (
-                    <div className="db-empty">
-                      {todoFilter === 'Done' ? 'No completed tasks yet.' : 'No tasks match this filter.'}
-                    </div>
-                  ) : (
-                    (() => {
-                      const renderTask = (task) => {
-                        const di = dueDateLabel(task.dueDate);
-                        const dc = getDueClass(task.dueDate);
-                        return (
-                          <SwipeHabitRow key={task.id} onSwipeRight={() => toggleTask(task.id)} onSwipeLeft={() => deleteTask(task.id)} rightLabel="✓ Done" leftLabel="✕ Delete">
-                          <div
-                            className={`db-task-row${dc === 'overdue' ? ' overdue-row' : ''}${task.completed ? ' done-task' : ''}`}
-                          >
-                            <div className="db-task-body">
-                              <button
-                                className={`db-task-chk${task.completed ? ' done-chk' : ''}`}
-                                onClick={() => toggleTask(task.id)}
-                                aria-label={task.completed ? 'Mark active' : 'Mark done'}
-                              >
-                                {task.completed ? '✓' : ''}
-                              </button>
-                              <div className="db-task-content">
-                                <div className="db-task-title">{task.title}</div>
-                                {(di || task.category) && (
-                                  <div className="db-task-badges">
-                                    {di && <span className={badgeCls(di.cls)}>{di.text}</span>}
-                                    {task.category && <span className="db-badge db-badge-gray">{task.category}</span>}
-                                  </div>
-                                )}
-                              </div>
-                              <button
-                                className="db-task-edit-btn"
-                                onClick={(e) => { e.stopPropagation(); openEditTask(task); }}
-                                aria-label="Edit task"
-                              >✎</button>
-                            </div>
-                            {!task.completed && (() => {
-                              const today = addDays(0);
-                              const tomorrow = addDays(1);
-                              const week = endOfWeek();
-                              const cur = task.dueDate || '';
-                              const isToday = cur === today;
-                              const isTomorrow = cur === tomorrow;
-                              const isWeek = cur === week;
-                              const isOther = cur && !isToday && !isTomorrow && !isWeek;
-                              const fmtOther = isOther
-                                ? new Date(cur + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-                                : null;
-                              return (
-                                <div className="db-task-date-row">
-                                  {isOther && (
-                                    <button
-                                      className={`db-task-date-chip${dc === 'overdue' ? ' overdue' : ' active'}`}
-                                      onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, ''); }}
-                                    >{fmtOther} ✕</button>
-                                  )}
-                                  <button
-                                    className={`db-task-date-chip${isToday ? ' active' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, isToday ? '' : today); }}
-                                  >Today{isToday ? ' ✕' : ''}</button>
-                                  <button
-                                    className={`db-task-date-chip${isTomorrow ? ' active' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, isTomorrow ? '' : tomorrow); }}
-                                  >Tomorrow{isTomorrow ? ' ✕' : ''}</button>
-                                  <button
-                                    className={`db-task-date-chip${isWeek ? ' active' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); setTaskDue(task.id, isWeek ? '' : week); }}
-                                  >This week{isWeek ? ' ✕' : ''}</button>
-                                  <label className="db-task-date-chip db-task-date-custom">
-                                    📆
-                                    <input
-                                      type="date"
-                                      value={isOther ? cur : ''}
-                                      min={today}
-                                      onChange={(e) => { if (e.target.value) setTaskDue(task.id, e.target.value); }}
-                                      onClick={(e) => e.stopPropagation()}
-                                    />
-                                  </label>
-                                </div>
-                              );
-                            })()}
-                            {!task.completed && (
-                              <div className="db-task-pri-strip">
-                                {['high', 'medium', 'low'].map((p) => (
-                                  <button
-                                    key={p}
-                                    className={`db-task-pri-btn db-task-pri-${p}${task.priority === p ? ' active' : ''}`}
-                                    onClick={(e) => { e.stopPropagation(); setPriority(task.id, p); }}
-                                  >
-                                    {p.charAt(0).toUpperCase() + p.slice(1)}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-
-                          </div>
-                          </SwipeHabitRow>
-                        );
-                      };
-
-                      if (todoFilter === 'Done') {
-                        return visibleTasks.map(renderTask);
-                      }
-
-                      const groups = [
-                        { key: 'high',   label: 'High',   color: '#E24B4A', tasks: visibleTasks.filter(t => (t.priority || 'medium') === 'high') },
-                        { key: 'medium', label: 'Medium', color: '#F59E0B', tasks: visibleTasks.filter(t => (t.priority || 'medium') === 'medium') },
-                        { key: 'low',    label: 'Low',    color: '#639922', tasks: visibleTasks.filter(t => (t.priority || 'medium') === 'low') },
-                      ].filter(g => g.tasks.length > 0);
-
-                      return groups.map(g => (
-                        <div key={g.key}>
-                          <div className="db-priority-group-hd">
-                            <span className="db-priority-dot" style={{ background: g.color }} />
-                            <span className="db-priority-label">{g.label}</span>
-                            <span className="db-priority-count">{g.tasks.length}</span>
-                          </div>
-                          {g.tasks.map(renderTask)}
-                        </div>
-                      ));
-                    })()
-                  )}
-                </div>
-              )}
-            </div>
           </>
         )}
 
@@ -1115,6 +778,9 @@ const Dashboard = ({ user, onSignOut }) => {
             )}
           </>
         )}
+
+        {/* ── TASKS (KANBAN) VIEW ──────────────────────── */}
+        {view === 'tasks' && <KanbanTodo />}
       </div>
 
       {/* Edit Habit Modal */}
@@ -1221,85 +887,6 @@ const Dashboard = ({ user, onSignOut }) => {
         </div>
       )}
 
-      {/* Edit Task Modal */}
-      {editingTask && (
-        <div className="db-modal-overlay" onClick={() => setEditingTask(null)}>
-          <div className="db-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="db-modal-hd">
-              <span className="db-modal-title">Edit task</span>
-              <button className="db-modal-close" onClick={() => setEditingTask(null)}>✕</button>
-            </div>
-            <label className="db-form-label">Task name</label>
-            <input className="db-form-input" type="text" value={eTitle}
-              onChange={(e) => setETitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && saveEditTask()} />
-            <label className="db-form-label">Priority</label>
-            <div className="db-pri-chips">
-              {PRIORITIES.map((p) => (
-                <button key={p.id}
-                  className={`db-pri-chip${ePri === p.id ? ' active' : ''}`}
-                  style={ePri === p.id ? { color: p.color, borderColor: p.color, background: p.color + '18' } : {}}
-                  onClick={() => setEPri(p.id)}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <label className="db-form-label">Deadline</label>
-            <input className="db-form-input" type="date" value={eDue}
-              onChange={(e) => setEDue(e.target.value)} />
-            {eDue && (
-              <button className="db-clear-date" onClick={() => setEDue('')}>✕ Clear deadline</button>
-            )}
-            <div className="db-modal-actions">
-              <button className="db-modal-cancel" onClick={() => setEditingTask(null)}>Cancel</button>
-              <button className="db-modal-save" onClick={saveEditTask}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Todo Modal */}
-      {showAddTodo && (
-        <div className="db-modal-overlay" onClick={() => setShowAddTodo(false)}>
-          <div className="db-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="db-modal-hd">
-              <span className="db-modal-title">New task</span>
-              <button className="db-modal-close" onClick={() => setShowAddTodo(false)}>✕</button>
-            </div>
-            <label className="db-form-label">Task *</label>
-            <input className={`db-form-input${tErr ? ' err' : ''}`} placeholder="What needs to be done?"
-              value={tTitle} onChange={(e) => setTTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addTodo()} autoFocus />
-            <label className="db-form-label">Priority</label>
-            <div className="db-pri-chips">
-              {PRIORITIES.map((p) => (
-                <button key={p.id}
-                  className={`db-pri-chip${tPri === p.id ? ' active' : ''}`}
-                  style={tPri === p.id ? { color: p.color, borderColor: p.color, background: p.color + '18' } : {}}
-                  onClick={() => setTPri(p.id)}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <label className="db-form-label">Category</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {CATEGORIES.map((c) => (
-                <button key={c}
-                  className={`db-pri-chip${tCat === c ? ' active' : ''}`}
-                  style={tCat === c ? { color: '#6C63D5', borderColor: '#6C63D5', background: '#EEEDFE' } : {}}
-                  onClick={() => setTCat(tCat === c ? '' : c)}>{c}</button>
-              ))}
-            </div>
-            <label className="db-form-label">Due date</label>
-            <input className="db-form-input" type="date" value={tDue}
-              onChange={(e) => setTDue(e.target.value)} />
-            <div className="db-modal-actions">
-              <button className="db-modal-cancel" onClick={() => setShowAddTodo(false)}>Cancel</button>
-              <button className="db-modal-save" onClick={addTodo}>Add task</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
