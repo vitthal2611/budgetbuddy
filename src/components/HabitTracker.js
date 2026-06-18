@@ -45,6 +45,7 @@ const HabitTracker = () => {
   const [data, setData] = useState({ habits: [], completions: {}, missed: {} });
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -1531,6 +1532,16 @@ const HabitTracker = () => {
     setDailyQuote(motivationalQuotes[quoteIndex]);
   }, []);
 
+  // Close the add-habit wizard with the Escape key
+  useEffect(() => {
+    if (!showAddModal) return undefined;
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setShowAddModal(false);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [showAddModal]);
+
   // AI-powered Identity Statement suggestions based on action (Core of Atomic Habits)
   // Focuses on TOP 20 HABITS OF SUCCESSFUL PEOPLE
   const getIdentitySuggestions = (actionInput) => {
@@ -2263,6 +2274,8 @@ const HabitTracker = () => {
     setShowLocationSuggestions(false);
     setShowMakeObviousSuggestions(false);
     setShowRewardSuggestions(false);
+    // A flow suggestion fills every field, so jump straight to the review step
+    setWizardStep(3);
   };
 
   const getWeek = (offset) => {
@@ -3133,8 +3146,16 @@ const HabitTracker = () => {
     { label: 'Start date', complete: Boolean(formStartDate) }
   ];
   const completedHabitFields = requiredHabitFields.filter(field => field.complete).length;
-  const addHabitProgress = Math.round((completedHabitFields / requiredHabitFields.length) * 100);
   const canSaveHabit = completedHabitFields === requiredHabitFields.length && !savingHabit;
+  const habitWizardSteps = [
+    { id: 1, label: 'Habit', title: 'What do you want to build?' },
+    { id: 2, label: 'Plan it', title: 'Anchor it to a cue, identity & place' },
+    { id: 3, label: 'Reinforce', title: 'Make it obvious, rewarding & set a start date' }
+  ];
+  const stepOneComplete = Boolean(formAction.trim());
+  const stepTwoComplete = Boolean(formTrigger.trim()) && Boolean(formTime) && Boolean(formLocation.trim());
+  const canAdvanceStep =
+    wizardStep === 1 ? stepOneComplete : wizardStep === 2 ? stepTwoComplete : true;
   const habitIntent = getHabitIntent(formAction);
   const habitFlowSuggestions = buildHabitFlowSuggestions(formAction);
 
@@ -3144,6 +3165,7 @@ const HabitTracker = () => {
         <h1 className="habit-title">Habit Tracker</h1>
         <button className="habit-add-btn" onClick={() => {
           setFormError('');
+          setWizardStep(1);
           setShowAddModal(true);
         }}>
           + Add
@@ -3235,13 +3257,35 @@ const HabitTracker = () => {
                 {incompleteTodayHabits.length > 0 && (
                   <>
                     {incompleteTodayHabits.map(habit => (
-                      <div key={habit.id} className="habit-today-card">
+                      <div key={habit.id} className={`habit-today-card ${openMenuId === habit.id ? 'menu-open' : ''}`}>
                         <div className="habit-today-header">
                           <span className="habit-today-identity">{habit.identity}</span>
-                          <div className="habit-today-streak">
-                            <span className="habit-today-streak-icon">🔥</span>
-                            <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                          <div className="habit-today-header-right">
+                            <div className="habit-today-streak">
+                              <span className="habit-today-streak-icon">🔥</span>
+                              <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                            </div>
+                            <button
+                              className="habit-menu-btn habit-today-menu-btn"
+                              onClick={() => toggleMenu(habit.id)}
+                              aria-label="Habit options"
+                            >
+                              ⋮
+                            </button>
                           </div>
+                          {openMenuId === habit.id && (
+                            <div className="habit-menu-dropdown">
+                              <button className="habit-menu-item" onClick={() => openEditModal(habit)}>
+                                ✏️ Edit
+                              </button>
+                              <button className="habit-menu-item" onClick={() => openReviewModal(habit)}>
+                                📝 Review
+                              </button>
+                              <button className="habit-menu-item habit-menu-delete" onClick={() => handleDeleteHabit(habit.id)}>
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="habit-today-body">
                           <button 
@@ -3282,13 +3326,35 @@ const HabitTracker = () => {
                       </div>
                     )}
                     {completedTodayHabits.map(habit => (
-                      <div key={habit.id} className="habit-today-card habit-today-card-completed">
+                      <div key={habit.id} className={`habit-today-card habit-today-card-completed ${openMenuId === habit.id ? 'menu-open' : ''}`}>
                         <div className="habit-today-header">
                           <span className="habit-today-identity">{habit.identity}</span>
-                          <div className="habit-today-streak">
-                            <span className="habit-today-streak-icon">🔥</span>
-                            <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                          <div className="habit-today-header-right">
+                            <div className="habit-today-streak">
+                              <span className="habit-today-streak-icon">🔥</span>
+                              <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                            </div>
+                            <button
+                              className="habit-menu-btn habit-today-menu-btn"
+                              onClick={() => toggleMenu(habit.id)}
+                              aria-label="Habit options"
+                            >
+                              ⋮
+                            </button>
                           </div>
+                          {openMenuId === habit.id && (
+                            <div className="habit-menu-dropdown">
+                              <button className="habit-menu-item" onClick={() => openEditModal(habit)}>
+                                ✏️ Edit
+                              </button>
+                              <button className="habit-menu-item" onClick={() => openReviewModal(habit)}>
+                                📝 Review
+                              </button>
+                              <button className="habit-menu-item habit-menu-delete" onClick={() => handleDeleteHabit(habit.id)}>
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="habit-today-body">
                           <button 
@@ -3322,13 +3388,35 @@ const HabitTracker = () => {
                       </div>
                     )}
                     {missedTodayHabits.map(habit => (
-                      <div key={habit.id} className="habit-today-card habit-today-card-missed">
+                      <div key={habit.id} className={`habit-today-card habit-today-card-missed ${openMenuId === habit.id ? 'menu-open' : ''}`}>
                         <div className="habit-today-header">
                           <span className="habit-today-identity">{habit.identity}</span>
-                          <div className="habit-today-streak">
-                            <span className="habit-today-streak-icon">🔥</span>
-                            <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                          <div className="habit-today-header-right">
+                            <div className="habit-today-streak">
+                              <span className="habit-today-streak-icon">🔥</span>
+                              <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
+                            </div>
+                            <button
+                              className="habit-menu-btn habit-today-menu-btn"
+                              onClick={() => toggleMenu(habit.id)}
+                              aria-label="Habit options"
+                            >
+                              ⋮
+                            </button>
                           </div>
+                          {openMenuId === habit.id && (
+                            <div className="habit-menu-dropdown">
+                              <button className="habit-menu-item" onClick={() => openEditModal(habit)}>
+                                ✏️ Edit
+                              </button>
+                              <button className="habit-menu-item" onClick={() => openReviewModal(habit)}>
+                                📝 Review
+                              </button>
+                              <button className="habit-menu-item habit-menu-delete" onClick={() => handleDeleteHabit(habit.id)}>
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="habit-today-body">
                           <button 
@@ -3551,24 +3639,35 @@ const HabitTracker = () => {
               </button>
             </div>
 
-            <div className="habit-setup-panel">
-              <div className="habit-setup-header">
-                <span>Setup progress</span>
-                <strong>{completedHabitFields}/{requiredHabitFields.length}</strong>
-              </div>
-              <div className="habit-setup-progress" aria-hidden="true">
-                <span style={{ width: `${addHabitProgress}%` }} />
-              </div>
-              <div className="habit-setup-checks">
-                {requiredHabitFields.map(field => (
-                  <span
-                    key={field.label}
-                    className={`habit-setup-chip ${field.complete ? 'complete' : ''}`}
+            <div className="habit-wizard-steps" role="list">
+              {habitWizardSteps.map((step) => {
+                const isComplete = step.id < wizardStep;
+                const isActive = step.id === wizardStep;
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    role="listitem"
+                    className={`habit-wizard-step ${isActive ? 'active' : ''} ${isComplete ? 'complete' : ''}`}
+                    onClick={() => {
+                      // Allow jumping back to a completed/earlier step, never skipping ahead
+                      if (step.id < wizardStep) {
+                        setFormError('');
+                        setWizardStep(step.id);
+                      }
+                    }}
+                    disabled={step.id > wizardStep}
                   >
-                    {field.complete ? 'Done' : 'Need'} {field.label}
-                  </span>
-                ))}
-              </div>
+                    <span className="habit-wizard-step-dot">{isComplete ? '✓' : step.id}</span>
+                    <span className="habit-wizard-step-label">{step.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="habit-wizard-heading">
+              <span className="habit-wizard-count">Step {wizardStep} of {habitWizardSteps.length}</span>
+              <h3 className="habit-wizard-title">{habitWizardSteps[wizardStep - 1].title}</h3>
             </div>
 
             {formError && (
@@ -3578,6 +3677,8 @@ const HabitTracker = () => {
             )}
 
             <div className="habit-form">
+              {wizardStep === 1 && (
+              <>
               <div className="habit-form-group habit-goal-group">
                 <label className="habit-form-label">What habit do you want to build? *</label>
                 <div className="habit-form-action-wrapper">
@@ -3623,11 +3724,51 @@ const HabitTracker = () => {
                   Describe it naturally. The assistant will turn it into a tiny action, cue, place, identity, and reward.
                 </div>
               </div>
-              
+
+              <div className="habit-ai-flow">
+                <div className="habit-ai-flow-header">
+                  <div>
+                    <span className="habit-ai-kicker">AI Flow</span>
+                    <h3>{habitIntent.label}</h3>
+                    <p>{habitIntent.tone}</p>
+                  </div>
+                  <span className="habit-ai-confidence">{habitIntent.confidence}</span>
+                </div>
+                {habitFlowSuggestions.length > 0 ? (
+                  <div className="habit-ai-cards">
+                    {habitFlowSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.title}
+                        type="button"
+                        className="habit-ai-card"
+                        onClick={() => applyHabitFlowSuggestion(suggestion)}
+                      >
+                        <span className="habit-ai-card-title">{suggestion.title}</span>
+                        <span className="habit-ai-card-principle">{suggestion.principle}</span>
+                        <span className="habit-ai-card-plan">
+                          After {suggestion.trigger.replace(/^after\s+/i, '')}, I will {suggestion.action} at {suggestion.time} in {suggestion.location}.
+                        </span>
+                        <span className="habit-ai-card-identity">{suggestion.identity}</span>
+                        <span className="habit-ai-card-meta">{suggestion.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="habit-ai-empty">
+                    Type your habit above, then pick a ready-made plan inspired by cue, craving, response, and reward.
+                  </div>
+                )}
+              </div>
+              </>
+              )}
+
+              {wizardStep === 2 && (
+              <>
+
               <div className="habit-form-section">
                 <div className="habit-form-section-title">When & Where (Implementation Intention)</div>
                 <div className="habit-form-preview">
-                  After <strong> {formTrigger || '[trigger]'} </strong>, I will <strong> {formAction || '[action]'} </strong> at <strong> {formTime || '[time]'} </strong> in <strong> {formLocation || '[location]'} </strong>
+                  After <strong>{formTrigger || '[trigger]'}</strong>, I will <strong>{formAction || '[action]'}</strong> at <strong>{formTime || '[time]'}</strong> in <strong>{formLocation || '[location]'}</strong>.
                 </div>
                 
                 <div className="habit-form-group">
@@ -3720,40 +3861,6 @@ const HabitTracker = () => {
                     Identity is the person this habit helps you become.
                   </div>
                 </div>
-                <div className="habit-ai-flow">
-                  <div className="habit-ai-flow-header">
-                    <div>
-                      <span className="habit-ai-kicker">AI Flow</span>
-                      <h3>{habitIntent.label}</h3>
-                      <p>{habitIntent.tone}</p>
-                    </div>
-                    <span className="habit-ai-confidence">{habitIntent.confidence}</span>
-                  </div>
-                  {habitFlowSuggestions.length > 0 ? (
-                    <div className="habit-ai-cards">
-                      {habitFlowSuggestions.map((suggestion) => (
-                        <button
-                          key={suggestion.title}
-                          type="button"
-                          className="habit-ai-card"
-                          onClick={() => applyHabitFlowSuggestion(suggestion)}
-                        >
-                          <span className="habit-ai-card-title">{suggestion.title}</span>
-                          <span className="habit-ai-card-principle">{suggestion.principle}</span>
-                          <span className="habit-ai-card-plan">
-                            After {suggestion.trigger.replace(/^after\s+/i, '')}, I will {suggestion.action} at {suggestion.time} in {suggestion.location}.
-                          </span>
-                          <span className="habit-ai-card-identity">{suggestion.identity}</span>
-                          <span className="habit-ai-card-meta">{suggestion.description}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="habit-ai-empty">
-                      Answer the habit question first. Then choose a complete setup inspired by cue, craving, response, and reward.
-                    </div>
-                  )}
-                </div>
                 <div className="habit-form-row">
                   <div className="habit-form-group habit-form-half">
                     <label className="habit-form-label">Time *</label>
@@ -3841,7 +3948,12 @@ const HabitTracker = () => {
                 </div>
                 
               </div>
-<div className="habit-form-group">
+              </>
+              )}
+
+              {wizardStep === 3 && (
+              <>
+              <div className="habit-form-group">
                 <label className="habit-form-label">Make It Obvious (1st Law)</label>
                 <div className="habit-form-action-wrapper">
                   <input
@@ -3882,7 +3994,7 @@ const HabitTracker = () => {
                   )}
                 </div>
                 <div className="habit-form-hint">
-                  Shape your environment so the habit is easy to notice.
+                  Optional. Shape your environment so the habit is easy to notice.
                 </div>
               </div>
               <div className="habit-form-group">
@@ -3926,7 +4038,7 @@ const HabitTracker = () => {
                   )}
                 </div>
                 <div className="habit-form-hint">
-                  Add a small satisfying finish so the habit feels complete.
+                  Optional. Add a small satisfying finish so the habit feels complete.
                 </div>
               </div>
               <div className="habit-form-group">
@@ -3939,16 +4051,56 @@ const HabitTracker = () => {
                   required
                 />
               </div>
+
+              <div className="habit-wizard-summary">
+                <span className="habit-wizard-summary-kicker">Your habit plan</span>
+                <p className="habit-wizard-summary-line">
+                  After <strong>{formTrigger.trim() || '…'}</strong>, I will <strong>{formAction.trim() || '…'}</strong> at <strong>{formTime || '…'}</strong> in <strong>{formLocation.trim() || '…'}</strong>.
+                </p>
+                {formIdentity.trim() && (
+                  <p className="habit-wizard-summary-identity">{formIdentity.trim()}</p>
+                )}
+              </div>
+              </>
+              )}
             </div>
             <div className="habit-modal-actions">
-              <button className="habit-modal-cancel" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button
-                className="habit-modal-save"
-                onClick={handleAddHabit}
-                disabled={!canSaveHabit}
-              >
-                {savingHabit ? 'Saving...' : 'Add Habit'}
-              </button>
+              {wizardStep > 1 ? (
+                <button
+                  className="habit-modal-cancel"
+                  type="button"
+                  onClick={() => { setFormError(''); setWizardStep(wizardStep - 1); }}
+                >
+                  Back
+                </button>
+              ) : (
+                <button
+                  className="habit-modal-cancel"
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+              )}
+              {wizardStep < habitWizardSteps.length ? (
+                <button
+                  className="habit-modal-save"
+                  type="button"
+                  onClick={() => { setFormError(''); setWizardStep(wizardStep + 1); }}
+                  disabled={!canAdvanceStep}
+                >
+                  Continue
+                </button>
+              ) : (
+                <button
+                  className="habit-modal-save"
+                  type="button"
+                  onClick={handleAddHabit}
+                  disabled={!canSaveHabit}
+                >
+                  {savingHabit ? 'Saving...' : 'Add Habit'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -4011,7 +4163,7 @@ const HabitTracker = () => {
               <div className="habit-form-section">
                 <div className="habit-form-section-title">📍 When & Where (Implementation Intention)</div>
                 <div className="habit-form-preview">
-                  After <strong> {formTrigger || '[trigger]'} </strong>, I will <strong> {formAction || '[action]'} </strong> at <strong> {formTime || '[time]'} </strong> in <strong> {formLocation || '[location]'} </strong>
+                  After <strong>{formTrigger || '[trigger]'}</strong>, I will <strong>{formAction || '[action]'}</strong> at <strong>{formTime || '[time]'}</strong> in <strong>{formLocation || '[location]'}</strong>.
                 </div>
                 
                 <div className="habit-form-group">

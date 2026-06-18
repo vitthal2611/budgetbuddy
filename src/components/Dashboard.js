@@ -15,6 +15,54 @@ const CONTEXTS = ['@home', '@work', '@phone', '@computer', '@outside', '@errands
 const ENERGY_LEVELS = [{ id: 'high', label: '⚡ High energy' }, { id: 'low', label: '🌿 Low energy' }];
 const DIFFICULTIES = [{ id: 'easy', label: 'Easy', color: '#16A34A' }, { id: 'medium', label: 'Medium', color: '#F59E0B' }, { id: 'hard', label: 'Hard', color: '#E24B4A' }];
 
+const TIME_GROUPS = [
+  { id: 'morning',   label: 'Morning',   icon: '🌅', accentColor: '#F59E0B' },
+  { id: 'afternoon', label: 'Afternoon', icon: '☀️',  accentColor: '#3B82F6' },
+  { id: 'evening',   label: 'Evening',   icon: '🌙', accentColor: '#6C63D5' },
+];
+
+const getTimeGroup = (time) => {
+  const m = timeToMins(time);
+  if (m === null || m < 720) return 'morning';
+  if (m < 1020) return 'afternoon';
+  return 'evening';
+};
+
+// Build linear chains from a flat habit list using afterHabitId links.
+// Returns [{type:'chain'|'standalone', items:[habit,...]}]
+const buildHabitChains = (habits) => {
+  const map = new Map(habits.map(h => [h.id, h]));
+  const hasParent = new Set(
+    habits.filter(h => h.afterHabitId && map.has(h.afterHabitId)).map(h => h.id)
+  );
+  const isParent = new Set(
+    habits.filter(h => h.afterHabitId && map.has(h.afterHabitId)).map(h => h.afterHabitId)
+  );
+  const visited = new Set();
+  const groups = [];
+
+  habits.forEach(h => {
+    if (visited.has(h.id)) return;
+    if (isParent.has(h.id) && !hasParent.has(h.id)) {
+      // Chain root: build full chain by following afterHabitId links
+      const chain = [];
+      let cur = h;
+      while (cur && !visited.has(cur.id)) {
+        chain.push(cur);
+        visited.add(cur.id);
+        cur = habits.find(x => x.afterHabitId === cur.id);
+      }
+      groups.push({ type: 'chain', items: chain });
+    } else if (!hasParent.has(h.id)) {
+      // Standalone habit (not part of any chain)
+      visited.add(h.id);
+      groups.push({ type: 'standalone', items: [h] });
+    }
+  });
+
+  return groups;
+};
+
 const getIstParts = () => {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: IST_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -113,6 +161,310 @@ const Confetti = ({ active }) => {
 };
 
 
+// ── Add Habit Wizard (Atoms sentence-builder flow) ───────────────────────────
+const AHW_STEPS = [
+  { key: 'action',   color: '#6C63D5', label: 'I will…',                  placeholder: 'e.g. do 10 push-ups',           required: true  },
+  { key: 'time',     color: '#F59E0B', label: 'at…',                      placeholder: 'e.g. 7:00 AM',                  required: false },
+  { key: 'location', color: '#F59E0B', label: 'in…',                      placeholder: 'e.g. the living room',          required: false },
+  { key: 'identity', color: '#7C3AED', label: 'so that I can become…',    placeholder: 'e.g. a healthy, active person', required: false },
+  { key: 'stack',    color: '#0EA5E9', label: 'After…',                   placeholder: 'After I…',                     required: false },
+  { key: 'reward',   color: '#16A34A', label: 'Reward…',                  placeholder: 'Afterwards I will…',            required: false },
+];
+
+const ACTION_SUGGESTIONS = [
+  { icon: '💧', text: 'drink a glass of water' },
+  { icon: '💪', text: 'do 10 push-ups' },
+  { icon: '🧘', text: 'meditate for 2 minutes' },
+  { icon: '📖', text: 'read one page' },
+  { icon: '🚶', text: 'go for a 5-min walk' },
+  { icon: '✍️', text: 'write in my journal' },
+  { icon: '🌬️', text: 'take 5 deep breaths' },
+  { icon: '🧹', text: 'tidy one small area' },
+  { icon: '🍎', text: 'eat a piece of fruit' },
+  { icon: '📵', text: 'put my phone face-down' },
+];
+
+const TIME_SUGGESTIONS = [
+  { icon: '🌅', label: 'Early morning', value: '06:00' },
+  { icon: '☀️', label: 'Morning',       value: '08:00' },
+  { icon: '🌤️', label: 'Midday',        value: '12:00' },
+  { icon: '🌇', label: 'Afternoon',     value: '15:00' },
+  { icon: '🌆', label: 'Evening',       value: '18:00' },
+  { icon: '🌙', label: 'Night',         value: '21:00' },
+];
+
+const LOCATION_SUGGESTIONS = [
+  '🛏️ Bedroom', '🍳 Kitchen', '🪴 Living room',
+  '🚿 Bathroom', '🏢 Office', '🏋️ Gym', '🌳 Outside',
+];
+
+const IDENTITY_SUGGESTIONS = [
+  { icon: '💪', text: 'a healthy and active person' },
+  { icon: '📚', text: 'someone who reads every day' },
+  { icon: '🧘', text: 'a calm and mindful person' },
+  { icon: '💰', text: 'someone who saves money' },
+  { icon: '✍️', text: 'a consistent writer' },
+  { icon: '🏃', text: 'a runner' },
+  { icon: '🥦', text: 'someone who eats well' },
+  { icon: '😴', text: 'someone who sleeps on time' },
+  { icon: '🎯', text: 'a focused and disciplined person' },
+  { icon: '🌱', text: 'someone who grows every day' },
+];
+
+const SentencePreview = ({ step, action, time, location, identity }) => {
+  const blank = (val, fallback) =>
+    val.trim()
+      ? <span className="ahw-sentence-filled">{val.trim()}</span>
+      : <span className="ahw-sentence-blank">{fallback}</span>;
+
+  const cur = (key) => AHW_STEPS[step]?.key === key;
+
+  return (
+    <div className="ahw-sentence">
+      <span className={`ahw-sentence-kw${cur('action') ? ' ahw-sentence-kw-active' : ''}`}>I will </span>
+      {blank(action, '___')}
+      {(step >= 1 || time) && (
+        <><span className={`ahw-sentence-kw${cur('time') ? ' ahw-sentence-kw-active' : ''}`}> at </span>{blank(time, '___')}</>
+      )}
+      {(step >= 2 || location) && (
+        <><span className={`ahw-sentence-kw${cur('location') ? ' ahw-sentence-kw-active' : ''}`}> in </span>{blank(location, '___')}</>
+      )}
+      {(step >= 3 || identity) && (
+        <><span className={`ahw-sentence-kw${cur('identity') ? ' ahw-sentence-kw-active' : ''}`}> so that I can become </span>{blank(identity, '___')}</>
+      )}
+    </div>
+  );
+};
+
+const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValues, isEdit }) => {
+  // Strip saved prefixes so the wizard input shows just the bare value
+  const stripPrefix = (str, prefix) =>
+    str && str.startsWith(prefix) ? str.slice(prefix.length).trim() : (str || '');
+
+  const [step, setStep]               = useState(0);
+  const [action, setAction]           = useState(() => stripPrefix(initialValues?.action, 'I will'));
+  const [time, setTime]               = useState(initialValues?.time || '');
+  const [location, setLocation]       = useState(initialValues?.location || '');
+  const [identity, setIdentity]       = useState(initialValues?.identity || '');
+  const [trigger, setTrigger]         = useState(() => stripPrefix(initialValues?.trigger, 'After I'));
+  const [afterHabitId, setAfterHabitId] = useState(initialValues?.afterHabitId || '');
+  const [reward, setReward]           = useState(initialValues?.reward || '');
+  const [err, setErr]                 = useState('');
+  const inputRef = useRef(null);
+
+  const cur = AHW_STEPS[step];
+  const total = AHW_STEPS.length;
+  const isLast = step === total - 1;
+
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 60); }, [step]);
+
+  const getValue = () => {
+    if (cur.key === 'action')   return action;
+    if (cur.key === 'time')     return time;
+    if (cur.key === 'location') return location;
+    if (cur.key === 'identity') return identity;
+    if (cur.key === 'stack')    return trigger;
+    if (cur.key === 'reward')   return reward;
+    return '';
+  };
+
+  const setValue = (val) => {
+    setErr('');
+    if (cur.key === 'action')   setAction(val);
+    else if (cur.key === 'time')     setTime(val);
+    else if (cur.key === 'location') setLocation(val);
+    else if (cur.key === 'identity') setIdentity(val);
+    else if (cur.key === 'stack')    setTrigger(val);
+    else if (cur.key === 'reward')   setReward(val);
+  };
+
+  const handleNext = () => {
+    if (cur.required && !getValue().trim()) {
+      setErr('Please fill this in to continue.');
+      return;
+    }
+    if (!isLast) { setStep(s => s + 1); return; }
+    onSave({
+      action: `I will ${action.trim()}`,
+      time, location, identity,
+      trigger: trigger.trim() ? `After I ${trigger.trim()}` : '',
+      reward,
+    });
+  };
+
+  const handleBack = () => {
+    if (step === 0) { onClose(); return; }
+    setErr('');
+    setStep(s => s - 1);
+  };
+
+  const showSentence = step >= 1 && step <= 3;
+
+  return (
+    <div className="ahw-overlay" onClick={onClose}>
+      <div className="ahw-modal" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="ahw-header">
+          <button className="ahw-close" onClick={onClose}>✕</button>
+          <div className="ahw-dots">
+            {AHW_STEPS.map((_, i) => (
+              <div key={i} className={`ahw-dot${i === step ? ' ahw-dot-active' : ''}${i < step ? ' ahw-dot-done' : ''}`}
+                style={i === step ? { background: cur.color } : i < step ? { background: cur.color + '70' } : {}} />
+            ))}
+          </div>
+          <div className="ahw-step-num">{step + 1}/{total}</div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="ahw-bar-track">
+          <div className="ahw-bar-fill" style={{ width: `${((step + 1) / total) * 100}%`, background: cur.color }} />
+        </div>
+
+        {/* Body */}
+        <div className="ahw-body">
+          {/* Sentence preview for the core 4 steps */}
+          {showSentence && (
+            <SentencePreview
+              step={step}
+              action={action} time={time} location={location} identity={identity}
+            />
+          )}
+
+          {/* Prompt label — hidden on step 0 since "I will" lives in the prefixed input */}
+          {cur.key !== 'action' && (
+            <div className="ahw-prompt-label" style={{ color: cur.color }}>
+              {step === 4 ? 'Stack after a habit' : step === 5 ? 'Add a reward' : cur.label}
+            </div>
+          )}
+
+          {/* Input */}
+          {cur.key === 'stack' ? (
+            <div className={`ahw-prefixed-wrap${err ? ' ahw-input-err' : ''}`}>
+              <span className="ahw-prefix" style={{ color: cur.color }}>After I</span>
+              <input
+                ref={inputRef}
+                className="ahw-prefixed-input"
+                placeholder="wake up…"
+                value={trigger}
+                onChange={e => { setTrigger(e.target.value); setErr(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleNext()}
+              />
+            </div>
+          ) : cur.key === 'action' ? (
+            <div className={`ahw-prefixed-wrap${err ? ' ahw-input-err' : ''}`}>
+              <span className="ahw-prefix" style={{ color: cur.color }}>I will</span>
+              <input
+                ref={inputRef}
+                className="ahw-prefixed-input"
+                placeholder="do 10 push-ups…"
+                value={action}
+                onChange={e => { setAction(e.target.value); setErr(''); }}
+                onKeyDown={e => e.key === 'Enter' && handleNext()}
+              />
+            </div>
+          ) : cur.key === 'time' ? (
+            <input
+              ref={inputRef}
+              type="time"
+              className={`ahw-input ahw-input-time${err ? ' ahw-input-err' : ''}`}
+              value={time}
+              onChange={e => { setTime(e.target.value); setErr(''); }}
+            />
+          ) : (
+            <input
+              ref={inputRef}
+              className={`ahw-input${err ? ' ahw-input-err' : ''}`}
+              placeholder={cur.placeholder}
+              value={getValue()}
+              onChange={e => setValue(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleNext()}
+            />
+          )}
+
+          {/* Action suggestions */}
+          {cur.key === 'action' && (
+            <div className="ahw-suggestions">
+              {ACTION_SUGGESTIONS.map(s => (
+                <button key={s.text} className={`ahw-sug-chip${action === s.text ? ' ahw-sug-active' : ''}`}
+                  onClick={() => { setAction(s.text); setErr(''); inputRef.current?.focus(); }}>
+                  {s.icon} {s.text}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Time suggestions */}
+          {cur.key === 'time' && (
+            <div className="ahw-suggestions ahw-suggestions-time">
+              {TIME_SUGGESTIONS.map(s => (
+                <button key={s.value} className={`ahw-sug-chip ahw-sug-time${time === s.value ? ' ahw-sug-active' : ''}`}
+                  onClick={() => { setTime(s.value); setErr(''); }}>
+                  <span className="ahw-sug-time-icon">{s.icon}</span>
+                  <span className="ahw-sug-time-label">{s.label}</span>
+                  <span className="ahw-sug-time-val">{s.value}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Location suggestions */}
+          {cur.key === 'location' && (
+            <div className="ahw-suggestions">
+              {LOCATION_SUGGESTIONS.map(s => {
+                const val = s.replace(/^.{2}/, '').trim();
+                return (
+                  <button key={s} className={`ahw-sug-chip${location === val ? ' ahw-sug-active' : ''}`}
+                    onClick={() => { setLocation(val); setErr(''); }}>
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Identity suggestions */}
+          {cur.key === 'identity' && (
+            <div className="ahw-suggestions">
+              {IDENTITY_SUGGESTIONS.map(s => (
+                <button key={s.text} className={`ahw-sug-chip${identity === s.text ? ' ahw-sug-active' : ''}`}
+                  onClick={() => { setIdentity(s.text); setErr(''); }}>
+                  {s.icon} {s.text}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {err && <div className="ahw-err-msg">{err}</div>}
+
+          {/* Skip hint for optional steps */}
+          {!cur.required && (
+            <button className="ahw-skip" onClick={() => { setValue(''); handleNext(); }}>
+              Skip for now
+            </button>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="ahw-footer">
+          {isEdit && isLast ? (
+            <button className="ahw-btn-delete" onClick={onDelete}>Delete</button>
+          ) : (
+            <button className="ahw-btn-back" onClick={handleBack}>
+              {step === 0 ? 'Cancel' : '← Back'}
+            </button>
+          )}
+          <button className="ahw-btn-next" style={{ background: cur.color }} onClick={handleNext} disabled={saving}>
+            {isLast
+              ? (saving ? 'Saving…' : isEdit ? 'Save changes ✓' : 'Add habit ✓')
+              : 'Continue →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const Dashboard = ({ user, onSignOut }) => {
   const [habitData, setHabitData] = useState({ habits: [], completions: {}, missed: {} });
   const [loading, setLoading]     = useState(true);
@@ -127,28 +479,12 @@ const Dashboard = ({ user, onSignOut }) => {
     typeof Notification === 'undefined' ? 'unsupported' : Notification.permission
   );
 
-  // Add habit modal
+  // Add habit wizard
   const [showAddHabit, setShowAddHabit] = useState(false);
-  const [hAction, setHAction]       = useState('');
-  const [hTime, setHTime]           = useState('');
-  const [hTrigger, setHTrigger]     = useState('');
-  const [hLocation, setHLocation]   = useState('');
-  const [hIdentity, setHIdentity]   = useState('');
-  const [hDifficulty, setHDifficulty] = useState('medium');
-  const [hReward, setHReward]       = useState('');
-  const [hErr, setHErr]             = useState('');
-  const [savingHabit, setSavingHabit] = useState(false);
+  const [savingHabit, setSavingHabit]   = useState(false);
 
   // Edit habit modal
   const [editingHabit, setEditingHabit] = useState(null);
-  const [eHAction, setEHAction]       = useState('');
-  const [eHTime, setEHTime]           = useState('');
-  const [eHTrigger, setEHTrigger]     = useState('');
-  const [eHLocation, setEHLocation]   = useState('');
-  const [eHIdentity, setEHIdentity]   = useState('');
-  const [eHDifficulty, setEHDifficulty] = useState('medium');
-  const [eHReward, setEHReward]       = useState('');
-  const [eHErr, setEHErr]             = useState('');
 
 
   useEffect(() => {
@@ -217,7 +553,7 @@ const Dashboard = ({ user, onSignOut }) => {
   const completedCount = done.length;
   const rate = total > 0 ? Math.round((completedCount / total) * 100) : 0;
   const circum = 2 * Math.PI * 28;
-  const dash = (rate / 100) * circum;
+  const _dash = (rate / 100) * circum; // kept for future ring SVG use
 
   // Confetti: fire when ALL habits just became done
   const allDoneNow = total > 0 && incomplete.length === 0 && missedList.length === 0 && isToday;
@@ -349,57 +685,9 @@ const Dashboard = ({ user, onSignOut }) => {
     await habitService.saveHabits(next);
   };
 
-  const openEditHabit = (h) => {
-    setEditingHabit(h);
-    setEHAction(h.action || '');
-    setEHTime(h.time || '');
-    setEHTrigger(h.trigger || '');
-    setEHLocation(h.location || '');
-    setEHIdentity(h.identity || '');
-    setEHDifficulty(h.difficulty || 'medium');
-    setEHReward(h.reward || '');
-    setEHErr('');
-  };
-
-  const saveEditHabit = async () => {
-    if (!eHAction.trim() || !eHTime) { setEHErr('Action and time are required.'); return; }
-    const updated = {
-      ...editingHabit,
-      action: eHAction.trim(), time: eHTime,
-      trigger: eHTrigger.trim(), location: eHLocation.trim(),
-      identity: eHIdentity.trim(), difficulty: eHDifficulty,
-      reward: eHReward.trim(),
-    };
-    const next = { ...habitData, habits: habitData.habits.map(h => h.id === editingHabit.id ? updated : h) };
-    setHabitData(next);
-    setEditingHabit(null);
-    habitService.saveHabits(next);
-  };
+  const openEditHabit = (h) => setEditingHabit(h);
 
 
-  const addHabit = async () => {
-    if (!hAction.trim() || !hTime) { setHErr('Action and time are required.'); return; }
-    setSavingHabit(true);
-    try {
-      const today = getIstParts().date;
-      const newHabit = {
-        id: `habit_${Date.now()}`,
-        action: hAction.trim(), time: hTime,
-        trigger: hTrigger.trim(), location: hLocation.trim(),
-        identity: hIdentity.trim(), difficulty: hDifficulty,
-        reward: hReward.trim(),
-        startDate: today,
-      };
-      const next = { ...habitData, habits: [...habitData.habits, newHabit] };
-      setHabitData(next);
-      await habitService.saveHabits(next);
-      setShowAddHabit(false);
-      setHAction(''); setHTime(''); setHTrigger(''); setHLocation('');
-      setHIdentity(''); setHDifficulty('medium'); setHReward(''); setHErr('');
-    } finally {
-      setSavingHabit(false);
-    }
-  };
 
 
   const enableNotifications = async () => {
@@ -425,6 +713,50 @@ const Dashboard = ({ user, onSignOut }) => {
 
   const displayName = user?.displayName?.split(' ')[0] || 'there';
   const greeting = getGreeting(istNow.minutes);
+
+  // Extracted habit card renderer (used for both standalone and stack items)
+  const renderHabitCard = (h, accentColor) => {
+    const atRisk = isAtRisk(h);
+    const streak = getCurrentStreak(h.id);
+    return (
+      <div
+        key={h.id}
+        className={`db-habit-row db-habit-v2${atRisk ? ' at-risk' : ''}`}
+        style={{ '--accent': accentColor }}
+      >
+        {h.trigger && <div className="db-habit-cue-pill">{h.trigger}</div>}
+        <div className="db-habit-main">
+          <button className="db-habit-check-v2" onClick={() => toggleCompletion(h.id)} aria-label="Mark done">✓</button>
+          <div className="db-habit-content">
+            <div className="db-habit-title-row">
+              <span className="db-habit-name-v2">{h.action}</span>
+              {streak > 0 && (
+                <span className={`db-streak-badge${atRisk ? ' at-risk-badge' : ''}`}>🔥 {streak}</span>
+              )}
+            </div>
+            {(h.time || h.location) && (
+              <div className="db-habit-meta-v2 db-habit-time-loc">
+                {h.time && <span className="db-habit-meta-pill">🕐 {h.time}</span>}
+                {h.location && <span className="db-habit-meta-pill">📍 {h.location}</span>}
+              </div>
+            )}
+            {h.identity && <div className="db-habit-identity-v2">{h.identity}</div>}
+          </div>
+        </div>
+        {h.reward && (
+          <div className="db-habit-reward-strip">
+            <span className="db-reward-icon">🎁</span>
+            <span>{h.reward}</span>
+          </div>
+        )}
+        <div className="db-habit-footer-strip">
+          <button className="db-hfs-btn db-hfs-edit" onClick={() => openEditHabit(h)}>✎ Edit</button>
+          <div className="db-hfs-divider" />
+          <button className="db-hfs-btn db-hfs-skip" onClick={() => toggleMissed(h.id)}>✗ Skip</button>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) return <div className="db"><div className="habit-loading">Loading…</div></div>;
 
@@ -634,33 +966,54 @@ const Dashboard = ({ user, onSignOut }) => {
                 </div>
               ) : (
                 <div className="db-habits">
-                  {incomplete.map((h) => {
-                    const atRisk = isAtRisk(h);
-                    return (
-                        <div key={h.id} className={`db-habit-row${atRisk ? ' at-risk' : ''}`}>
-                          <div className="db-habit-action-row">
-                            <button className="db-habit-check" onClick={() => toggleCompletion(h.id)} aria-label="Mark done">✓</button>
-                            <div className="db-habit-action-body">
-                              {h.trigger && (
-                                <div className="db-habit-cue-label">{h.trigger.replace(/^after\s+/i, 'After ')}</div>
-                              )}
-                              <div className="db-habit-name">
-                                {h.action}
-                                {atRisk && <span className="db-risk-tag">Don't break streak!</span>}
-                              </div>
-                              <div className="db-habit-meta">
-                                {h.time}
-                                {h.location && <span> · 📍 {h.location}</span>}
-                                {h.difficulty && <span className={`db-diff-chip db-diff-${h.difficulty}`}>{h.difficulty}</span>}
-                              </div>
-                              {h.identity && <div className="db-habit-identity">💭 {h.identity}</div>}
-                              {h.reward && <div className="db-habit-reward">🎁 {h.reward}</div>}
-                            </div>
-                            <span className="db-habit-streak-corner">🔥 {getCurrentStreak(h.id)}</span>
-                          </div>
-                        </div>
+                  {(() => {
+                    const chainGroups = buildHabitChains(incomplete);
+                    // Sort groups by their first habit's time
+                    chainGroups.sort((a, b) =>
+                      (timeToMins(a.items[0]?.time) ?? 9999) - (timeToMins(b.items[0]?.time) ?? 9999)
                     );
-                  })}
+                    return TIME_GROUPS.map((tg) => {
+                      const tgGroups = chainGroups.filter(g => getTimeGroup(g.items[0]?.time) === tg.id);
+                      if (tgGroups.length === 0) return null;
+                      const totalCount = tgGroups.reduce((s, g) => s + g.items.length, 0);
+                      return (
+                        <div key={tg.id} className="db-time-group">
+                          <div className="db-time-group-hd">
+                            <span className="db-time-group-icon">{tg.icon}</span>
+                            <span className="db-time-group-label">{tg.label}</span>
+                            <span className="db-time-group-line" />
+                            <span className="db-time-group-count">{totalCount}</span>
+                          </div>
+
+                          {tgGroups.map((group, gi) => {
+                            if (group.type === 'chain') {
+                              return (
+                                <div key={gi} className="db-habit-stack">
+                                  <div className="db-habit-stack-hd">
+                                    <span className="db-habit-stack-icon">⛓</span>
+                                    <span className="db-habit-stack-label">Habit Stack · {group.items.length} habits</span>
+                                  </div>
+                                  {group.items.map((h, idx) => (
+                                    <React.Fragment key={h.id}>
+                                      {renderHabitCard(h, tg.accentColor)}
+                                      {idx < group.items.length - 1 && (
+                                        <div className="db-stack-connector">
+                                          <div className="db-stack-connector-line" />
+                                          <span className="db-stack-then">THEN</span>
+                                          <div className="db-stack-connector-line" />
+                                        </div>
+                                      )}
+                                    </React.Fragment>
+                                  ))}
+                                </div>
+                              );
+                            }
+                            return renderHabitCard(group.items[0], tg.accentColor);
+                          })}
+                        </div>
+                      );
+                    });
+                  })()}
 
                   {(done.length > 0 || missedList.length > 0) && (
                     <div className="db-history-section">
@@ -783,108 +1136,68 @@ const Dashboard = ({ user, onSignOut }) => {
         {view === 'tasks' && <KanbanTodo />}
       </div>
 
-      {/* Edit Habit Modal */}
+      {/* Edit Habit Wizard */}
       {editingHabit && (
-        <div className="db-modal-overlay" onClick={() => setEditingHabit(null)}>
-          <div className="db-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="db-modal-hd">
-              <span className="db-modal-title">Edit habit</span>
-              <button className="db-modal-close" onClick={() => setEditingHabit(null)}>✕</button>
-            </div>
-            {eHErr && <div style={{ color: '#B91C1C', fontSize: 13, marginBottom: 8 }}>{eHErr}</div>}
-            <div className="db-law-section"><span className="db-law-badge">1</span> Make it Obvious</div>
-            <label className="db-form-label">Habit *</label>
-            <input className="db-form-input" placeholder="e.g. Morning run" value={eHAction}
-              onChange={(e) => setEHAction(e.target.value)} autoFocus />
-            <label className="db-form-label">Time (IST) *</label>
-            <input className="db-form-input" type="time" value={eHTime}
-              onChange={(e) => setEHTime(e.target.value)} />
-            <label className="db-form-label">Cue — after what?</label>
-            <input className="db-form-input" placeholder="e.g. After morning alarm" value={eHTrigger}
-              onChange={(e) => setEHTrigger(e.target.value)} />
-            <label className="db-form-label">Location — where?</label>
-            <input className="db-form-input" placeholder="e.g. At my desk" value={eHLocation}
-              onChange={(e) => setEHLocation(e.target.value)} />
-            <div className="db-law-section"><span className="db-law-badge">2</span> Make it Attractive</div>
-            <label className="db-form-label">Identity — I am…</label>
-            <input className="db-form-input" placeholder="e.g. I am someone who moves every day" value={eHIdentity}
-              onChange={(e) => setEHIdentity(e.target.value)} />
-            <div className="db-law-section"><span className="db-law-badge">3</span> Make it Easy</div>
-            <label className="db-form-label">Difficulty</label>
-            <div className="db-pri-chips">
-              {DIFFICULTIES.map((d) => (
-                <button key={d.id}
-                  className={`db-pri-chip${eHDifficulty === d.id ? ' active' : ''}`}
-                  style={eHDifficulty === d.id ? { color: d.color, borderColor: d.color, background: d.color + '18' } : {}}
-                  onClick={() => setEHDifficulty(d.id)}>{d.label}</button>
-              ))}
-            </div>
-            <div className="db-law-section"><span className="db-law-badge">4</span> Make it Satisfying</div>
-            <label className="db-form-label">Reward — after I do this I will…</label>
-            <input className="db-form-input" placeholder="e.g. Enjoy my morning coffee" value={eHReward}
-              onChange={(e) => setEHReward(e.target.value)} />
-            <div className="db-modal-actions" style={{ justifyContent: 'space-between' }}>
-              <button className="db-modal-cancel" style={{ color: '#E24B4A' }}
-                onClick={() => { deleteHabit(editingHabit.id); setEditingHabit(null); }}>
-                Delete
-              </button>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="db-modal-cancel" onClick={() => setEditingHabit(null)}>Cancel</button>
-                <button className="db-modal-save" onClick={saveEditHabit}>Save</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AddHabitWizard
+          habits={habitData.habits.filter(h => h.id !== editingHabit.id)}
+          isEdit
+          initialValues={editingHabit}
+          saving={savingHabit}
+          onClose={() => setEditingHabit(null)}
+          onDelete={() => { deleteHabit(editingHabit.id); setEditingHabit(null); }}
+          onSave={async ({ action, time, location, identity, trigger, reward }) => {
+            if (!action.trim()) return;
+            setSavingHabit(true);
+            try {
+              const updated = {
+                ...editingHabit,
+                action: `I will ${action.trim()}`,
+                time, location,
+                identity: identity.trim(),
+                trigger: trigger.trim() ? `After I ${trigger.trim()}` : '',
+                reward: reward.trim(),
+              };
+              const next = { ...habitData, habits: habitData.habits.map(h => h.id === editingHabit.id ? updated : h) };
+              setHabitData(next);
+              setEditingHabit(null);
+              habitService.saveHabits(next);
+            } finally {
+              setSavingHabit(false);
+            }
+          }}
+        />
       )}
 
-      {/* Add Habit Modal */}
+      {/* Add Habit Wizard */}
       {showAddHabit && (
-        <div className="db-modal-overlay" onClick={() => setShowAddHabit(false)}>
-          <div className="db-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="db-modal-hd">
-              <span className="db-modal-title">New habit</span>
-              <button className="db-modal-close" onClick={() => setShowAddHabit(false)}>✕</button>
-            </div>
-            {hErr && <div style={{ color: '#B91C1C', fontSize: 13, marginBottom: 8 }}>{hErr}</div>}
-            <div className="db-law-section"><span className="db-law-badge">1</span> Make it Obvious</div>
-            <label className="db-form-label">What's the habit? *</label>
-            <input className="db-form-input" placeholder="e.g. Morning run" value={hAction}
-              onChange={(e) => setHAction(e.target.value)} autoFocus />
-            <label className="db-form-label">Time (IST) *</label>
-            <input className="db-form-input" type="time" value={hTime}
-              onChange={(e) => setHTime(e.target.value)} />
-            <label className="db-form-label">Cue — after what?</label>
-            <input className="db-form-input" placeholder="e.g. After morning alarm" value={hTrigger}
-              onChange={(e) => setHTrigger(e.target.value)} />
-            <label className="db-form-label">Location — where?</label>
-            <input className="db-form-input" placeholder="e.g. At my desk" value={hLocation}
-              onChange={(e) => setHLocation(e.target.value)} />
-            <div className="db-law-section"><span className="db-law-badge">2</span> Make it Attractive</div>
-            <label className="db-form-label">Identity — I am…</label>
-            <input className="db-form-input" placeholder="e.g. I am someone who moves every day" value={hIdentity}
-              onChange={(e) => setHIdentity(e.target.value)} />
-            <div className="db-law-section"><span className="db-law-badge">3</span> Make it Easy</div>
-            <label className="db-form-label">Difficulty</label>
-            <div className="db-pri-chips">
-              {DIFFICULTIES.map((d) => (
-                <button key={d.id}
-                  className={`db-pri-chip${hDifficulty === d.id ? ' active' : ''}`}
-                  style={hDifficulty === d.id ? { color: d.color, borderColor: d.color, background: d.color + '18' } : {}}
-                  onClick={() => setHDifficulty(d.id)}>{d.label}</button>
-              ))}
-            </div>
-            <div className="db-law-section"><span className="db-law-badge">4</span> Make it Satisfying</div>
-            <label className="db-form-label">Reward — after I do this I will…</label>
-            <input className="db-form-input" placeholder="e.g. Enjoy my morning coffee" value={hReward}
-              onChange={(e) => setHReward(e.target.value)} />
-            <div className="db-modal-actions">
-              <button className="db-modal-cancel" onClick={() => setShowAddHabit(false)}>Cancel</button>
-              <button className="db-modal-save" onClick={addHabit} disabled={savingHabit}>
-                {savingHabit ? 'Saving…' : 'Add habit'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AddHabitWizard
+          habits={habitData.habits}
+          saving={savingHabit}
+          onClose={() => setShowAddHabit(false)}
+          onSave={async ({ action, time, location, identity, trigger, reward }) => {
+            if (!action.trim()) return;
+            setSavingHabit(true);
+            try {
+              const today = getIstParts().date;
+              const newHabit = {
+                id: `habit_${Date.now()}`,
+                action: action.trim(),
+                time: time.trim(),
+                location: location.trim(),
+                identity: identity.trim(),
+                trigger: trigger.trim(),
+                reward: reward.trim(),
+                startDate: today,
+              };
+              const next = { ...habitData, habits: [...habitData.habits, newHabit] };
+              setHabitData(next);
+              await habitService.saveHabits(next);
+              setShowAddHabit(false);
+            } finally {
+              setSavingHabit(false);
+            }
+          }}
+        />
       )}
 
     </div>

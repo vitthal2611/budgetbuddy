@@ -706,6 +706,29 @@
   box-sizing: border-box;
 }
 
+/* Header right-side group: streak + options menu */
+.habit-today-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Inline (non-absolute) variant of the options button for Today cards */
+.habit-today-menu-btn {
+  position: static;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: none;
+}
+
+/* Let the dropdown escape the card's clipped corners while it is open */
+.habit-today-card.menu-open {
+  overflow: visible;
+}
+
 /* Body Section - Habit Content */
 .habit-today-body {
   display: flex;
@@ -1588,6 +1611,152 @@
   color: #2f7d32;
 }
 
+/* Wizard step indicator */
+.habit-wizard-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.habit-wizard-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: default;
+  position: relative;
+}
+
+.habit-wizard-step:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  top: 13px;
+  right: 50%;
+  width: 100%;
+  height: 2px;
+  background: var(--border-light, #e0e0e0);
+  z-index: 0;
+}
+
+.habit-wizard-step.active:not(:first-child)::before,
+.habit-wizard-step.complete:not(:first-child)::before {
+  background: var(--primary, #6C63D5);
+}
+
+.habit-wizard-step-dot {
+  position: relative;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  background: var(--bg-tertiary, #f0f0f0);
+  color: var(--text-secondary, #777);
+  border: 2px solid var(--border-light, #e0e0e0);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.habit-wizard-step.active .habit-wizard-step-dot {
+  background: var(--primary, #6C63D5);
+  border-color: var(--primary, #6C63D5);
+  color: #fff;
+}
+
+.habit-wizard-step.complete .habit-wizard-step-dot {
+  background: rgba(76, 175, 80, 0.15);
+  border-color: #4caf50;
+  color: #2f7d32;
+}
+
+.habit-wizard-step.complete {
+  cursor: pointer;
+}
+
+.habit-wizard-step-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary, #888);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.habit-wizard-step.active .habit-wizard-step-label {
+  color: var(--primary, #6C63D5);
+}
+
+.habit-wizard-step.complete .habit-wizard-step-label {
+  color: #2f7d32;
+}
+
+.habit-wizard-heading {
+  margin-bottom: 16px;
+}
+
+.habit-wizard-count {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary, #6C63D5);
+  margin-bottom: 4px;
+}
+
+.habit-wizard-title {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary, #000);
+  margin: 0;
+}
+
+/* Wizard final-step summary */
+.habit-wizard-summary {
+  border: 1px solid rgba(76, 175, 80, 0.24);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.08), rgba(102, 126, 234, 0.07));
+  padding: 14px;
+}
+
+.habit-wizard-summary-kicker {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #2f7d32;
+  margin-bottom: 8px;
+}
+
+.habit-wizard-summary-line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary, #000);
+}
+
+.habit-wizard-summary-line strong {
+  color: #6C63D5;
+  font-weight: 700;
+}
+
+.habit-wizard-summary-identity {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #2f7d32;
+}
+
 .habit-form-error {
   border: 1px solid rgba(211, 47, 47, 0.25);
   border-radius: 10px;
@@ -2136,6 +2305,14 @@
   .habit-setup-chip {
     font-size: 11px;
     padding: 7px 8px;
+  }
+
+  .habit-wizard-step-label {
+    font-size: 10px;
+  }
+
+  .habit-wizard-title {
+    font-size: 16px;
   }
 
   .habit-ai-flow {
