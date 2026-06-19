@@ -1513,4 +1513,3 @@ const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {
 };
 
 export default ImportTransactions;
-    

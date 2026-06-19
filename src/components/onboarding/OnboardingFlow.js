@@ -340,4 +340,3 @@ const CompleteStep = ({ onNext }) => {
 };
 
 export default OnboardingFlow;
-    

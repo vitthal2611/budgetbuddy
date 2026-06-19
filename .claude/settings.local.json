@@ -51,7 +51,16 @@
       "Read(//c/Users/rautv/**)",
       "Bash(npx react-scripts *)",
       "Bash(git push *)",
-      "Bash(gh pr create --title 'Add Atoms-style habit wizard with sentence builder and habit card improvements' --body ' *)"
+      "Bash(gh pr create --title 'Add Atoms-style habit wizard with sentence builder and habit card improvements' --body ' *)",
+      "Bash(awk -F: '$1 < 856 || $1 > 1185')",
+      "Bash(cp src/components/HabitTracker.css /tmp/ht.css.bak)",
+      "Bash(sed -i '856,1185d' src/components/HabitTracker.css)",
+      "Bash(sed -i '856i /* Habit card \\(.db-hc-*\\) styles live in Dashboard.css — single source of truth. */' src/components/HabitTracker.css)",
+      "Bash(git rm *)",
+      "Bash(gh pr *)",
+      "Bash(gh --version)",
+      "Bash(echo \"exit:$?\")",
+      "PowerShell($g = Get-Command gh -ErrorAction SilentlyContinue; if \\($g\\) { Write-Output $g.Source; gh --version } else { Write-Output \"GH_NOT_FOUND\" })"
     ]
   }
 }
