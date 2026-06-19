@@ -877,7 +877,7 @@ const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {
     const url = URL.createObjectURL(blob);
     
     link.setAttribute('href', url);
-    link.setAttribute('download', 'budgetbuddy-template.csv');
+    link.setAttribute('download', 'life360-template.csv');
     link.style.visibility = 'hidden';
     
     document.body.appendChild(link);
@@ -1513,3 +1513,4 @@ const ImportTransactions = ({ onImport, onClose, existingTransactions }) => {
 };
 
 export default ImportTransactions;
+    

@@ -14,7 +14,7 @@ const OnboardingFlow = ({ onComplete }) => {
   const steps = [
     {
       id: 'welcome',
-      title: 'Welcome to BudgetBuddy! 👋',
+      title: 'Welcome to Life360! 👋',
       subtitle: 'Your journey to financial freedom starts here',
       component: WelcomeStep
     },
@@ -340,3 +340,4 @@ const CompleteStep = ({ onNext }) => {
 };
 
 export default OnboardingFlow;
+    

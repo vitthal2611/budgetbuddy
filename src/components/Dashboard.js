@@ -163,12 +163,20 @@ const Confetti = ({ active }) => {
 
 // ── Add Habit Wizard (Atoms sentence-builder flow) ───────────────────────────
 const AHW_STEPS = [
-  { key: 'action',   color: '#6C63D5', label: 'I will…',                  placeholder: 'e.g. do 10 push-ups',           required: true  },
-  { key: 'time',     color: '#F59E0B', label: 'at…',                      placeholder: 'e.g. 7:00 AM',                  required: false },
-  { key: 'location', color: '#F59E0B', label: 'in…',                      placeholder: 'e.g. the living room',          required: false },
-  { key: 'identity', color: '#7C3AED', label: 'so that I can become…',    placeholder: 'e.g. a healthy, active person', required: false },
-  { key: 'stack',    color: '#0EA5E9', label: 'After…',                   placeholder: 'After I…',                     required: false },
-  { key: 'reward',   color: '#16A34A', label: 'Reward…',                  placeholder: 'Afterwards I will…',            required: false },
+  { key: 'action',    color: '#6C63D5', label: 'I will…',               placeholder: 'e.g. do 10 push-ups',           required: true  },
+  { key: 'frequency', color: '#8B5CF6', label: 'How often?',            placeholder: '',                               required: true  },
+  { key: 'time',      color: '#F59E0B', label: 'at…',                   placeholder: 'e.g. 7:00 AM',                  required: false },
+  { key: 'location',  color: '#F59E0B', label: 'in…',                   placeholder: 'e.g. the living room',          required: false },
+  { key: 'identity',  color: '#7C3AED', label: 'so that I can become…', placeholder: 'e.g. a healthy, active person', required: false },
+  { key: 'stack',     color: '#0EA5E9', label: 'After…',                placeholder: 'After I…',                     required: false },
+  { key: 'reward',    color: '#16A34A', label: 'Reward…',               placeholder: 'Afterwards I will…',            required: false },
+];
+
+const FREQ_OPTIONS = [
+  { key: 'daily',    label: 'Daily',    desc: 'Every day' },
+  { key: 'weekdays', label: 'Weekdays', desc: 'Mon – Fri' },
+  { key: 'weekly',   label: 'Weekly',   desc: 'Once a week' },
+  { key: 'monthly',  label: 'Monthly',  desc: 'Once a month' },
 ];
 
 const ACTION_SUGGESTIONS = [
@@ -243,6 +251,7 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
 
   const [step, setStep]               = useState(0);
   const [action, setAction]           = useState(() => stripPrefix(initialValues?.action, 'I will'));
+  const [frequency, setFrequency]     = useState(initialValues?.frequency || 'daily');
   const [time, setTime]               = useState(initialValues?.time || '');
   const [location, setLocation]       = useState(initialValues?.location || '');
   const [identity, setIdentity]       = useState(initialValues?.identity || '');
@@ -259,12 +268,13 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 60); }, [step]);
 
   const getValue = () => {
-    if (cur.key === 'action')   return action;
-    if (cur.key === 'time')     return time;
-    if (cur.key === 'location') return location;
-    if (cur.key === 'identity') return identity;
-    if (cur.key === 'stack')    return trigger;
-    if (cur.key === 'reward')   return reward;
+    if (cur.key === 'action')    return action;
+    if (cur.key === 'frequency') return frequency;
+    if (cur.key === 'time')      return time;
+    if (cur.key === 'location')  return location;
+    if (cur.key === 'identity')  return identity;
+    if (cur.key === 'stack')     return trigger;
+    if (cur.key === 'reward')    return reward;
     return '';
   };
 
@@ -285,9 +295,10 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
     }
     if (!isLast) { setStep(s => s + 1); return; }
     onSave({
-      action: `I will ${action.trim()}`,
+      action: `I will ${action.trim().replace(/^I will\s+/i, '')}`,
+      frequency,
       time, location, identity,
-      trigger: trigger.trim() ? `After I ${trigger.trim()}` : '',
+      trigger: trigger.trim() ? `After I ${trigger.trim().replace(/^After I\s+/i, '')}` : '',
       reward,
     });
   };
@@ -298,7 +309,7 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
     setStep(s => s - 1);
   };
 
-  const showSentence = step >= 1 && step <= 3;
+  const showSentence = step >= 2 && step <= 4;
 
   return (
     <div className="ahw-overlay" onClick={onClose}>
@@ -312,7 +323,10 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
                 style={i === step ? { background: cur.color } : i < step ? { background: cur.color + '70' } : {}} />
             ))}
           </div>
-          <div className="ahw-step-num">{step + 1}/{total}</div>
+          {isEdit
+            ? <button className="ahw-hdr-delete" onClick={onDelete}>🗑</button>
+            : <div className="ahw-step-num">{step + 1}/{total}</div>
+          }
         </div>
 
         {/* Progress bar */}
@@ -333,7 +347,7 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
           {/* Prompt label — hidden on step 0 since "I will" lives in the prefixed input */}
           {cur.key !== 'action' && (
             <div className="ahw-prompt-label" style={{ color: cur.color }}>
-              {step === 4 ? 'Stack after a habit' : step === 5 ? 'Add a reward' : cur.label}
+              {step === 5 ? 'Stack after a habit' : step === 6 ? 'Add a reward' : cur.label}
             </div>
           )}
 
@@ -379,6 +393,22 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
               onChange={e => setValue(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleNext()}
             />
+          )}
+
+          {/* Frequency selector */}
+          {cur.key === 'frequency' && (
+            <div className="ahw-freq-grid">
+              {FREQ_OPTIONS.map(f => (
+                <button
+                  key={f.key}
+                  className={`ahw-freq-chip${frequency === f.key ? ' ahw-freq-active' : ''}`}
+                  onClick={() => { setFrequency(f.key); setErr(''); }}
+                >
+                  <span className="ahw-freq-label">{f.label}</span>
+                  <span className="ahw-freq-desc">{f.desc}</span>
+                </button>
+              ))}
+            </div>
           )}
 
           {/* Action suggestions */}
@@ -446,13 +476,9 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
 
         {/* Footer */}
         <div className="ahw-footer">
-          {isEdit && isLast ? (
-            <button className="ahw-btn-delete" onClick={onDelete}>Delete</button>
-          ) : (
-            <button className="ahw-btn-back" onClick={handleBack}>
-              {step === 0 ? 'Cancel' : '← Back'}
-            </button>
-          )}
+          <button className="ahw-btn-back" onClick={handleBack}>
+            {step === 0 ? 'Cancel' : '← Back'}
+          </button>
           <button className="ahw-btn-next" style={{ background: cur.color }} onClick={handleNext} disabled={saving}>
             {isLast
               ? (saving ? 'Saving…' : isEdit ? 'Save changes ✓' : 'Add habit ✓')
@@ -539,9 +565,23 @@ const Dashboard = ({ user, onSignOut }) => {
   const missed = habitData.missed?.[currentDateStr] || [];
 
   const scheduledHabits = habitData.habits.filter((h) => {
-    if (!h.startDate) return true;
-    const [y, m, d] = h.startDate.split('-').map(Number);
-    return currentDate >= new Date(y, m - 1, d);
+    if (h.startDate) {
+      const [y, m, d] = h.startDate.split('-').map(Number);
+      if (currentDate < new Date(y, m - 1, d)) return false;
+    }
+    const freq = h.frequency || 'daily';
+    const dow = currentDate.getDay(); // 0=Sun … 6=Sat
+    if (freq === 'weekdays') return dow >= 1 && dow <= 5;
+    if (freq === 'weekly') {
+      if (!h.startDate) return true;
+      const [sy, sm, sd] = h.startDate.split('-').map(Number);
+      return dow === new Date(sy, sm - 1, sd).getDay();
+    }
+    if (freq === 'monthly') {
+      if (!h.startDate) return true;
+      return currentDate.getDate() === parseInt(h.startDate.split('-')[2], 10);
+    }
+    return true; // daily
   });
 
   const byTime = (a, b) => (timeToMins(a.time) ?? 9999) - (timeToMins(b.time) ?? 9999);
@@ -714,45 +754,91 @@ const Dashboard = ({ user, onSignOut }) => {
   const displayName = user?.displayName?.split(' ')[0] || 'there';
   const greeting = getGreeting(istNow.minutes);
 
-  // Extracted habit card renderer (used for both standalone and stack items)
+  // Week grid helper — Mon to Sun of the week containing currentDate
+  const getWeekGrid = (habitId) => {
+    const dow = currentDate.getDay();
+    const monday = new Date(currentDate);
+    monday.setDate(currentDate.getDate() - (dow === 0 ? 6 : dow - 1));
+    monday.setHours(0, 0, 0, 0);
+    const todayStr = formatDate(new Date());
+    return ['M','T','W','T','F','S','S'].map((lbl, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const ds = formatDate(d);
+      return {
+        lbl,
+        ds,
+        isToday: ds === todayStr,
+        isFuture: d > new Date(new Date().setHours(23, 59, 59)),
+        isDone: (habitData.completions[ds] || []).includes(habitId),
+        isMissedDay: (habitData.missed[ds] || []).includes(habitId),
+      };
+    });
+  };
+
+  const FREQ_LABELS = { daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly', monthly: 'Monthly' };
+
+  // Extracted habit card renderer
   const renderHabitCard = (h, accentColor) => {
-    const atRisk = isAtRisk(h);
-    const streak = getCurrentStreak(h.id);
+    const isDone    = completions.includes(h.id);
+    const isMissed  = missed.includes(h.id);
+    const streak    = getCurrentStreak(h.id);
+    const freqLabel = FREQ_LABELS[h.frequency || 'daily'];
+    const weekGrid  = getWeekGrid(h.id);
     return (
       <div
         key={h.id}
-        className={`db-habit-row db-habit-v2${atRisk ? ' at-risk' : ''}`}
-        style={{ '--accent': accentColor }}
+        className={`db-hc${isDone ? ' db-hc--done' : ''}${isMissed ? ' db-hc--missed' : ''}`}
       >
-        {h.trigger && <div className="db-habit-cue-pill">{h.trigger}</div>}
-        <div className="db-habit-main">
-          <button className="db-habit-check-v2" onClick={() => toggleCompletion(h.id)} aria-label="Mark done">✓</button>
-          <div className="db-habit-content">
-            <div className="db-habit-title-row">
-              <span className="db-habit-name-v2">{h.action}</span>
-              {streak > 0 && (
-                <span className={`db-streak-badge${atRisk ? ' at-risk-badge' : ''}`}>🔥 {streak}</span>
-              )}
-            </div>
-            {(h.time || h.location) && (
-              <div className="db-habit-meta-v2 db-habit-time-loc">
-                {h.time && <span className="db-habit-meta-pill">🕐 {h.time}</span>}
-                {h.location && <span className="db-habit-meta-pill">📍 {h.location}</span>}
-              </div>
-            )}
-            {h.identity && <div className="db-habit-identity-v2">{h.identity}</div>}
+        {/* Main row: check + content + edit */}
+        <div className="db-hc-main" onClick={() => !isMissed && toggleCompletion(h.id)}>
+          <div className={`db-hc-check${isDone ? ' done' : isMissed ? ' missed' : ''}`}>
+            {isDone && <span>✓</span>}
+            {isMissed && <span>✗</span>}
           </div>
+          <div className="db-hc-content">
+            {h.trigger && <p className="db-hc-trigger">{h.trigger}</p>}
+            <p className="db-hc-action">{h.action}</p>
+            <p className="db-hc-meta">
+              <span className="db-hc-freq">{freqLabel}</span>
+              <span className="db-hc-sep">·</span>
+              <span className={`db-hc-streak-lbl${streak > 0 ? ' active' : ''}`}>
+                {streak > 0 ? `🔥 ${streak}d streak` : 'start streak'}
+              </span>
+            </p>
+          </div>
+          <button
+            className="db-hc-edit-btn"
+            onClick={e => { e.stopPropagation(); openEditHabit(h); }}
+            aria-label="Edit habit"
+          >✎</button>
         </div>
-        {h.reward && (
-          <div className="db-habit-reward-strip">
-            <span className="db-reward-icon">🎁</span>
-            <span>{h.reward}</span>
+
+        {/* Week grid row + skip/done/undo */}
+        <div className="db-hc-week">
+          <div className="db-hc-days">
+            {weekGrid.map((day, i) => (
+              <div key={i} className="db-hc-day">
+                <div className={[
+                  'db-hc-dot',
+                  day.isDone      ? 'done'   : '',
+                  day.isMissedDay ? 'missed' : '',
+                  day.isToday     ? 'today'  : '',
+                  day.isFuture    ? 'future' : '',
+                ].filter(Boolean).join(' ')} />
+                <span className={`db-hc-day-lbl${day.isToday ? ' today' : ''}`}>{day.lbl}</span>
+              </div>
+            ))}
           </div>
-        )}
-        <div className="db-habit-footer-strip">
-          <button className="db-hfs-btn db-hfs-edit" onClick={() => openEditHabit(h)}>✎ Edit</button>
-          <div className="db-hfs-divider" />
-          <button className="db-hfs-btn db-hfs-skip" onClick={() => toggleMissed(h.id)}>✗ Skip</button>
+          <div className="db-hc-act">
+            {!isDone && !isMissed && (
+              <button className="db-hc-skip-btn" onClick={e => { e.stopPropagation(); toggleMissed(h.id); }}>Skip</button>
+            )}
+            {isDone && <span className="db-hc-done-tag">Done ✓</span>}
+            {isMissed && (
+              <button className="db-hc-undo-btn" onClick={e => { e.stopPropagation(); revertToIncomplete(h.id); }}>Undo</button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -923,24 +1009,6 @@ const Dashboard = ({ user, onSignOut }) => {
               <button className="db-day-arrow" onClick={() => setDayOffset((p) => p + 1)}>›</button>
             </div>
 
-            {/* Up Next */}
-            {nextHabit && isToday && (
-              <div className="db-section">
-                <div className="db-section-hd">
-                  <span className="db-section-title">Up next</span>
-                  <span className="db-section-time">{istNow.time} IST</span>
-                </div>
-                <div className="db-next-card">
-                  <div className="db-next-icon">⚡</div>
-                  <div className="db-next-body">
-                    <div className="db-next-kicker">Next habit</div>
-                    <div className="db-next-title">{nextHabit.action}</div>
-                    <div className="db-next-time">{nextTimeTxt}{nextHabit.trigger ? ` · ${nextHabit.trigger}` : ''}</div>
-                  </div>
-                  <button className="db-next-check" onClick={() => toggleCompletion(nextHabit.id)} aria-label="Mark as done">✓</button>
-                </div>
-              </div>
-            )}
 
             {/* IST bell row */}
             <div className="db-ist-row">
@@ -1136,72 +1204,4 @@ const Dashboard = ({ user, onSignOut }) => {
         {view === 'tasks' && <KanbanTodo />}
       </div>
 
-      {/* Edit Habit Wizard */}
-      {editingHabit && (
-        <AddHabitWizard
-          habits={habitData.habits.filter(h => h.id !== editingHabit.id)}
-          isEdit
-          initialValues={editingHabit}
-          saving={savingHabit}
-          onClose={() => setEditingHabit(null)}
-          onDelete={() => { deleteHabit(editingHabit.id); setEditingHabit(null); }}
-          onSave={async ({ action, time, location, identity, trigger, reward }) => {
-            if (!action.trim()) return;
-            setSavingHabit(true);
-            try {
-              const updated = {
-                ...editingHabit,
-                action: `I will ${action.trim()}`,
-                time, location,
-                identity: identity.trim(),
-                trigger: trigger.trim() ? `After I ${trigger.trim()}` : '',
-                reward: reward.trim(),
-              };
-              const next = { ...habitData, habits: habitData.habits.map(h => h.id === editingHabit.id ? updated : h) };
-              setHabitData(next);
-              setEditingHabit(null);
-              habitService.saveHabits(next);
-            } finally {
-              setSavingHabit(false);
-            }
-          }}
-        />
-      )}
-
-      {/* Add Habit Wizard */}
-      {showAddHabit && (
-        <AddHabitWizard
-          habits={habitData.habits}
-          saving={savingHabit}
-          onClose={() => setShowAddHabit(false)}
-          onSave={async ({ action, time, location, identity, trigger, reward }) => {
-            if (!action.trim()) return;
-            setSavingHabit(true);
-            try {
-              const today = getIstParts().date;
-              const newHabit = {
-                id: `habit_${Date.now()}`,
-                action: action.trim(),
-                time: time.trim(),
-                location: location.trim(),
-                identity: identity.trim(),
-                trigger: trigger.trim(),
-                reward: reward.trim(),
-                startDate: today,
-              };
-              const next = { ...habitData, habits: [...habitData.habits, newHabit] };
-              setHabitData(next);
-              await habitService.saveHabits(next);
-              setShowAddHabit(false);
-            } finally {
-              setSavingHabit(false);
-            }
-          }}
-        />
-      )}
-
-    </div>
-  );
-};
-
-export default Dashboard;
+      {/* Edit Habit Wiza

@@ -170,7 +170,7 @@ const Auth = ({ onAuthSuccess }) => {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-header">
-            <h1>💰 Budget Buddy</h1>
+            <h1>💰 Life360</h1>
           </div>
           <div className="auth-loading">
             <div className="loading-spinner"></div>
@@ -186,7 +186,7 @@ const Auth = ({ onAuthSuccess }) => {
     <div className="auth-container" translate="no">
       <div className="auth-card">
         <div className="auth-header">
-          <h1>💰 Budget Buddy</h1>
+          <h1>💰 Life360</h1>
           <p>{isSignUp ? 'Create your account' : 'Welcome back!'}</p>
         </div>
 
@@ -313,3 +313,4 @@ const Auth = ({ onAuthSuccess }) => {
 };
 
 export default Auth;
+          

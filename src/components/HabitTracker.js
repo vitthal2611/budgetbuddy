@@ -3159,6 +3159,91 @@ const HabitTracker = () => {
   const habitIntent = getHabitIntent(formAction);
   const habitFlowSuggestions = buildHabitFlowSuggestions(formAction);
 
+  const renderTodayCard = (habit, state) => {
+    const streak = getCurrentStreak(habit.id);
+    const done   = state === 'completed';
+    const missed = state === 'missed';
+    const freqLabel = { daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly', monthly: 'Monthly' }[habit.frequency || 'daily'];
+
+    // Build week grid (Mon–Sun of the current week)
+    const todayStr = formatDate(new Date());
+    const nowMidnight = new Date(); nowMidnight.setHours(23, 59, 59, 999);
+    const weekGrid = getWeek(0).map((d, i) => {
+      const ds = formatDate(d);
+      return {
+        lbl: ['M','T','W','T','F','S','S'][i],
+        isToday: ds === todayStr,
+        isFuture: d > nowMidnight,
+        isDone: (data.completions[ds] || []).includes(habit.id),
+        isMissedDay: (data.missed[ds] || []).includes(habit.id),
+      };
+    });
+
+    return (
+      <div key={habit.id} className={`db-hc${done ? ' db-hc--done' : ''}${missed ? ' db-hc--missed' : ''}`}>
+        {/* Main row: check + content + menu */}
+        <div className="db-hc-main" onClick={() => !missed && toggleCompletion(habit.id, currentTodayDate)}>
+          <div className={`db-hc-check${done ? ' done' : missed ? ' missed' : ''}`}>
+            {done && <span>✓</span>}
+            {missed && <span>✗</span>}
+          </div>
+          <div className="db-hc-content">
+            {habit.trigger && <p className="db-hc-trigger">{habit.trigger}</p>}
+            <p className="db-hc-action">{habit.action}</p>
+            <p className="db-hc-meta">
+              <span className="db-hc-freq">{freqLabel}</span>
+              <span className="db-hc-sep">·</span>
+              <span className={`db-hc-streak-lbl${streak > 0 ? ' active' : ''}`}>
+                {streak > 0 ? `🔥 ${streak}d streak` : 'start streak'}
+              </span>
+            </p>
+          </div>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <button
+              className="db-hc-edit-btn"
+              onClick={e => { e.stopPropagation(); toggleMenu(habit.id); }}
+              aria-label="Habit options"
+            >⋮</button>
+            {openMenuId === habit.id && (
+              <div className="habit-menu-dropdown">
+                <button className="habit-menu-item" onClick={e => { e.stopPropagation(); openEditModal(habit); }}>✏️ Edit</button>
+                <button className="habit-menu-item" onClick={e => { e.stopPropagation(); openReviewModal(habit); }}>📝 Review</button>
+                <button className="habit-menu-item habit-menu-delete" onClick={e => { e.stopPropagation(); handleDeleteHabit(habit.id); }}>🗑️ Delete</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Week grid + skip/done/undo */}
+        <div className="db-hc-week">
+          <div className="db-hc-days">
+            {weekGrid.map((day, i) => (
+              <div key={i} className="db-hc-day">
+                <div className={[
+                  'db-hc-dot',
+                  day.isDone      ? 'done'   : '',
+                  day.isMissedDay ? 'missed' : '',
+                  day.isToday     ? 'today'  : '',
+                  day.isFuture    ? 'future' : '',
+                ].filter(Boolean).join(' ')} />
+                <span className={`db-hc-day-lbl${day.isToday ? ' today' : ''}`}>{day.lbl}</span>
+              </div>
+            ))}
+          </div>
+          <div className="db-hc-act">
+            {!done && !missed && (
+              <button className="db-hc-skip-btn" onClick={e => { e.stopPropagation(); toggleMissed(habit.id, currentTodayDate); }}>Skip</button>
+            )}
+            {done && <span className="db-hc-done-tag">Done ✓</span>}
+            {missed && (
+              <button className="db-hc-undo-btn" onClick={e => { e.stopPropagation(); toggleMissed(habit.id, currentTodayDate); }}>Undo</button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="habit-tracker">
       <div className="habit-header">
@@ -3256,64 +3341,7 @@ const HabitTracker = () => {
                 {/* Incomplete Habits */}
                 {incompleteTodayHabits.length > 0 && (
                   <>
-                    {incompleteTodayHabits.map(habit => (
-                      <div key={habit.id} className={`habit-today-card ${openMenuId === habit.id ? 'menu-open' : ''}`}>
-                        <div className="habit-today-header">
-                          <span className="habit-today-identity">{habit.identity}</span>
-                          <div className="habit-today-header-right">
-                            <div className="habit-today-streak">
-                              <span className="habit-today-streak-icon">🔥</span>
-                              <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
-                            </div>
-                            <button
-                              className="habit-menu-btn habit-today-menu-btn"
-                              onClick={() => toggleMenu(habit.id)}
-                              aria-label="Habit options"
-                            >
-                              ⋮
-                            </button>
-                          </div>
-                          {openMenuId === habit.id && (
-                            <div className="habit-menu-dropdown">
-                              <button className="habit-menu-item" onClick={() => openEditModal(habit)}>
-                                ✏️ Edit
-                              </button>
-                              <button className="habit-menu-item" onClick={() => openReviewModal(habit)}>
-                                📝 Review
-                              </button>
-                              <button className="habit-menu-item habit-menu-delete" onClick={() => handleDeleteHabit(habit.id)}>
-                                🗑️ Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <div className="habit-today-body">
-                          <button 
-                            className="habit-action-icon habit-complete-icon"
-                            onClick={() => toggleCompletion(habit.id, currentTodayDate)}
-                            title="Mark as complete"
-                            aria-label="Mark habit as complete"
-                          >
-                            ✓
-                          </button>
-                          <div className="habit-today-content">
-                            <div className="habit-today-time-row">
-                              <span className="habit-today-time">{habit.time}</span>
-                              {habit.trigger && <><span className="habit-today-separator"> • </span><span className="habit-today-trigger">{habit.trigger}</span></>}
-                            </div>
-                            <span className="habit-today-action">{habit.action}</span>
-                          </div>
-                          <button 
-                            className="habit-action-icon habit-miss-icon"
-                            onClick={() => toggleMissed(habit.id, currentTodayDate)}
-                            title="Mark as missed"
-                            aria-label="Mark habit as missed"
-                          >
-                            ✗
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                    {incompleteTodayHabits.map(habit => renderTodayCard(habit, 'incomplete'))}
                   </>
                 )}
 
@@ -3325,57 +3353,7 @@ const HabitTracker = () => {
                         <span className="habit-section-label">Completed ({completedTodayHabits.length})</span>
                       </div>
                     )}
-                    {completedTodayHabits.map(habit => (
-                      <div key={habit.id} className={`habit-today-card habit-today-card-completed ${openMenuId === habit.id ? 'menu-open' : ''}`}>
-                        <div className="habit-today-header">
-                          <span className="habit-today-identity">{habit.identity}</span>
-                          <div className="habit-today-header-right">
-                            <div className="habit-today-streak">
-                              <span className="habit-today-streak-icon">🔥</span>
-                              <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
-                            </div>
-                            <button
-                              className="habit-menu-btn habit-today-menu-btn"
-                              onClick={() => toggleMenu(habit.id)}
-                              aria-label="Habit options"
-                            >
-                              ⋮
-                            </button>
-                          </div>
-                          {openMenuId === habit.id && (
-                            <div className="habit-menu-dropdown">
-                              <button className="habit-menu-item" onClick={() => openEditModal(habit)}>
-                                ✏️ Edit
-                              </button>
-                              <button className="habit-menu-item" onClick={() => openReviewModal(habit)}>
-                                📝 Review
-                              </button>
-                              <button className="habit-menu-item habit-menu-delete" onClick={() => handleDeleteHabit(habit.id)}>
-                                🗑️ Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <div className="habit-today-body">
-                          <button 
-                            className="habit-action-icon habit-complete-icon habit-undo-icon"
-                            onClick={() => toggleCompletion(habit.id, currentTodayDate)}
-                            title="Undo completion"
-                            aria-label="Undo habit completion"
-                          >
-                            ↶
-                          </button>
-                          <div className="habit-today-content">
-                            <div className="habit-today-time-row">
-                              <span className="habit-today-time">{habit.time}</span>
-                              {habit.trigger && <><span className="habit-today-separator"> • </span><span className="habit-today-trigger">{habit.trigger}</span></>}
-                            </div>
-                            <span className="habit-today-action">{habit.action}</span>
-                          </div>
-                          <div className="habit-action-icon-placeholder"></div>
-                        </div>
-                      </div>
-                    ))}
+                    {completedTodayHabits.map(habit => renderTodayCard(habit, 'completed'))}
                   </>
                 )}
 
@@ -3387,64 +3365,7 @@ const HabitTracker = () => {
                         <span className="habit-section-label">Missed ({missedTodayHabits.length})</span>
                       </div>
                     )}
-                    {missedTodayHabits.map(habit => (
-                      <div key={habit.id} className={`habit-today-card habit-today-card-missed ${openMenuId === habit.id ? 'menu-open' : ''}`}>
-                        <div className="habit-today-header">
-                          <span className="habit-today-identity">{habit.identity}</span>
-                          <div className="habit-today-header-right">
-                            <div className="habit-today-streak">
-                              <span className="habit-today-streak-icon">🔥</span>
-                              <span className="habit-today-streak-count">{getCurrentStreak(habit.id)}</span>
-                            </div>
-                            <button
-                              className="habit-menu-btn habit-today-menu-btn"
-                              onClick={() => toggleMenu(habit.id)}
-                              aria-label="Habit options"
-                            >
-                              ⋮
-                            </button>
-                          </div>
-                          {openMenuId === habit.id && (
-                            <div className="habit-menu-dropdown">
-                              <button className="habit-menu-item" onClick={() => openEditModal(habit)}>
-                                ✏️ Edit
-                              </button>
-                              <button className="habit-menu-item" onClick={() => openReviewModal(habit)}>
-                                📝 Review
-                              </button>
-                              <button className="habit-menu-item habit-menu-delete" onClick={() => handleDeleteHabit(habit.id)}>
-                                🗑️ Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <div className="habit-today-body">
-                          <button 
-                            className="habit-action-icon habit-complete-icon"
-                            onClick={() => toggleCompletion(habit.id, currentTodayDate)}
-                            title="Mark as complete"
-                            aria-label="Mark habit as complete"
-                          >
-                            ✓
-                          </button>
-                          <div className="habit-today-content">
-                            <div className="habit-today-time-row">
-                              <span className="habit-today-time">{habit.time}</span>
-                              {habit.trigger && <><span className="habit-today-separator"> • </span><span className="habit-today-trigger">{habit.trigger}</span></>}
-                            </div>
-                            <span className="habit-today-action">{habit.action}</span>
-                          </div>
-                          <button 
-                            className="habit-action-icon habit-unmiss-icon"
-                            onClick={() => toggleMissed(habit.id, currentTodayDate)}
-                            title="Undo missed"
-                            aria-label="Undo missed status"
-                          >
-                            ↶
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                    {missedTodayHabits.map(habit => renderTodayCard(habit, 'missed'))}
                   </>
                 )}
 
