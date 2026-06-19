@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import habitService from '../services/habitService';
 import KanbanTodo from './KanbanTodo';
+import { isHabitScheduledOn } from '../utils/habitSchedule';
 import './Dashboard.css';
 
 const IST_TZ = 'Asia/Kolkata';
@@ -162,40 +163,20 @@ const Confetti = ({ active }) => {
 
 
 // ── Add Habit Wizard (Atoms sentence-builder flow) ───────────────────────────
-const AHW_STEPS = [
-  { key: 'action',   color: '#6C63D5', label: 'I will…',                  placeholder: 'e.g. do 10 push-ups',           required: true  },
-  { key: 'time',     color: '#F59E0B', label: 'at…',                      placeholder: 'e.g. 7:00 AM',                  required: false },
-  { key: 'location', color: '#F59E0B', label: 'in…',                      placeholder: 'e.g. the living room',          required: false },
-  { key: 'identity', color: '#7C3AED', label: 'so that I can become…',    placeholder: 'e.g. a healthy, active person', required: false },
-  { key: 'stack',    color: '#0EA5E9', label: 'After…',                   placeholder: 'After I…',                     required: false },
-  { key: 'reward',   color: '#16A34A', label: 'Reward…',                  placeholder: 'Afterwards I will…',            required: false },
-];
-
-const ACTION_SUGGESTIONS = [
-  { icon: '💧', text: 'drink a glass of water' },
-  { icon: '💪', text: 'do 10 push-ups' },
-  { icon: '🧘', text: 'meditate for 2 minutes' },
-  { icon: '📖', text: 'read one page' },
-  { icon: '🚶', text: 'go for a 5-min walk' },
-  { icon: '✍️', text: 'write in my journal' },
-  { icon: '🌬️', text: 'take 5 deep breaths' },
-  { icon: '🧹', text: 'tidy one small area' },
-  { icon: '🍎', text: 'eat a piece of fruit' },
-  { icon: '📵', text: 'put my phone face-down' },
+const FREQ_OPTIONS = [
+  { key: 'daily',    label: 'Daily',    desc: 'Every day'   },
+  { key: 'weekdays', label: 'Weekdays', desc: 'Mon – Fri'   },
+  { key: 'weekend',  label: 'Weekend',  desc: 'Sat – Sun'   },
+  { key: 'weekly',   label: 'Weekly',   desc: 'Each Sunday' },
+  { key: 'monthly',  label: 'Monthly',  desc: 'Last day of month'},
 ];
 
 const TIME_SUGGESTIONS = [
-  { icon: '🌅', label: 'Early morning', value: '06:00' },
-  { icon: '☀️', label: 'Morning',       value: '08:00' },
-  { icon: '🌤️', label: 'Midday',        value: '12:00' },
-  { icon: '🌇', label: 'Afternoon',     value: '15:00' },
-  { icon: '🌆', label: 'Evening',       value: '18:00' },
-  { icon: '🌙', label: 'Night',         value: '21:00' },
-];
-
-const LOCATION_SUGGESTIONS = [
-  '🛏️ Bedroom', '🍳 Kitchen', '🪴 Living room',
-  '🚿 Bathroom', '🏢 Office', '🏋️ Gym', '🌳 Outside',
+  { icon: '🌅', label: 'Early',   value: '06:00' },
+  { icon: '☀️', label: 'Morning', value: '08:00' },
+  { icon: '🌤️', label: 'Midday',  value: '12:00' },
+  { icon: '🌆', label: 'Evening', value: '18:00' },
+  { icon: '🌙', label: 'Night',   value: '21:00' },
 ];
 
 const IDENTITY_SUGGESTIONS = [
@@ -204,101 +185,90 @@ const IDENTITY_SUGGESTIONS = [
   { icon: '🧘', text: 'a calm and mindful person' },
   { icon: '💰', text: 'someone who saves money' },
   { icon: '✍️', text: 'a consistent writer' },
-  { icon: '🏃', text: 'a runner' },
-  { icon: '🥦', text: 'someone who eats well' },
-  { icon: '😴', text: 'someone who sleeps on time' },
   { icon: '🎯', text: 'a focused and disciplined person' },
-  { icon: '🌱', text: 'someone who grows every day' },
 ];
 
-const SentencePreview = ({ step, action, time, location, identity }) => {
-  const blank = (val, fallback) =>
-    val.trim()
-      ? <span className="ahw-sentence-filled">{val.trim()}</span>
-      : <span className="ahw-sentence-blank">{fallback}</span>;
+// Smart templates — one tap pre-fills habit + identity + sensible defaults
+const HABIT_TEMPLATES = [
+  { icon: '💧', label: 'Water',    action: 'drink 1 glass of water',  identity: 'a healthy and active person', difficulty: 'tiny',   duration: '2m',  time: '08:00' },
+  { icon: '💪', label: 'Exercise', action: 'do 10 push-ups',          identity: 'a strong person',             difficulty: 'easy',   duration: '5m',  time: '06:00' },
+  { icon: '📖', label: 'Read',     action: 'read 5 pages',            identity: 'someone who reads every day', difficulty: 'easy',   duration: '10m', time: '21:00' },
+  { icon: '🧘', label: 'Meditate', action: 'meditate for 2 minutes',  identity: 'a calm and mindful person',   difficulty: 'tiny',   duration: '2m',  time: '07:00' },
+  { icon: '✍️', label: 'Journal',  action: 'write 3 lines',           identity: 'a consistent writer',         difficulty: 'tiny',   duration: '5m',  time: '21:00' },
+  { icon: '🤖', label: 'Learn AI', action: 'study AI for 15 minutes', identity: 'an AI expert',                difficulty: 'medium', duration: '15m', time: '18:00' },
+  { icon: '👨‍👩‍👧', label: 'Family', action: 'call my family',         identity: 'present with loved ones',     difficulty: 'easy',   duration: '10m', time: '19:00' },
+  { icon: '💰', label: 'Save',     action: 'save ₹50',                identity: 'someone who saves money',      difficulty: 'tiny',   duration: '1m',  time: '09:00' },
+];
 
-  const cur = (key) => AHW_STEPS[step]?.key === key;
+const LOCATION_OPTIONS = [
+  '🛏️ Bedroom', '🍳 Kitchen', '🪴 Living room',
+  '🚿 Bathroom', '🏢 Office', '🏋️ Gym', '🌳 Outside',
+];
+const REWARD_OPTIONS = [
+  'enjoy a cup of coffee', 'check off my tracker', 'take a 5-min break',
+  'listen to a favourite song', 'have a healthy snack', 'relax guilt-free',
+];
 
-  return (
-    <div className="ahw-sentence">
-      <span className={`ahw-sentence-kw${cur('action') ? ' ahw-sentence-kw-active' : ''}`}>I will </span>
-      {blank(action, '___')}
-      {(step >= 1 || time) && (
-        <><span className={`ahw-sentence-kw${cur('time') ? ' ahw-sentence-kw-active' : ''}`}> at </span>{blank(time, '___')}</>
-      )}
-      {(step >= 2 || location) && (
-        <><span className={`ahw-sentence-kw${cur('location') ? ' ahw-sentence-kw-active' : ''}`}> in </span>{blank(location, '___')}</>
-      )}
-      {(step >= 3 || identity) && (
-        <><span className={`ahw-sentence-kw${cur('identity') ? ' ahw-sentence-kw-active' : ''}`}> so that I can become </span>{blank(identity, '___')}</>
-      )}
-    </div>
-  );
-};
+const DIFFICULTY_OPTIONS = [
+  { key: 'tiny', label: 'Tiny' }, { key: 'easy', label: 'Easy' },
+  { key: 'medium', label: 'Medium' }, { key: 'hard', label: 'Hard' },
+];
+const DURATION_OPTIONS = ['1m', '2m', '5m', '10m', '15m', '30m'];
+// 2-minute rule: difficulty suggests a default duration (until the user picks one)
+const DIFFICULTY_DURATION = { tiny: '2m', easy: '5m', medium: '15m', hard: '30m' };
 
 const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValues, isEdit }) => {
   // Strip saved prefixes so the wizard input shows just the bare value
   const stripPrefix = (str, prefix) =>
     str && str.startsWith(prefix) ? str.slice(prefix.length).trim() : (str || '');
 
-  const [step, setStep]               = useState(0);
+  const [step, setStep]               = useState(1); // 1 = Define (who/what), 2 = Shape (when/how)
   const [action, setAction]           = useState(() => stripPrefix(initialValues?.action, 'I will'));
+  const [frequency, setFrequency]     = useState(initialValues?.frequency || 'daily');
   const [time, setTime]               = useState(initialValues?.time || '');
   const [location, setLocation]       = useState(initialValues?.location || '');
   const [identity, setIdentity]       = useState(initialValues?.identity || '');
   const [trigger, setTrigger]         = useState(() => stripPrefix(initialValues?.trigger, 'After I'));
-  const [afterHabitId, setAfterHabitId] = useState(initialValues?.afterHabitId || '');
   const [reward, setReward]           = useState(initialValues?.reward || '');
+  const [difficulty, setDifficulty]   = useState(initialValues?.difficulty || 'tiny');
+  const [duration, setDuration]       = useState(initialValues?.duration || '2m');
+  const [durTouched, setDurTouched]   = useState(false);
+  const [showStack, setShowStack]     = useState(Boolean(initialValues?.trigger));
+  const [showLoc, setShowLoc]         = useState(Boolean(initialValues?.location));
+  const [showReward, setShowReward]   = useState(Boolean(initialValues?.reward));
   const [err, setErr]                 = useState('');
   const inputRef = useRef(null);
 
-  const cur = AHW_STEPS[step];
-  const total = AHW_STEPS.length;
-  const isLast = step === total - 1;
+  useEffect(() => { if (step === 1) setTimeout(() => inputRef.current?.focus(), 80); }, [step]);
 
-  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 60); }, [step]);
+  const diffLabel = (DIFFICULTY_OPTIONS.find(d => d.key === difficulty) || {}).label || 'Tiny';
+  const freqLabel = (FREQ_OPTIONS.find(f => f.key === frequency) || {}).label || 'Daily';
 
-  const getValue = () => {
-    if (cur.key === 'action')   return action;
-    if (cur.key === 'time')     return time;
-    if (cur.key === 'location') return location;
-    if (cur.key === 'identity') return identity;
-    if (cur.key === 'stack')    return trigger;
-    if (cur.key === 'reward')   return reward;
-    return '';
+  const applyTemplate = (t) => {
+    setAction(t.action); setIdentity(t.identity);
+    setDifficulty(t.difficulty); setDuration(t.duration); setTime(t.time);
+    setErr(''); setStep(2);
   };
 
-  const setValue = (val) => {
-    setErr('');
-    if (cur.key === 'action')   setAction(val);
-    else if (cur.key === 'time')     setTime(val);
-    else if (cur.key === 'location') setLocation(val);
-    else if (cur.key === 'identity') setIdentity(val);
-    else if (cur.key === 'stack')    setTrigger(val);
-    else if (cur.key === 'reward')   setReward(val);
+  const pickDifficulty = (key) => {
+    setDifficulty(key);
+    if (!durTouched) setDuration(DIFFICULTY_DURATION[key] || '2m');
   };
 
-  const handleNext = () => {
-    if (cur.required && !getValue().trim()) {
-      setErr('Please fill this in to continue.');
-      return;
-    }
-    if (!isLast) { setStep(s => s + 1); return; }
+  const goNext = () => {
+    if (!action.trim()) { setErr('Add what you will do to continue.'); return; }
+    setStep(2);
+  };
+
+  const submit = () => {
+    if (!action.trim()) { setStep(1); setErr('Add what you will do to continue.'); return; }
     onSave({
-      action: `I will ${action.trim()}`,
-      time, location, identity,
-      trigger: trigger.trim() ? `After I ${trigger.trim()}` : '',
-      reward,
+      action: `I will ${action.trim().replace(/^I will\s+/i, '')}`,
+      frequency, time, location, identity,
+      trigger: trigger.trim() ? `After I ${trigger.trim().replace(/^After I\s+/i, '')}` : '',
+      reward, difficulty, duration,
     });
   };
-
-  const handleBack = () => {
-    if (step === 0) { onClose(); return; }
-    setErr('');
-    setStep(s => s - 1);
-  };
-
-  const showSentence = step >= 1 && step <= 3;
 
   return (
     <div className="ahw-overlay" onClick={onClose}>
@@ -307,156 +277,221 @@ const AddHabitWizard = ({ habits, onSave, onClose, onDelete, saving, initialValu
         <div className="ahw-header">
           <button className="ahw-close" onClick={onClose}>✕</button>
           <div className="ahw-dots">
-            {AHW_STEPS.map((_, i) => (
+            {[1, 2].map(i => (
               <div key={i} className={`ahw-dot${i === step ? ' ahw-dot-active' : ''}${i < step ? ' ahw-dot-done' : ''}`}
-                style={i === step ? { background: cur.color } : i < step ? { background: cur.color + '70' } : {}} />
+                style={i === step ? { background: '#6D5DF6' } : i < step ? { background: '#6D5DF670' } : {}} />
             ))}
           </div>
-          <div className="ahw-step-num">{step + 1}/{total}</div>
+          {isEdit
+            ? <button className="ahw-hdr-delete" onClick={onDelete}>🗑</button>
+            : <div className="ahw-step-num">{step}/2</div>
+          }
         </div>
 
         {/* Progress bar */}
         <div className="ahw-bar-track">
-          <div className="ahw-bar-fill" style={{ width: `${((step + 1) / total) * 100}%`, background: cur.color }} />
+          <div className="ahw-bar-fill" style={{ width: `${step * 50}%`, background: '#6D5DF6' }} />
+        </div>
+
+        {/* Persistent live preview */}
+        <div className="ahw2-preview">
+          <div className="ahw2-preview-lbl">Live preview</div>
+          <div className="ahw2-preview-sentence">
+            {trigger.trim() && <>After <b>{trigger.trim()}</b>, </>}
+            I will <b>{action.trim() || '…'}</b>
+          </div>
+          <div className="ahw2-preview-id">→ to become <b>{identity.trim() || '…'}</b></div>
+          <div className="ahw2-preview-meta">
+            <span className="ahw2-mchip">🔥 {diffLabel}</span>
+            <span className="ahw2-mchip">⏱ {duration}</span>
+            {time && <span className="ahw2-mchip">⏰ {time}</span>}
+            <span className="ahw2-mchip">🔁 {freqLabel}</span>
+          </div>
         </div>
 
         {/* Body */}
-        <div className="ahw-body">
-          {/* Sentence preview for the core 4 steps */}
-          {showSentence && (
-            <SentencePreview
-              step={step}
-              action={action} time={time} location={location} identity={identity}
-            />
-          )}
+        <div className="ahw-body ahw2-body">
+          {step === 1 ? (
+            <>
+              {!isEdit && (
+                <>
+                  <div className="ahw2-lbl">Quick start</div>
+                  <div className="ahw2-tpl-grid">
+                    {HABIT_TEMPLATES.map(t => (
+                      <button key={t.label} className="ahw2-tpl" onClick={() => applyTemplate(t)}>
+                        <span className="ahw2-tpl-ic">{t.icon}</span>
+                        <span className="ahw2-tpl-lbl">{t.label}</span>
+                      </button>
+                    ))}
+                    <button
+                      className="ahw2-tpl ahw2-tpl-custom"
+                      onClick={() => { setAction(''); setErr(''); inputRef.current?.focus(); inputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }}
+                    >
+                      <span className="ahw2-tpl-ic">➕</span>
+                      <span className="ahw2-tpl-lbl">Your own</span>
+                    </button>
+                  </div>
+                  <div className="ahw2-or"><span>or build your own</span></div>
+                </>
+              )}
 
-          {/* Prompt label — hidden on step 0 since "I will" lives in the prefixed input */}
-          {cur.key !== 'action' && (
-            <div className="ahw-prompt-label" style={{ color: cur.color }}>
-              {step === 4 ? 'Stack after a habit' : step === 5 ? 'Add a reward' : cur.label}
-            </div>
-          )}
+              <div className="ahw2-lbl">I will…</div>
+              <div className={`ahw-prefixed-wrap${err ? ' ahw-input-err' : ''}`}>
+                <span className="ahw-prefix" style={{ color: '#6D5DF6' }}>I will</span>
+                <input
+                  ref={inputRef}
+                  className="ahw-prefixed-input"
+                  placeholder="do 10 push-ups…"
+                  value={action}
+                  onChange={e => { setAction(e.target.value); setErr(''); }}
+                  onKeyDown={e => e.key === 'Enter' && goNext()}
+                />
+              </div>
 
-          {/* Input */}
-          {cur.key === 'stack' ? (
-            <div className={`ahw-prefixed-wrap${err ? ' ahw-input-err' : ''}`}>
-              <span className="ahw-prefix" style={{ color: cur.color }}>After I</span>
+              <div className="ahw2-lbl" style={{ marginTop: 16 }}>To become…</div>
+              <div className="ahw2-chips">
+                {IDENTITY_SUGGESTIONS.map(s => (
+                  <button key={s.text} className={`ahw2-chip${identity === s.text ? ' on' : ''}`}
+                    onClick={() => setIdentity(s.text)}>{s.icon} {s.text}</button>
+                ))}
+              </div>
               <input
-                ref={inputRef}
-                className="ahw-prefixed-input"
-                placeholder="wake up…"
-                value={trigger}
-                onChange={e => { setTrigger(e.target.value); setErr(''); }}
-                onKeyDown={e => e.key === 'Enter' && handleNext()}
+                className="ahw-input"
+                style={{ marginTop: 8 }}
+                placeholder="…or write your own identity"
+                value={identity}
+                onChange={e => setIdentity(e.target.value)}
               />
-            </div>
-          ) : cur.key === 'action' ? (
-            <div className={`ahw-prefixed-wrap${err ? ' ahw-input-err' : ''}`}>
-              <span className="ahw-prefix" style={{ color: cur.color }}>I will</span>
-              <input
-                ref={inputRef}
-                className="ahw-prefixed-input"
-                placeholder="do 10 push-ups…"
-                value={action}
-                onChange={e => { setAction(e.target.value); setErr(''); }}
-                onKeyDown={e => e.key === 'Enter' && handleNext()}
-              />
-            </div>
-          ) : cur.key === 'time' ? (
-            <input
-              ref={inputRef}
-              type="time"
-              className={`ahw-input ahw-input-time${err ? ' ahw-input-err' : ''}`}
-              value={time}
-              onChange={e => { setTime(e.target.value); setErr(''); }}
-            />
+
+              {err && <div className="ahw-err-msg">{err}</div>}
+            </>
           ) : (
-            <input
-              ref={inputRef}
-              className={`ahw-input${err ? ' ahw-input-err' : ''}`}
-              placeholder={cur.placeholder}
-              value={getValue()}
-              onChange={e => setValue(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleNext()}
-            />
-          )}
+            <>
+              <div className="ahw2-lbl">Difficulty</div>
+              <div className="ahw2-seg">
+                {DIFFICULTY_OPTIONS.map(d => (
+                  <button key={d.key} className={difficulty === d.key ? 'on' : ''}
+                    onClick={() => pickDifficulty(d.key)}>{d.label}</button>
+                ))}
+              </div>
 
-          {/* Action suggestions */}
-          {cur.key === 'action' && (
-            <div className="ahw-suggestions">
-              {ACTION_SUGGESTIONS.map(s => (
-                <button key={s.text} className={`ahw-sug-chip${action === s.text ? ' ahw-sug-active' : ''}`}
-                  onClick={() => { setAction(s.text); setErr(''); inputRef.current?.focus(); }}>
-                  {s.icon} {s.text}
-                </button>
-              ))}
-            </div>
-          )}
+              <div className="ahw2-lbl" style={{ marginTop: 16 }}>Duration</div>
+              <div className="ahw2-chips">
+                {DURATION_OPTIONS.map(v => (
+                  <button key={v} className={`ahw2-chip${duration === v ? ' on' : ''}`}
+                    onClick={() => { setDuration(v); setDurTouched(true); }}>{v}</button>
+                ))}
+              </div>
 
-          {/* Time suggestions */}
-          {cur.key === 'time' && (
-            <div className="ahw-suggestions ahw-suggestions-time">
-              {TIME_SUGGESTIONS.map(s => (
-                <button key={s.value} className={`ahw-sug-chip ahw-sug-time${time === s.value ? ' ahw-sug-active' : ''}`}
-                  onClick={() => { setTime(s.value); setErr(''); }}>
-                  <span className="ahw-sug-time-icon">{s.icon}</span>
-                  <span className="ahw-sug-time-label">{s.label}</span>
-                  <span className="ahw-sug-time-val">{s.value}</span>
-                </button>
-              ))}
-            </div>
-          )}
+              <div className="ahw2-lbl" style={{ marginTop: 16 }}>How often</div>
+              <div className="ahw2-chips">
+                {FREQ_OPTIONS.map(f => (
+                  <button key={f.key} className={`ahw2-chip${frequency === f.key ? ' on' : ''}`}
+                    onClick={() => setFrequency(f.key)}>{f.label}</button>
+                ))}
+              </div>
 
-          {/* Location suggestions */}
-          {cur.key === 'location' && (
-            <div className="ahw-suggestions">
-              {LOCATION_SUGGESTIONS.map(s => {
-                const val = s.replace(/^.{2}/, '').trim();
-                return (
-                  <button key={s} className={`ahw-sug-chip${location === val ? ' ahw-sug-active' : ''}`}
-                    onClick={() => { setLocation(val); setErr(''); }}>
-                    {s}
+              <div className="ahw2-lbl" style={{ marginTop: 16 }}>When</div>
+              <div className="ahw2-chips">
+                {TIME_SUGGESTIONS.map(s => (
+                  <button key={s.value} className={`ahw2-chip${time === s.value ? ' on' : ''}`}
+                    onClick={() => setTime(s.value)}>{s.icon} {s.value}</button>
+                ))}
+                <input type="time" className="ahw2-time-input" value={time}
+                  onChange={e => setTime(e.target.value)} aria-label="Custom time" />
+              </div>
+
+              {/* Optional fields — collapsed by default */}
+              <div className="ahw2-optionals">
+                {showStack ? (
+                  <div className="ahw-stack-wrap">
+                    {habits.length > 0 && (
+                      <select
+                        className="ahw-stack-select"
+                        value={habits.some(h => h.action.replace(/^I will\s+/i, '') === trigger) ? trigger : ''}
+                        onChange={e => { if (e.target.value) setTrigger(e.target.value); }}
+                      >
+                        <option value="">Pick an existing habit…</option>
+                        {habits.map(h => {
+                          const bare = h.action.replace(/^I will\s+/i, '');
+                          return <option key={h.id} value={bare}>{bare}</option>;
+                        })}
+                      </select>
+                    )}
+                    <div className="ahw-stack-label">{habits.length > 0 ? 'Or type a custom cue' : 'Type a cue'}</div>
+                    <div className="ahw-prefixed-wrap">
+                      <span className="ahw-prefix" style={{ color: '#0EA5E9' }}>After I</span>
+                      <input className="ahw-prefixed-input" placeholder="wake up…"
+                        value={trigger} onChange={e => setTrigger(e.target.value)} />
+                    </div>
+                  </div>
+                ) : (
+                  <button className="ahw2-opt-toggle" onClick={() => setShowStack(true)}>
+                    🔗 Stack after a habit <span>optional</span>
                   </button>
-                );
-              })}
-            </div>
-          )}
+                )}
 
-          {/* Identity suggestions */}
-          {cur.key === 'identity' && (
-            <div className="ahw-suggestions">
-              {IDENTITY_SUGGESTIONS.map(s => (
-                <button key={s.text} className={`ahw-sug-chip${identity === s.text ? ' ahw-sug-active' : ''}`}
-                  onClick={() => { setIdentity(s.text); setErr(''); }}>
-                  {s.icon} {s.text}
-                </button>
-              ))}
-            </div>
-          )}
+                {showLoc ? (
+                  <div className="ahw-stack-wrap">
+                    <select
+                      className="ahw-stack-select"
+                      value={LOCATION_OPTIONS.some(o => o.replace(/^\S+\s/, '') === location) ? location : ''}
+                      onChange={e => { if (e.target.value) setLocation(e.target.value); }}
+                    >
+                      <option value="">📍 Pick a place…</option>
+                      {LOCATION_OPTIONS.map(o => {
+                        const val = o.replace(/^\S+\s/, '');
+                        return <option key={o} value={val}>{o}</option>;
+                      })}
+                    </select>
+                    <div className="ahw-stack-label">Or type a custom place</div>
+                    <input className="ahw-input ahw2-opt-input" placeholder="e.g. the balcony"
+                      value={location} onChange={e => setLocation(e.target.value)} />
+                  </div>
+                ) : (
+                  <button className="ahw2-opt-toggle" onClick={() => setShowLoc(true)}>
+                    📍 Add location <span>optional</span>
+                  </button>
+                )}
 
-          {err && <div className="ahw-err-msg">{err}</div>}
-
-          {/* Skip hint for optional steps */}
-          {!cur.required && (
-            <button className="ahw-skip" onClick={() => { setValue(''); handleNext(); }}>
-              Skip for now
-            </button>
+                {showReward ? (
+                  <div className="ahw-stack-wrap">
+                    <select
+                      className="ahw-stack-select"
+                      value={REWARD_OPTIONS.includes(reward) ? reward : ''}
+                      onChange={e => { if (e.target.value) setReward(e.target.value); }}
+                    >
+                      <option value="">🎁 Pick a reward…</option>
+                      {REWARD_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <div className="ahw-stack-label">Or type a custom reward</div>
+                    <input className="ahw-input ahw2-opt-input" placeholder="Afterwards I will…"
+                      value={reward} onChange={e => setReward(e.target.value)} />
+                  </div>
+                ) : (
+                  <button className="ahw2-opt-toggle" onClick={() => setShowReward(true)}>
+                    🎁 Add reward <span>optional</span>
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
 
         {/* Footer */}
         <div className="ahw-footer">
-          {isEdit && isLast ? (
-            <button className="ahw-btn-delete" onClick={onDelete}>Delete</button>
-          ) : (
-            <button className="ahw-btn-back" onClick={handleBack}>
-              {step === 0 ? 'Cancel' : '← Back'}
-            </button>
-          )}
-          <button className="ahw-btn-next" style={{ background: cur.color }} onClick={handleNext} disabled={saving}>
-            {isLast
-              ? (saving ? 'Saving…' : isEdit ? 'Save changes ✓' : 'Add habit ✓')
-              : 'Continue →'}
+          <button className="ahw-btn-back" onClick={() => step === 1 ? onClose() : setStep(1)}>
+            {step === 1 ? 'Cancel' : '← Back'}
+          </button>
+          <button
+            className="ahw-btn-next"
+            style={{ background: step === 1 ? '#6D5DF6' : '#22C55E' }}
+            onClick={() => step === 1 ? goNext() : submit()}
+            disabled={saving}
+          >
+            {step === 1
+              ? 'Continue →'
+              : (saving ? 'Saving…' : isEdit ? 'Save changes ✓' : 'Add habit ✓')}
           </button>
         </div>
       </div>
@@ -538,11 +573,7 @@ const Dashboard = ({ user, onSignOut }) => {
   const completions = habitData.completions?.[currentDateStr] || [];
   const missed = habitData.missed?.[currentDateStr] || [];
 
-  const scheduledHabits = habitData.habits.filter((h) => {
-    if (!h.startDate) return true;
-    const [y, m, d] = h.startDate.split('-').map(Number);
-    return currentDate >= new Date(y, m - 1, d);
-  });
+  const scheduledHabits = habitData.habits.filter(h => isHabitScheduledOn(h, currentDate));
 
   const byTime = (a, b) => (timeToMins(a.time) ?? 9999) - (timeToMins(b.time) ?? 9999);
   const incomplete = scheduledHabits.filter((h) => !completions.includes(h.id) && !missed.includes(h.id)).sort(byTime);
@@ -581,9 +612,12 @@ const Dashboard = ({ user, onSignOut }) => {
     const todayDone = (habitData.completions?.[todayStr] || []).includes(id);
     if (!todayDone) check.setDate(check.getDate() - 1);
     while (check >= startDate) {
-      const ds = localDateStr(check);
-      if ((habitData.completions?.[ds] || []).includes(id)) { streak++; check.setDate(check.getDate() - 1); }
-      else break;
+      if (isHabitScheduledOn(habit, check)) {
+        const ds = localDateStr(check);
+        if ((habitData.completions?.[ds] || []).includes(id)) { streak++; }
+        else break; // missed a scheduled day — streak over
+      }
+      check.setDate(check.getDate() - 1);
     }
     return streak;
   }, [habitData]);
@@ -598,9 +632,11 @@ const Dashboard = ({ user, onSignOut }) => {
     let max = 0, cur = 0;
     const d = new Date(startDate);
     while (d <= today) {
-      const ds = localDateStr(d);
-      if ((habitData.completions?.[ds] || []).includes(id)) { cur++; max = Math.max(max, cur); }
-      else cur = 0;
+      if (isHabitScheduledOn(habit, d)) {
+        const ds = localDateStr(d);
+        if ((habitData.completions?.[ds] || []).includes(id)) { cur++; max = Math.max(max, cur); }
+        else cur = 0;
+      }
       d.setDate(d.getDate() + 1);
     }
     return max;
@@ -714,45 +750,173 @@ const Dashboard = ({ user, onSignOut }) => {
   const displayName = user?.displayName?.split(' ')[0] || 'there';
   const greeting = getGreeting(istNow.minutes);
 
-  // Extracted habit card renderer (used for both standalone and stack items)
+  // Week grid helper — Mon to Sun of the week containing currentDate
+  const getWeekGrid = (habit) => {
+    const dow = currentDate.getDay();
+    const monday = new Date(currentDate);
+    monday.setDate(currentDate.getDate() - (dow === 0 ? 6 : dow - 1));
+    monday.setHours(0, 0, 0, 0);
+    const todayStr = formatDate(new Date());
+    return ['M','T','W','T','F','S','S'].map((lbl, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const ds = formatDate(d);
+      const scheduled = isHabitScheduledOn(habit, d);
+      return {
+        lbl,
+        ds,
+        isToday: ds === todayStr,
+        isFuture: d > new Date(new Date().setHours(23, 59, 59)),
+        isScheduled: scheduled,
+        isDone: scheduled && (habitData.completions[ds] || []).includes(habit.id),
+        isMissedDay: scheduled && (habitData.missed[ds] || []).includes(habit.id),
+      };
+    });
+  };
+
+  const FREQ_LABELS = { daily: 'Daily', weekdays: 'Weekdays', weekend: 'Weekend', weekly: 'Weekly', monthly: 'Monthly' };
+
+  // Pick a contextual emoji for the habit hero from its wording
+  const HABIT_EMOJI = [
+    [/water|drink|hydrat/i, '💧'], [/walk|run|jog|step|cardio/i, '🏃'],
+    [/gym|workout|exercise|push|train|lift|strength/i, '💪'], [/read|book/i, '📖'],
+    [/meditat|breath|mindful|calm/i, '🧘'], [/sleep|bed|wake|rest/i, '😴'],
+    [/journal|write|diary|note/i, '📝'], [/study|learn|class|course/i, '📚'],
+    [/eat|meal|food|fruit|veg|diet|healthy/i, '🥗'], [/code|program|leetcode|build/i, '💻'],
+    [/money|save|budget|invest|finance/i, '💰'], [/clean|tidy|chore|dish/i, '🧹'],
+    [/pray|gratitude|thank|grateful/i, '🙏'], [/teeth|brush|floss/i, '🪥'],
+    [/stretch|yoga|mobility/i, '🤸'], [/water plant|garden|plant/i, '🌱'],
+  ];
+  const pickHabitEmoji = (text = '') => {
+    for (const [re, emo] of HABIT_EMOJI) if (re.test(text)) return emo;
+    return '🎯';
+  };
+
+  // Extracted habit card renderer
   const renderHabitCard = (h, accentColor) => {
-    const atRisk = isAtRisk(h);
-    const streak = getCurrentStreak(h.id);
+    const isDone    = completions.includes(h.id);
+    const isMissed  = missed.includes(h.id);
+    const streak    = getCurrentStreak(h.id);
+    const freqLabel = FREQ_LABELS[h.frequency || 'daily'];
+    const weekGrid  = getWeekGrid(h);
+
+    // Motivation stats
+    const month       = getMonthCompletions(h.id);
+    const successRate = month.total ? Math.round((month.completed / month.total) * 100) : 0;
+    // A new habit has too little history for a fair rate — encourage, don't shame
+    const rateLabel   = month.total >= 3 ? `${successRate}%` : 'New';
+    const weekDone    = weekGrid.filter(d => d.isDone).length;
+    const heroEmoji   = pickHabitEmoji(`${h.action} ${h.trigger || ''}`);
+    const identityText = h.identity ? `I am ${h.identity.replace(/^I am\s+/i, '')}` : freqLabel;
+
+    // Single streak state — no class conflicts
+    const streakText = isMissed
+      ? (streak > 0 ? '💔 streak broken' : 'missed today')
+      : streak > 0
+        ? `🔥 ${streak} day streak`
+        : 'Start today';
+    const streakCls  = isMissed ? 'broken' : streak > 0 ? 'active' : '';
+
     return (
       <div
         key={h.id}
-        className={`db-habit-row db-habit-v2${atRisk ? ' at-risk' : ''}`}
-        style={{ '--accent': accentColor }}
+        className={`db-hc db-hc2${isDone ? ' db-hc--done' : ''}${isMissed ? ' db-hc--missed' : ''}`}
       >
-        {h.trigger && <div className="db-habit-cue-pill">{h.trigger}</div>}
-        <div className="db-habit-main">
-          <button className="db-habit-check-v2" onClick={() => toggleCompletion(h.id)} aria-label="Mark done">✓</button>
-          <div className="db-habit-content">
-            <div className="db-habit-title-row">
-              <span className="db-habit-name-v2">{h.action}</span>
-              {streak > 0 && (
-                <span className={`db-streak-badge${atRisk ? ' at-risk-badge' : ''}`}>🔥 {streak}</span>
-              )}
-            </div>
-            {(h.time || h.location) && (
-              <div className="db-habit-meta-v2 db-habit-time-loc">
-                {h.time && <span className="db-habit-meta-pill">🕐 {h.time}</span>}
-                {h.location && <span className="db-habit-meta-pill">📍 {h.location}</span>}
-              </div>
-            )}
-            {h.identity && <div className="db-habit-identity-v2">{h.identity}</div>}
+        {/* Identity band — who am I */}
+        <div className="hcx-identity">
+          <span className="hcx-identity-ic" aria-hidden="true">🌱</span>
+          <div className="hcx-identity-txt">
+            <span className="hcx-identity-lbl">Identity</span>
+            <span className="hcx-identity-stmt">{identityText}</span>
+          </div>
+          <button
+            className="hcx-edit"
+            onClick={e => { e.stopPropagation(); openEditHabit(h); }}
+            aria-label={`Edit "${h.action}"`}
+          >✎</button>
+        </div>
+
+        {/* Hero — what should I do */}
+        <div className="hcx-hero">
+          <span className="hcx-hero-ic" aria-hidden="true">{heroEmoji}</span>
+          <p className="hcx-hero-title">{h.action}</p>
+          <span className={`hcx-streak${streakCls ? ` ${streakCls}` : ''}`}>{streakText}</span>
+        </div>
+
+        {/* Meta chips — when / how */}
+        <div className="hcx-chips">
+          {h.trigger && <span className="hcx-chip hcx-chip--trigger">☀️ {h.trigger}</span>}
+          {h.time && <span className="hcx-chip">⏰ {h.time}</span>}
+          {h.duration && <span className="hcx-chip">⏱ {h.duration}</span>}
+          <span className="hcx-chip">🔁 {freqLabel}</span>
+        </div>
+
+        {/* Motivation */}
+        <div className="hcx-stats">
+          <div className="hcx-stat">
+            <span className="hcx-stat-lbl">Success rate</span>
+            <span className="hcx-stat-val">{rateLabel}</span>
+          </div>
+          <div className="hcx-stat">
+            <span className="hcx-stat-lbl">This month</span>
+            <span className="hcx-stat-val">{month.completed} / {month.total || 0}</span>
           </div>
         </div>
-        {h.reward && (
-          <div className="db-habit-reward-strip">
-            <span className="db-reward-icon">🎁</span>
-            <span>{h.reward}</span>
-          </div>
-        )}
-        <div className="db-habit-footer-strip">
-          <button className="db-hfs-btn db-hfs-edit" onClick={() => openEditHabit(h)}>✎ Edit</button>
-          <div className="db-hfs-divider" />
-          <button className="db-hfs-btn db-hfs-skip" onClick={() => toggleMissed(h.id)}>✗ Skip</button>
+
+        {/* Weekly progress */}
+        <div className="hcx-week-head">
+          <span className="hcx-week-lbl">This week</span>
+          <span className="hcx-week-count">{weekDone} of 7 days</span>
+        </div>
+        <div className="db-hc-days hcx-days" role="list" aria-label="This week">
+          {weekGrid.map((day, i) => {
+            const dotCls = [
+              'db-hc-dot',
+              !day.isScheduled                                          ? 'off'    : '',
+              day.isScheduled && day.isDone                             ? 'done'   : '',
+              day.isScheduled && day.isMissedDay && !day.isDone         ? 'missed' : '',
+              day.isScheduled && day.isToday && !day.isDone && !day.isMissedDay ? 'today' : '',
+              day.isScheduled && day.isFuture                           ? 'future' : '',
+            ].filter(Boolean).join(' ');
+            return (
+              <div key={i} className="db-hc-day" role="listitem">
+                <div className={dotCls} aria-hidden="true" />
+                <span className={`db-hc-day-lbl${day.isToday ? ' today' : ''}`}>{day.lbl}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Did I complete it */}
+        <div className="hcx-actions">
+          {!isDone && !isMissed && (
+            <>
+              <button
+                className="hcx-complete"
+                onClick={() => toggleCompletion(h.id)}
+                aria-label={`Mark "${h.action}" complete`}
+              >✓ Complete habit</button>
+              <button
+                className="hcx-skip"
+                onClick={() => toggleMissed(h.id)}
+                aria-label={`Skip "${h.action}" today`}
+              >Skip</button>
+            </>
+          )}
+          {isDone && (
+            <button
+              className="hcx-complete is-done"
+              onClick={() => toggleCompletion(h.id)}
+              aria-label={`Unmark "${h.action}"`}
+            >✓ Completed today</button>
+          )}
+          {isMissed && (
+            <button
+              className="hcx-undo"
+              onClick={() => revertToIncomplete(h.id)}
+              aria-label={`Undo skip for "${h.action}"`}
+            >Skipped today · Undo</button>
+          )}
         </div>
       </div>
     );
@@ -923,24 +1087,6 @@ const Dashboard = ({ user, onSignOut }) => {
               <button className="db-day-arrow" onClick={() => setDayOffset((p) => p + 1)}>›</button>
             </div>
 
-            {/* Up Next */}
-            {nextHabit && isToday && (
-              <div className="db-section">
-                <div className="db-section-hd">
-                  <span className="db-section-title">Up next</span>
-                  <span className="db-section-time">{istNow.time} IST</span>
-                </div>
-                <div className="db-next-card">
-                  <div className="db-next-icon">⚡</div>
-                  <div className="db-next-body">
-                    <div className="db-next-kicker">Next habit</div>
-                    <div className="db-next-title">{nextHabit.action}</div>
-                    <div className="db-next-time">{nextTimeTxt}{nextHabit.trigger ? ` · ${nextHabit.trigger}` : ''}</div>
-                  </div>
-                  <button className="db-next-check" onClick={() => toggleCompletion(nextHabit.id)} aria-label="Mark as done">✓</button>
-                </div>
-              </div>
-            )}
 
             {/* IST bell row */}
             <div className="db-ist-row">
@@ -1145,17 +1291,20 @@ const Dashboard = ({ user, onSignOut }) => {
           saving={savingHabit}
           onClose={() => setEditingHabit(null)}
           onDelete={() => { deleteHabit(editingHabit.id); setEditingHabit(null); }}
-          onSave={async ({ action, time, location, identity, trigger, reward }) => {
+          onSave={async ({ action, frequency, time, location, identity, trigger, reward, difficulty, duration }) => {
             if (!action.trim()) return;
             setSavingHabit(true);
             try {
               const updated = {
                 ...editingHabit,
-                action: `I will ${action.trim()}`,
+                action: `I will ${action.trim().replace(/^I will\s+/i, '')}`,
+                frequency: frequency || 'daily',
                 time, location,
                 identity: identity.trim(),
-                trigger: trigger.trim() ? `After I ${trigger.trim()}` : '',
+                trigger: trigger.trim() ? `After I ${trigger.trim().replace(/^After I\s+/i, '')}` : '',
                 reward: reward.trim(),
+                difficulty: difficulty || 'tiny',
+                duration: duration || '2m',
               };
               const next = { ...habitData, habits: habitData.habits.map(h => h.id === editingHabit.id ? updated : h) };
               setHabitData(next);
@@ -1174,7 +1323,7 @@ const Dashboard = ({ user, onSignOut }) => {
           habits={habitData.habits}
           saving={savingHabit}
           onClose={() => setShowAddHabit(false)}
-          onSave={async ({ action, time, location, identity, trigger, reward }) => {
+          onSave={async ({ action, frequency, time, location, identity, trigger, reward, difficulty, duration }) => {
             if (!action.trim()) return;
             setSavingHabit(true);
             try {
@@ -1182,11 +1331,14 @@ const Dashboard = ({ user, onSignOut }) => {
               const newHabit = {
                 id: `habit_${Date.now()}`,
                 action: action.trim(),
+                frequency: frequency || 'daily',
                 time: time.trim(),
                 location: location.trim(),
                 identity: identity.trim(),
                 trigger: trigger.trim(),
                 reward: reward.trim(),
+                difficulty: difficulty || 'tiny',
+                duration: duration || '2m',
                 startDate: today,
               };
               const next = { ...habitData, habits: [...habitData.habits, newHabit] };

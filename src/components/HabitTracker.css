@@ -643,6 +643,218 @@
   color: #DC2626;
 }
 
+/* ===== Simple Habit Card ===== */
+.habit-simple-card {
+  background: #FFFFFF;
+  border: 1px solid #E5E3F7;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.habit-simple-card.menu-open {
+  overflow: visible;
+}
+
+.habit-simple-card:active {
+  transform: scale(0.985);
+}
+
+/* Main clickable area */
+.habit-simple-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 14px 14px;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Check circle */
+.habit-simple-check {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  border: 1.5px solid #C4B5FD;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: transparent;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.2s ease;
+}
+
+.habit-simple-check--done {
+  background: #1D9E75;
+  border-color: #1D9E75;
+  color: #FFFFFF;
+}
+
+.habit-simple-check--missed {
+  background: #E24B4A;
+  border-color: #E24B4A;
+  color: #FFFFFF;
+}
+
+/* Content */
+.habit-simple-content {
+  flex: 1;
+  min-width: 0;
+  padding-right: 28px;
+}
+
+/* Trigger badge */
+.habit-simple-trigger {
+  display: inline-block;
+  background: #EEEDFE;
+  border: 0.5px solid #AFA9EC;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #534AB7;
+  margin-bottom: 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.habit-simple-action {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2D2A3D;
+  margin: 0 0 3px;
+  line-height: 1.35;
+}
+
+.habit-simple-subtitle {
+  font-size: 12px;
+  color: #9CA3AF;
+  margin: 0;
+}
+
+/* Completed state overrides */
+.habit-simple-card--done .habit-simple-action {
+  color: #0F6E56;
+}
+.habit-simple-card--done .habit-simple-trigger {
+  background: #E1F5EE;
+  border-color: #9FE1CB;
+  color: #085041;
+}
+
+/* Missed state overrides */
+.habit-simple-card--missed {
+  opacity: 0.8;
+}
+.habit-simple-card--missed .habit-simple-action {
+  color: #A32D2D;
+  text-decoration: line-through;
+}
+.habit-simple-card--missed .habit-simple-trigger {
+  background: #FCEBEB;
+  border-color: #F09595;
+  color: #A32D2D;
+}
+
+/* Menu button */
+.habit-simple-menu-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #9CA3AF;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.habit-simple-menu-btn:active {
+  background: #F3F4F6;
+}
+
+/* Footer */
+.habit-simple-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid #F3F0FF;
+  background: #FAFAFA;
+}
+
+.habit-simple-card--done .habit-simple-footer {
+  background: #F0FDF9;
+  border-top-color: #C6F1E3;
+}
+
+.habit-simple-card--missed .habit-simple-footer {
+  background: #FFF5F5;
+  border-top-color: #FECACA;
+}
+
+.habit-simple-streak {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #6B7280;
+}
+
+.habit-simple-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.habit-simple-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0F6E56;
+}
+
+.habit-simple-miss-btn,
+.habit-simple-undo-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9CA3AF;
+  background: none;
+  border: 0.5px solid #D1D5DB;
+  border-radius: 20px;
+  padding: 3px 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.habit-simple-miss-btn:active {
+  background: #FEF2F2;
+  color: #E24B4A;
+  border-color: #F09595;
+}
+
+.habit-simple-undo-btn {
+  color: #534AB7;
+  border-color: #AFA9EC;
+}
+
+.habit-simple-undo-btn:active {
+  background: #EEEDFE;
+}
+
+/* Habit card (.db-hc-*) styles live in Dashboard.css — single source of truth. */
+
 /* Habit List */
 .habit-list {
   padding: 12px 16px;
